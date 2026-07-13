@@ -1,0 +1,165 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Key-value store: passphrase hash, session secret, currency, locale,
+// default commission % per platform, active vehicle id, etc.
+model Setting {
+  key   String @id
+  value String
+}
+
+model Vehicle {
+  id                 String   @id @default(cuid())
+  name               String
+  make               String?
+  model              String?
+  year               Int?
+  plate              String?
+  // PETROL | CNG | DUAL — DUAL unlocks per-fuel tracking (common in Egypt)
+  fuelSetup          String   @default("PETROL")
+  // OWNED | INSTALLMENT | RENTED | TARGET — drives the cost model
+  ownership          String   @default("OWNED")
+  purchasePrice      Float?
+  estimatedValue     Float?
+  monthlyInstallment Float?
+  dailyRentalFee     Float?
+  targetOwnerShare   Float? // % of revenue owed to the car owner (TARGET model)
+  depreciationPerKm  Float? // manual EGP/km override; 0/null = ignore
+  initialOdometer    Float    @default(0)
+  notes              String?
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+
+  shifts       Shift[]
+  trips        Trip[]
+  fuelUps      FuelUp[]
+  maintenances Maintenance[]
+  expenses     Expense[]
+  reminders    Reminder[]
+  cashTips     CashTip[]
+}
+
+// A driving shift: odometer start→end. Km inside a shift is ride-hailing
+// driving; km between shifts (odometer gaps) is personal driving.
+model Shift {
+  id            String    @id @default(cuid())
+  vehicleId     String
+  vehicle       Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  startTime     DateTime
+  endTime       DateTime?
+  startOdometer Float
+  endOdometer   Float?
+  startPhoto    String? // uploaded screenshot/odometer photo filename
+  endPhoto      String?
+  notes         String?
+  createdAt     DateTime  @default(now())
+
+  trips    Trip[]
+  cashTips CashTip[]
+}
+
+// One ride-hailing trip. Manual entry, CSV import, or (later) API.
+model Trip {
+  id            String    @id @default(cuid())
+  vehicleId     String
+  vehicle       Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  shiftId       String?
+  shift         Shift?    @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+  platform      String    @default("UBER") // UBER | CAREEM | INDRIVE | BOLT | OTHER
+  startTime     DateTime
+  endTime       DateTime?
+  distanceKm    Float?
+  fare          Float // gross fare shown to rider
+  commission    Float? // platform commission amount; null = use platform default %
+  paymentType   String    @default("CASH") // CASH | CARD
+  tip           Float     @default(0) // cash tip received on this trip
+  source        String    @default("MANUAL") // MANUAL | CSV | API
+  notes         String?
+  createdAt     DateTime  @default(now())
+}
+
+// Standalone cash tip not tied to a specific trip (e.g. remembered later).
+model CashTip {
+  id        String   @id @default(cuid())
+  vehicleId String
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  shiftId   String?
+  shift     Shift?   @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+  date      DateTime
+  amount    Float
+  notes     String?
+  createdAt DateTime @default(now())
+}
+
+model FuelUp {
+  id           String   @id @default(cuid())
+  vehicleId    String
+  vehicle      Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  date         DateTime
+  odometer     Float
+  // PETROL_80 | PETROL_92 | PETROL_95 | CNG  (CNG quantity in m³, petrol in liters)
+  fuelType     String
+  quantity     Float
+  pricePerUnit Float
+  totalCost    Float
+  fullTank     Boolean  @default(true) // full-to-full enables accurate L/100km
+  station      String?
+  photo        String?
+  notes        String?
+  createdAt    DateTime @default(now())
+}
+
+model Maintenance {
+  id          String   @id @default(cuid())
+  vehicleId   String
+  vehicle     Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  date        DateTime
+  odometer    Float?
+  // OIL | OIL_FILTER | AIR_FILTER | TIRES | BRAKES | BATTERY | SPARK_PLUGS |
+  // TRANSMISSION | COOLING | CNG_SERVICE | SUSPENSION | ELECTRICAL | BODY | OTHER
+  category    String
+  description String?
+  cost        Float
+  photo       String?
+  notes       String?
+  createdAt   DateTime @default(now())
+}
+
+// Non-maintenance running costs.
+model Expense {
+  id        String   @id @default(cuid())
+  vehicleId String
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  date      DateTime
+  // WASH | FINE | PARKING | MOBILE_DATA | RENTAL | INSURANCE | LICENSE | TOLL | OTHER
+  category  String
+  amount    Float
+  odometer  Float?
+  // work expense counts against ride-hailing profit; personal doesn't
+  isWork    Boolean  @default(true)
+  notes     String?
+  createdAt DateTime @default(now())
+}
+
+// Service reminder by date and/or odometer, optionally repeating.
+model Reminder {
+  id               String    @id @default(cuid())
+  vehicleId        String
+  vehicle          Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  title            String
+  dueDate          DateTime?
+  dueOdometer      Float?
+  repeatKm         Float? // e.g. oil every 5000 km
+  repeatMonths     Int? // e.g. license every 12 months
+  lastDoneDate     DateTime?
+  lastDoneOdometer Float?
+  active           Boolean   @default(true)
+  notes            String?
+  createdAt        DateTime  @default(now())
+}
