@@ -5,12 +5,16 @@ import { useI18n } from "./I18nProvider";
 export function PhotoInput({
   value,
   onChange,
+  onOcrDigits,
 }: {
   value: string | null;
   onChange: (filename: string | null) => void;
+  /** When set, the photo is also OCR'd for digit runs (odometer readings). */
+  onOcrDigits?: (candidates: number[]) => void;
 }) {
   const { t } = useI18n();
   const [busy, setBusy] = useState(false);
+  const [reading, setReading] = useState(false);
 
   const upload = async (file: File) => {
     setBusy(true);
@@ -19,6 +23,19 @@ export function PhotoInput({
     const res = await fetch("/api/upload", { method: "POST", body: form });
     setBusy(false);
     if (res.ok) onChange((await res.json()).filename);
+
+    if (onOcrDigits) {
+      setReading(true);
+      try {
+        const { ocrOdometerCandidates } = await import("@/lib/ocr");
+        const candidates = await ocrOdometerCandidates(file);
+        if (candidates.length > 0) onOcrDigits(candidates);
+      } catch {
+        // OCR is best-effort — the field stays manual
+      } finally {
+        setReading(false);
+      }
+    }
   };
 
   return (
@@ -30,7 +47,7 @@ export function PhotoInput({
         onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])}
         className="text-xs"
       />
-      {busy && <span className="text-xs text-slate-400">…</span>}
+      {(busy || reading) && <span className="text-xs text-slate-400 animate-pulse">…</span>}
       {value && (
         <span className="flex items-center gap-1">
           {/* eslint-disable-next-line @next/next/no-img-element */}

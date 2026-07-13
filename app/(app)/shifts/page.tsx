@@ -115,6 +115,17 @@ function StartShiftCard({
   const [time, setTime] = useState(toLocalInput());
   const [photo, setPhoto] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
+  const [ocrHint, setOcrHint] = useState(false);
+
+  // pick the OCR candidate that plausibly continues from the last known reading
+  const onOcrDigits = (candidates: number[]) => {
+    const plausible = candidates.filter((c) => c >= lastOdo && c < lastOdo + 2000);
+    const best = plausible.sort((a, b) => a - b)[0] ?? candidates[0];
+    if (best != null && !odo) {
+      setOdo(String(best));
+      setOcrHint(true);
+    }
+  };
 
   if (!open) {
     return (
@@ -138,12 +149,12 @@ function StartShiftCard({
         }}
         className="grid grid-cols-1 md:grid-cols-2 gap-3"
       >
-        <Field label={t("sh.startOdo")}>
+        <Field label={t("sh.startOdo")} hint={ocrHint ? `📷 ${t("sh.ocrDetected")}` : undefined}>
           <Input
             type="number"
             step="0.1"
             value={odo}
-            onChange={(e) => setOdo(e.target.value)}
+            onChange={(e) => { setOdo(e.target.value); setOcrHint(false); }}
             placeholder={String(lastOdo)}
             required
             autoFocus
@@ -153,7 +164,7 @@ function StartShiftCard({
           <Input type="datetime-local" value={time} onChange={(e) => setTime(e.target.value)} required />
         </Field>
         <Field label={`${t("c.photo")} (${t("c.optional")})`}>
-          <PhotoInput value={photo} onChange={setPhoto} />
+          <PhotoInput value={photo} onChange={setPhoto} onOcrDigits={onOcrDigits} />
         </Field>
         <Field label={`${t("c.notes")} (${t("c.optional")})`}>
           <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
@@ -181,6 +192,18 @@ function EndShiftCard({
   const [time, setTime] = useState(toLocalInput());
   const [photo, setPhoto] = useState<string | null>(null);
   const [notes, setNotes] = useState(shift.notes ?? "");
+  const [ocrHint, setOcrHint] = useState(false);
+
+  const onOcrDigits = (candidates: number[]) => {
+    const plausible = candidates.filter(
+      (c) => c > shift.startOdometer && c < shift.startOdometer + 2000
+    );
+    const best = plausible.sort((a, b) => a - b)[0] ?? candidates[0];
+    if (best != null && !odo) {
+      setOdo(String(best));
+      setOcrHint(true);
+    }
+  };
 
   return (
     <Card className="border-amber-300 bg-amber-50">
@@ -203,12 +226,12 @@ function EndShiftCard({
         }}
         className="grid grid-cols-1 md:grid-cols-2 gap-3"
       >
-        <Field label={t("sh.endOdo")}>
+        <Field label={t("sh.endOdo")} hint={ocrHint ? `📷 ${t("sh.ocrDetected")}` : undefined}>
           <Input
             type="number"
             step="0.1"
             value={odo}
-            onChange={(e) => setOdo(e.target.value)}
+            onChange={(e) => { setOdo(e.target.value); setOcrHint(false); }}
             min={shift.startOdometer}
             required
             autoFocus
@@ -218,7 +241,7 @@ function EndShiftCard({
           <Input type="datetime-local" value={time} onChange={(e) => setTime(e.target.value)} required />
         </Field>
         <Field label={`${t("c.photo")} (${t("c.optional")})`}>
-          <PhotoInput value={photo} onChange={setPhoto} />
+          <PhotoInput value={photo} onChange={setPhoto} onOcrDigits={onOcrDigits} />
         </Field>
         <Field label={`${t("c.notes")} (${t("c.optional")})`}>
           <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
