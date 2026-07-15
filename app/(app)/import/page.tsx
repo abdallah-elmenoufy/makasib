@@ -5,6 +5,7 @@ import { useI18n } from "@/components/I18nProvider";
 import { Btn, Card, Empty, Field, Input, PageTitle, Select } from "@/components/ui";
 import { useVehicle } from "@/components/useCrud";
 import { parseEarningsActivityText, ActivityTrip } from "@/lib/earningsActivity";
+import { looksLikeTripRequest, parseTripRequestText, TripRequest } from "@/lib/tripRequest";
 import { fmtDate } from "@/lib/format";
 
 const PLATFORMS = ["UBER", "CAREEM", "INDRIVE", "BOLT", "OTHER"];
@@ -112,23 +113,33 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
   const [files, setFiles] = useState<File[]>([]);
   const [progress, setProgress] = useState("");
   const [rows, setRows] = useState<ActivityTrip[]>([]);
+  const [reqs, setReqs] = useState<TripRequest[]>([]);
   const [result, setResult] = useState("");
   const [busy, setBusy] = useState(false);
 
   const run = async () => {
     setBusy(true);
     setRows([]);
+    setReqs([]);
     setResult("");
     const { ocrScreenshot } = await import("@/lib/ocr");
-    let all = "";
+    let activityText = "";
+    const requests: TripRequest[] = [];
     for (let i = 0; i < files.length; i++) {
       setProgress(t("im.ocrReading", { i: i + 1, n: files.length }));
-      all += "\n" + (await ocrScreenshot(files[i]));
+      const text = await ocrScreenshot(files[i]);
+      if (looksLikeTripRequest(text)) {
+        const r = parseTripRequestText(text);
+        if (r) requests.push(r);
+      } else {
+        activityText += "\n" + text;
+      }
     }
     setProgress("");
-    const trips = parseEarningsActivityText(all, year);
+    const trips = parseEarningsActivityText(activityText, year);
     setRows(trips);
-    if (trips.length === 0) setResult(t("im.ocrNoTrips"));
+    setReqs(requests);
+    if (trips.length === 0 && requests.length === 0) setResult(t("im.ocrNoTrips"));
     setBusy(false);
   };
 
@@ -136,31 +147,55 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
     setRows(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
 
   const doImport = async () => {
-    const payload = rows
-      .filter((r) => r.date && r.time && Number.isFinite(r.earnings))
-      .map((r) => ({
-        startTime: new Date(`${r.date}T${r.time}:00`).toISOString(),
-        earnings: r.earnings,
-        cashCollected: r.cashCollected,
-        distanceKm: r.distanceKm,
-        product: r.product,
-      }));
     setBusy(true);
-    const res = await fetch("/api/import/activity", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ vehicleId, trips: payload }),
-    });
-    setBusy(false);
-    if (!res.ok) {
-      setResult(t("c.error"));
-      return;
+    const parts: string[] = [];
+
+    if (rows.length > 0) {
+      const payload = rows
+        .filter((r) => r.date && r.time && Number.isFinite(r.earnings))
+        .map((r) => ({
+          startTime: new Date(`${r.date}T${r.time}:00`).toISOString(),
+          earnings: r.earnings,
+          cashCollected: r.cashCollected,
+          distanceKm: r.distanceKm,
+          product: r.product,
+        }));
+      const res = await fetch("/api/import/activity", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ vehicleId, trips: payload }),
+      });
+      if (!res.ok) {
+        setResult(t("c.error"));
+        setBusy(false);
+        return;
+      }
+      const d = await res.json();
+      parts.push(
+        t("im.created", { n: d.created }),
+        t("im.merged", { n: d.merged }),
+        t("im.skippedN", { n: d.skipped })
+      );
     }
-    const d = await res.json();
-    setResult(
-      `✓ ${t("im.created", { n: d.created })} · ${t("im.merged", { n: d.merged })} · ${t("im.skippedN", { n: d.skipped })}`
-    );
+
+    if (reqs.length > 0) {
+      // request cards go last so freshly imported trips are matchable
+      const res = await fetch("/api/import/requests", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ vehicleId, requests: reqs }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        parts.push(t("im.reqEnriched", { n: d.enriched }));
+        if (d.unmatched > 0) parts.push(t("im.reqUnmatched", { n: d.unmatched }));
+      }
+    }
+
+    setBusy(false);
+    setResult(`✓ ${parts.join(" · ")}`);
     setRows([]);
+    setReqs([]);
     setFiles([]);
   };
 
@@ -287,10 +322,62 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
               </tbody>
             </table>
           </div>
-          <Btn onClick={doImport} disabled={busy}>
-            📥 {t("im.import")}
-          </Btn>
         </>
+      )}
+
+      {reqs.length > 0 && (
+        <>
+          <p className="text-xs text-slate-500">
+            {t("im.reqFound", { n: reqs.length })} — {t("im.reqHint")}
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-start text-slate-500 border-b border-slate-200">
+                  {[
+                    t("im.colTime"),
+                    t("im.colProduct"),
+                    t("im.colEarnings"),
+                    t("tr.payment"),
+                    t("im.colPickup"),
+                    t("im.colKm"),
+                    "",
+                  ].map((h, i) => (
+                    <th key={i} className="text-start py-1.5 px-1 font-semibold whitespace-nowrap">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {reqs.map((r, i) => (
+                  <tr key={i}>
+                    <td className="py-1.5 px-1">{r.clock ?? "—"}</td>
+                    <td className="py-1.5 px-1">{r.product ?? "—"}</td>
+                    <td className="py-1.5 px-1 font-semibold">{r.fare.toFixed(2)}</td>
+                    <td className="py-1.5 px-1">{r.isCash ? t("tr.CASH") : t("tr.CARD")}</td>
+                    <td className="py-1.5 px-1">{r.pickupKm}</td>
+                    <td className="py-1.5 px-1">{r.tripKm ?? "—"}</td>
+                    <td className="py-1.5 px-1">
+                      <button
+                        onClick={() => setReqs(reqs.filter((_, j) => j !== i))}
+                        className="text-red-400"
+                      >
+                        ✕
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {(rows.length > 0 || reqs.length > 0) && (
+        <Btn onClick={doImport} disabled={busy}>
+          📥 {t("im.import")}
+        </Btn>
       )}
       {result && <p className="text-emerald-700 text-sm font-semibold">{result}</p>}
     </Card>

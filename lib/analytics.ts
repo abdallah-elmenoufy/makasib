@@ -11,11 +11,14 @@ export function periodStart(p: Period): Date | null {
   return null;
 }
 
+// Net-first: entries store the driver's net earnings, so no fee is ever
+// estimated. commission is only the explicit cash-reconciliation delta
+// (cash collected − net earnings) recorded on cash trips.
 export const DEFAULT_COMMISSION_PCT: Record<string, number> = {
-  UBER: 25,
-  CAREEM: 25,
-  INDRIVE: 12,
-  BOLT: 20,
+  UBER: 0,
+  CAREEM: 0,
+  INDRIVE: 0,
+  BOLT: 0,
   OTHER: 0,
 };
 
@@ -228,6 +231,12 @@ export async function getAnalytics(vehicleId: string, period: Period) {
   // ---- Km split ----
   const tripKm = trips.reduce((s, t) => s + (t.distanceKm ?? 0), 0);
   const deadKm = Math.max(0, shiftKm - tripKm);
+  // dead km attributable to driving toward riders (from request-card imports)
+  const pickupKm = Math.min(
+    deadKm,
+    trips.reduce((s, t) => s + (t.pickupKm ?? 0), 0)
+  );
+  const cruisingKm = Math.max(0, deadKm - pickupKm);
   // total km covered by the period = odometer span of period events
   const periodOdo: number[] = [];
   for (const s of shifts) {
@@ -310,18 +319,19 @@ export async function getAnalytics(vehicleId: string, period: Period) {
     counts: { shifts: completed.length, trips: trips.length, hoursWorked, shiftDays },
     earnings: { fares, commission, tips, gross, netRevenue },
     costs: {
+      // commission kept for the cash panel; NOT a cost row — earnings are net
       commission,
       fuel: allocFuel,
       maintenance: allocMaint,
       depreciation: allocDep,
       workExpenses,
       ownership: ownershipCost,
-      total: commission + allocFuel + allocMaint + allocDep + workExpenses + ownershipCost,
+      total: allocFuel + allocMaint + allocDep + workExpenses + ownershipCost,
     },
     trueProfit,
     perHour: hoursWorked > 0 ? trueProfit / hoursWorked : null,
     perKm: shiftKm > 0 ? trueProfit / shiftKm : null,
-    kmSplit: { shiftKm, tripKm, deadKm, personalKm, periodTotalKm },
+    kmSplit: { shiftKm, tripKm, deadKm, pickupKm, cruisingKm, personalKm, periodTotalKm },
     fuelEconomy: fuelEconomy(fuelUpsAll),
     cash: { byPlatform: cashByPlatform, totals: cashTotals },
     reminders: reminderStatuses(reminders, currentOdo),

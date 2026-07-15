@@ -58,7 +58,6 @@ export default function DashboardPage() {
   const attention = a.reminders.filter((r: any) => r.state !== "ok");
 
   const costRows = [
-    { key: "db.commission", v: a.costs.commission },
     { key: "db.fuelCost", v: a.costs.fuel },
     { key: "db.maintCost", v: a.costs.maintenance },
     { key: "db.expenses", v: a.costs.workExpenses },
@@ -101,7 +100,7 @@ export default function DashboardPage() {
           </div>
           <div className="text-xs text-slate-400 mt-1">{t("db.profitSub")}</div>
         </Card>
-        <StatTile label={t("db.gross")} value={money(a.earnings.gross)} sub={t("db.grossSub")} />
+        <StatTile label={t("db.gross")} value={money(a.earnings.netRevenue)} sub={t("db.grossSub")} />
         <div className="grid grid-rows-2 gap-3">
           <MiniTile label={t("db.perHour")} value={a.perHour != null ? money(a.perHour) : "—"} />
           <MiniTile label={t("db.perKm")} value={a.perKm != null ? money(a.perKm) : "—"} />
@@ -172,6 +171,22 @@ export default function DashboardPage() {
           <div className="mt-3 space-y-1 text-xs">
             <LegendRow color={C.pos} label={t("db.tripKm")} value={`${fmtNum(km.tripKm, locale)} ${t("c.km")}`} />
             <LegendRow color={C.dead} label={t("db.deadKm")} value={`${fmtNum(km.deadKm, locale)} ${t("c.km")}`} />
+            {km.pickupKm > 0 && (
+              <>
+                <div className="ps-5 flex items-center gap-2 text-slate-400">
+                  <span className="flex-1">{t("db.pickupSplit")}</span>
+                  <span style={{ fontVariantNumeric: "tabular-nums" }}>
+                    {fmtNum(km.pickupKm, locale)} {t("c.km")}
+                  </span>
+                </div>
+                <div className="ps-5 flex items-center gap-2 text-slate-400">
+                  <span className="flex-1">{t("db.cruisingSplit")}</span>
+                  <span style={{ fontVariantNumeric: "tabular-nums" }}>
+                    {fmtNum(km.cruisingKm, locale)} {t("c.km")}
+                  </span>
+                </div>
+              </>
+            )}
             <LegendRow
               color={C.personal}
               label={t("db.personalKm")}

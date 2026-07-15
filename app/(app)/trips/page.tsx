@@ -11,13 +11,30 @@ const PLATFORMS = ["UBER", "CAREEM", "INDRIVE", "BOLT", "OTHER"];
 const emptyTrip = () => ({
   platform: "UBER",
   startTime: toLocalInput(),
-  fare: "",
+  earnings: "",
+  cashCollected: "",
   distanceKm: "",
   paymentType: "CASH",
   tip: "",
-  commission: "",
   notes: "",
 });
+
+// Net-first: the driver types what the platform shows (net earnings) plus the
+// cash actually collected; fare/commission are derived for storage.
+function toTripData(form: any) {
+  const earnings = Number(form.earnings);
+  const cash = form.paymentType === "CASH" && form.cashCollected !== "" ? Number(form.cashCollected) : null;
+  return {
+    platform: form.platform,
+    startTime: new Date(form.startTime).toISOString(),
+    fare: cash ?? earnings,
+    commission: cash != null ? cash - earnings : 0,
+    distanceKm: form.distanceKm,
+    paymentType: form.paymentType,
+    tip: form.tip,
+    notes: form.notes,
+  };
+}
 
 export default function TripsPage() {
   const { t, locale } = useI18n();
@@ -50,13 +67,7 @@ export default function TripsPage() {
           <form
             onSubmit={async (e) => {
               e.preventDefault();
-              if (
-                await create({
-                  ...form,
-                  vehicleId: vehicle.id,
-                  startTime: new Date(form.startTime).toISOString(),
-                })
-              ) {
+              if (await create({ ...toTripData(form), vehicleId: vehicle.id })) {
                 setForm(emptyTrip());
                 setOpen(false);
               }
@@ -80,11 +91,14 @@ export default function TripsPage() {
                 required
               />
             </Field>
-            <Field label={t("tr.fare")}>
-              <Input type="number" step="0.01" value={form.fare} onChange={(e) => set("fare", e.target.value)} required />
-            </Field>
-            <Field label={t("tr.distance")}>
-              <Input type="number" step="0.1" value={form.distanceKm} onChange={(e) => set("distanceKm", e.target.value)} />
+            <Field label={t("tr.earnings")} hint={t("tr.earningsHint")}>
+              <Input
+                type="number"
+                step="0.01"
+                value={form.earnings}
+                onChange={(e) => set("earnings", e.target.value)}
+                required
+              />
             </Field>
             <Field label={t("tr.payment")}>
               <Select value={form.paymentType} onChange={(e) => set("paymentType", e.target.value)}>
@@ -92,11 +106,21 @@ export default function TripsPage() {
                 <option value="CARD">{t("tr.CARD")}</option>
               </Select>
             </Field>
+            {form.paymentType === "CASH" && (
+              <Field label={t("tr.cashCollected")} hint={t("tr.cashCollectedHint")}>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={form.cashCollected}
+                  onChange={(e) => set("cashCollected", e.target.value)}
+                />
+              </Field>
+            )}
+            <Field label={t("tr.distance")}>
+              <Input type="number" step="0.1" value={form.distanceKm} onChange={(e) => set("distanceKm", e.target.value)} />
+            </Field>
             <Field label={t("tr.tip")}>
               <Input type="number" step="0.01" value={form.tip} onChange={(e) => set("tip", e.target.value)} />
-            </Field>
-            <Field label={t("tr.commission")} hint={t("tr.commissionHint")}>
-              <Input type="number" step="0.01" value={form.commission} onChange={(e) => set("commission", e.target.value)} />
             </Field>
             <div className="col-span-2">
               <Field label={`${t("c.notes")} (${t("c.optional")})`}>
@@ -165,10 +189,11 @@ export default function TripsPage() {
             head={[
               t("tr.startTime"),
               t("tr.platform"),
-              t("tr.fare"),
+              t("tr.earnings"),
               t("tr.payment"),
               t("tr.tip"),
               t("tr.distance"),
+              t("tr.pickupKm"),
               t("tr.shift"),
               t("tr.source"),
               t("c.notes"),
@@ -179,10 +204,13 @@ export default function TripsPage() {
               <tr key={tr.id}>
                 <td className="py-2 px-2 whitespace-nowrap">{fmtDateTime(tr.startTime, locale)}</td>
                 <td className="py-2 px-2">{t(`pf.${tr.platform}`)}</td>
-                <td className="py-2 px-2 font-semibold">{fmtMoney(tr.fare, locale)}</td>
+                <td className="py-2 px-2 font-semibold">
+                  {fmtMoney(tr.fare - (tr.commission ?? 0), locale)}
+                </td>
                 <td className="py-2 px-2">{t(`tr.${tr.paymentType}`)}</td>
                 <td className="py-2 px-2">{tr.tip ? fmtMoney(tr.tip, locale) : "—"}</td>
                 <td className="py-2 px-2">{tr.distanceKm ? fmtNum(tr.distanceKm, locale) : "—"}</td>
+                <td className="py-2 px-2">{tr.pickupKm ? fmtNum(tr.pickupKm, locale) : "—"}</td>
                 <td className="py-2 px-2">{tr.shiftId ? "✓" : t("tr.noShift")}</td>
                 <td className="py-2 px-2 text-slate-400 text-xs">{tr.source}</td>
                 <td className="py-2 px-2 text-slate-400 max-w-32 truncate">{tr.notes ?? ""}</td>

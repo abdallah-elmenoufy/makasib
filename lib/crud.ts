@@ -59,6 +59,8 @@ export const ENTITIES: Record<string, EntityConfig> = {
       commission: "number",
       paymentType: "string",
       tip: "number",
+      pickupKm: "number",
+      pickupMin: "number",
       source: "string",
       notes: "string",
     },

@@ -79,6 +79,8 @@ model Trip {
   commission    Float? // platform commission amount; null = use platform default %
   paymentType   String    @default("CASH") // CASH | CARD
   tip           Float     @default(0) // cash tip received on this trip
+  pickupKm      Float? // driver → rider distance, from the trip-request card
+  pickupMin     Float? // driver → rider ETA minutes, from the trip-request card
   source        String    @default("MANUAL") // MANUAL | CSV | API
   notes         String?
   createdAt     DateTime  @default(now())
