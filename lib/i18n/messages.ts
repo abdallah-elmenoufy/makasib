@@ -8,6 +8,7 @@ const en: Record<string, string> = {
 
   // nav
   "nav.dashboard": "Dashboard",
+  "nav.plan": "Plan your day!",
   "nav.shifts": "Shifts",
   "nav.trips": "Trips",
   "nav.fuel": "Fuel",
@@ -77,6 +78,8 @@ const en: Record<string, string> = {
   "veh.dailyRentalFee": "Daily rental fee",
   "veh.targetOwnerShare": "Owner share of revenue (%)",
   "veh.depreciationPerKm": "Depreciation per km",
+  "veh.depHint":
+    "Leave empty — the app estimates it automatically from your car's value, age and yearly km (declining-balance method)",
   "veh.initialOdometer": "Initial odometer (km)",
   "veh.createFirst": "Create your vehicle profile to start",
   "veh.currentOdo": "Latest known odometer",
@@ -246,6 +249,7 @@ const en: Record<string, string> = {
     "In the Uber Driver app open Earnings → Activity, filter the week, and screenshot the list while scrolling (each trip card should be fully visible in at least one screenshot). Upload all screenshots together — trip distance is read from them.",
   "im.ocrYear": "Year of the screenshots",
   "im.ocrRun": "Read screenshots",
+  "im.dropZone": "Drop all shift screenshots here, or tap to choose — reading starts automatically",
   "im.ocrReading": "Reading screenshot {i} of {n}…",
   "im.ocrReview": "Check the extracted trips and fix anything the OCR got wrong before importing.",
   "im.ocrNoTrips": "No trips recognized — try clearer screenshots.",
@@ -289,6 +293,24 @@ const en: Record<string, string> = {
   "st.changePass": "Change passphrase",
   "st.newPass": "New passphrase",
 
+  // plan your day
+  "pl.title": "Plan your day!",
+  "pl.subtitle": "When to drive, from your own logged trips — it sharpens with every trip you add.",
+  "pl.heatTitle": "Earnings per hour, by day and hour",
+  "pl.topTitle": "Your best time slots",
+  "pl.gapsTitle": "Wait between trips",
+  "pl.gapsSub": "Median time from one trip start to the next — shorter means busier",
+  "pl.seasonsTitle": "Seasons compared",
+  "pl.season.ramadan": "Ramadan",
+  "pl.season.summer": "Summer holidays",
+  "pl.season.school": "School days",
+  "pl.learning":
+    "Still learning: {trips} trips over {shifts} shifts logged so far. Insights get reliable from ~30 trips — keep logging!",
+  "pl.noData": "Not enough data yet",
+  "pl.noSample": "no data",
+  "pl.tripsN": "{n} trips",
+  "pl.min": "min",
+
   // platforms
   "pf.UBER": "Uber",
   "pf.CAREEM": "Careem",
@@ -302,6 +324,7 @@ const ar: Record<string, string> = {
   tagline: "اعرف ربحك الحقيقي، مش بس دخلك",
 
   "nav.dashboard": "لوحة التحكم",
+  "nav.plan": "خطّط يومك!",
   "nav.shifts": "الورديات",
   "nav.trips": "الرحلات",
   "nav.fuel": "الوقود",
@@ -368,6 +391,8 @@ const ar: Record<string, string> = {
   "veh.dailyRentalFee": "إيجار اليوم",
   "veh.targetOwnerShare": "نسبة المالك من الدخل (٪)",
   "veh.depreciationPerKm": "الإهلاك لكل كم",
+  "veh.depHint":
+    "اتركه فارغاً — التطبيق يقدّره تلقائياً من قيمة سيارتك وعمرها وكيلومتراتك السنوية (طريقة الرصيد المتناقص)",
   "veh.initialOdometer": "قراءة العداد الابتدائية (كم)",
   "veh.createFirst": "أنشئ ملف سيارتك للبدء",
   "veh.currentOdo": "آخر قراءة عداد معروفة",
@@ -528,6 +553,7 @@ const ar: Record<string, string> = {
     "في تطبيق أوبر للسائقين افتح الأرباح ← النشاط، اختر الأسبوع، وصوّر الشاشة أثناء التمرير (كل رحلة تظهر كاملة في لقطة واحدة على الأقل). ارفع كل اللقطات معاً — المسافة تُقرأ منها.",
   "im.ocrYear": "سنة اللقطات",
   "im.ocrRun": "قراءة اللقطات",
+  "im.dropZone": "أسقط كل لقطات الوردية هنا أو اضغط للاختيار — القراءة تبدأ تلقائياً",
   "im.ocrReading": "جاري قراءة لقطة {i} من {n}…",
   "im.ocrReview": "راجع الرحلات المستخرجة وصحح أي خطأ في القراءة قبل الاستيراد.",
   "im.ocrNoTrips": "لم يتم التعرف على رحلات — جرّب لقطات أوضح.",
@@ -569,6 +595,23 @@ const ar: Record<string, string> = {
   "st.commissionsHint": "تُستخدم عندما لا يكون للرحلة عمولة محددة",
   "st.changePass": "تغيير كلمة المرور",
   "st.newPass": "كلمة مرور جديدة",
+
+  "pl.title": "خطّط يومك!",
+  "pl.subtitle": "متى تشتغل، من رحلاتك المسجلة — تزداد دقة مع كل رحلة تضيفها.",
+  "pl.heatTitle": "الأرباح في الساعة، حسب اليوم والساعة",
+  "pl.topTitle": "أفضل أوقاتك",
+  "pl.gapsTitle": "الانتظار بين الرحلات",
+  "pl.gapsSub": "الوقت الوسيط من بداية رحلة لبداية التالية — الأقصر يعني حركة أكثر",
+  "pl.seasonsTitle": "مقارنة المواسم",
+  "pl.season.ramadan": "رمضان",
+  "pl.season.summer": "إجازة الصيف",
+  "pl.season.school": "أيام الدراسة",
+  "pl.learning":
+    "ما زال يتعلم: {trips} رحلة في {shifts} وردية حتى الآن. النتائج تصبح موثوقة من حوالي ٣٠ رحلة — واصل التسجيل!",
+  "pl.noData": "لا توجد بيانات كافية بعد",
+  "pl.noSample": "لا بيانات",
+  "pl.tripsN": "{n} رحلة",
+  "pl.min": "دقيقة",
 
   "pf.UBER": "أوبر",
   "pf.CAREEM": "كريم",

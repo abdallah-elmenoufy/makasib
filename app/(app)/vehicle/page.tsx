@@ -108,7 +108,7 @@ export default function VehiclePage() {
                   onChange={(e) => set("estimatedValue", e.target.value)}
                 />
               </Field>
-              <Field label={t("veh.depreciationPerKm")}>
+              <Field label={t("veh.depreciationPerKm")} hint={t("veh.depHint")}>
                 <Input
                   type="number"
                   step="0.01"

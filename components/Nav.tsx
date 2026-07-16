@@ -5,6 +5,7 @@ import { useI18n } from "./I18nProvider";
 
 const LINKS: { href: string; key: string; icon: string }[] = [
   { href: "/", key: "nav.dashboard", icon: "📊" },
+  { href: "/plan", key: "nav.plan", icon: "🗓️" },
   { href: "/shifts", key: "nav.shifts", icon: "🕐" },
   { href: "/trips", key: "nav.trips", icon: "🚗" },
   { href: "/fuel", key: "nav.fuel", icon: "⛽" },

@@ -1,5 +1,6 @@
 import { prisma } from "./db";
 import type { Vehicle, Shift, Trip, FuelUp, Reminder } from "@prisma/client";
+import { estimateDepPerKm, annualizedKm } from "./depreciation";
 
 export type Period = "today" | "week" | "month" | "all";
 
@@ -193,7 +194,10 @@ export async function getAnalytics(vehicleId: string, period: Period) {
   const maintSpendAllTime = maintAll.reduce((s, m) => s + m.cost, 0);
   const fuelCostPerKm = totalKmAllTime > 0 ? fuelSpendAllTime / totalKmAllTime : 0;
   const maintCostPerKm = totalKmAllTime > 0 ? maintSpendAllTime / totalKmAllTime : 0;
-  const depPerKm = vehicle.depreciationPerKm ?? 0;
+  const depPerKm = estimateDepPerKm(
+    vehicle,
+    annualizedKm(totalKmAllTime, vehicle.createdAt)
+  );
 
   // ---- Period shift stats ----
   const completed = shifts.filter((s) => s.endOdometer != null && s.endTime != null);

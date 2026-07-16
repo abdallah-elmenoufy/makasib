@@ -117,7 +117,8 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
   const [result, setResult] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const run = async () => {
+  const run = async (batch: File[]) => {
+    if (batch.length === 0 || busy) return;
     setBusy(true);
     setRows([]);
     setReqs([]);
@@ -125,9 +126,9 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
     const { ocrScreenshot } = await import("@/lib/ocr");
     let activityText = "";
     const requests: TripRequest[] = [];
-    for (let i = 0; i < files.length; i++) {
-      setProgress(t("im.ocrReading", { i: i + 1, n: files.length }));
-      const text = await ocrScreenshot(files[i]);
+    for (let i = 0; i < batch.length; i++) {
+      setProgress(t("im.ocrReading", { i: i + 1, n: batch.length }));
+      const text = await ocrScreenshot(batch[i]);
       if (looksLikeTripRequest(text)) {
         const r = parseTripRequestText(text);
         if (r) requests.push(r);
@@ -141,6 +142,15 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
     setReqs(requests);
     if (trips.length === 0 && requests.length === 0) setResult(t("im.ocrNoTrips"));
     setBusy(false);
+  };
+
+  // one gesture: dropping/selecting screenshots starts reading immediately
+  const addFiles = (incoming: File[]) => {
+    const images = incoming.filter((f) => f.type.startsWith("image/"));
+    if (images.length === 0) return;
+    const batch = [...files, ...images];
+    setFiles(batch);
+    run(batch);
   };
 
   const setRow = (i: number, patch: Partial<ActivityTrip>) =>
@@ -213,17 +223,33 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
             className="w-28"
           />
         </Field>
+      </div>
+      <label
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          addFiles(Array.from(e.dataTransfer.files));
+        }}
+        className={`block border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
+          busy ? "border-slate-200 text-slate-300" : "border-emerald-300 text-slate-500 hover:bg-emerald-50"
+        }`}
+      >
         <input
           type="file"
           accept="image/*"
           multiple
-          onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
-          className="text-sm pb-2"
+          disabled={busy}
+          onChange={(e) => {
+            addFiles(Array.from(e.target.files ?? []));
+            e.target.value = "";
+          }}
+          className="hidden"
         />
-        <Btn onClick={run} disabled={busy || files.length === 0}>
-          🔍 {t("im.ocrRun")} {files.length > 0 ? `(${files.length})` : ""}
-        </Btn>
-      </div>
+        <div className="text-3xl mb-1">📸</div>
+        <div className="text-sm font-semibold">
+          {t("im.dropZone")} {files.length > 0 ? `(${files.length})` : ""}
+        </div>
+      </label>
       {progress && <p className="text-sm text-slate-400 animate-pulse">{progress}</p>}
 
       {rows.length > 0 && (
