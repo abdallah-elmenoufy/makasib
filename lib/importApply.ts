@@ -10,6 +10,8 @@ export type IncomingTrip = {
   isCash: boolean;
   distanceKm: number | null;
   product: string | null;
+  pickupAddress?: string | null;
+  dropoffAddress?: string | null;
   source: "STATEMENT" | "OCR" | "CSV";
   platform: string;
 };
@@ -61,6 +63,8 @@ export async function applyTrips(vehicleId: string, trips: IncomingTrip[]): Prom
         const data: Record<string, unknown> = {};
         if (near.distanceKm == null && t.distanceKm != null) data.distanceKm = t.distanceKm;
         if (!near.notes && t.product) data.notes = t.product;
+        if (!near.pickupAddress && t.pickupAddress) data.pickupAddress = t.pickupAddress;
+        if (!near.dropoffAddress && t.dropoffAddress) data.dropoffAddress = t.dropoffAddress;
         if (Object.keys(data).length > 0) {
           await prisma.trip.update({ where: { id: near.id }, data });
           res.merged++;
@@ -83,6 +87,8 @@ export async function applyTrips(vehicleId: string, trips: IncomingTrip[]): Prom
         commission,
         distanceKm: t.distanceKm,
         paymentType: t.isCash ? "CASH" : "CARD",
+        pickupAddress: t.pickupAddress ?? null,
+        dropoffAddress: t.dropoffAddress ?? null,
         source: t.source,
         notes: t.product,
       },

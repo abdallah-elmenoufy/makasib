@@ -15,6 +15,8 @@ export async function POST(req: NextRequest) {
         cashCollected: number | null;
         distanceKm: number | null;
         product: string | null;
+        pickupAddress?: string | null;
+        dropoffAddress?: string | null;
       }[];
     };
     if (!vehicleId || !Array.isArray(trips)) {
@@ -30,6 +32,8 @@ export async function POST(req: NextRequest) {
         isCash: t.cashCollected != null,
         distanceKm: t.distanceKm,
         product: t.product,
+        pickupAddress: t.pickupAddress ?? null,
+        dropoffAddress: t.dropoffAddress ?? null,
         source: "OCR" as const,
         platform: "UBER",
       }));

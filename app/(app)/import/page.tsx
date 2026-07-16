@@ -121,12 +121,14 @@ function ShiftPhotosImport({ vehicle }: { vehicle: any }) {
         // HEIC or stripped metadata — fall back to file date
       }
 
-      // 3) odometer digits (best-effort)
+      // 3) odometer digits (best-effort) — OCR the *served* file: HEIC has
+      // been converted to JPEG server-side, which browsers can decode
       let odo = "";
       let fromOcr = false;
       try {
         const { ocrOdometerCandidates } = await import("@/lib/ocr");
-        const candidates = await ocrOdometerCandidates(file);
+        const served = await fetch(`/api/files/${filename}`).then((r) => r.blob());
+        const candidates = await ocrOdometerCandidates(served);
         const min = vehicle.initialOdometer ?? 0;
         const plausible = candidates.filter((c) => c >= min && c < min + 500_000);
         if (plausible.length > 0) {
@@ -379,6 +381,8 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
           cashCollected: r.cashCollected,
           distanceKm: r.distanceKm,
           product: r.product,
+          pickupAddress: r.pickupAddress,
+          dropoffAddress: r.dropoffAddress,
         }));
       const res = await fetch("/api/import/activity", {
         method: "POST",
@@ -486,7 +490,7 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {rows.map((r, i) => (
-                  <tr key={i} className={!r.date || !r.time ? "bg-amber-50" : ""}>
+                  <tr key={i} className={!r.date || !r.time || !Number.isFinite(r.earnings) ? "bg-amber-50" : ""}>
                     <td className="py-1 px-1">
                       <input
                         type="date"
@@ -514,7 +518,8 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
                       <input
                         type="number"
                         step="0.01"
-                        value={r.earnings}
+                        value={Number.isFinite(r.earnings) ? r.earnings : ""}
+                        placeholder="?"
                         onChange={(e) => setRow(i, { earnings: Number(e.target.value) })}
                         className={inputCls}
                       />

@@ -22,13 +22,19 @@ export function PhotoInput({
     form.append("file", file);
     const res = await fetch("/api/upload", { method: "POST", body: form });
     setBusy(false);
-    if (res.ok) onChange((await res.json()).filename);
+    let filename: string | null = null;
+    if (res.ok) {
+      filename = (await res.json()).filename;
+      onChange(filename);
+    }
 
-    if (onOcrDigits) {
+    if (onOcrDigits && filename) {
       setReading(true);
       try {
+        // OCR the served file — HEIC is converted to JPEG on the server
         const { ocrOdometerCandidates } = await import("@/lib/ocr");
-        const candidates = await ocrOdometerCandidates(file);
+        const served = await fetch(`/api/files/${filename}`).then((r) => r.blob());
+        const candidates = await ocrOdometerCandidates(served);
         if (candidates.length > 0) onOcrDigits(candidates);
       } catch {
         // OCR is best-effort — the field stays manual
