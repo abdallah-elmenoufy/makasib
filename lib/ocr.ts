@@ -1,6 +1,28 @@
 // Client-side OCR helpers built on tesseract.js (loaded lazily — the model
 // files download on first use). Only import from client components.
 
+/**
+ * Server-side Apple Vision OCR of an already-uploaded file — far better on
+ * 7-segment dashboard LCDs than tesseract. Returns digit-run candidates,
+ * or null when the server can't do it (no macOS/Swift) → caller falls back.
+ */
+export async function serverOdometerCandidates(filename: string): Promise<number[] | null> {
+  try {
+    const res = await fetch(`/api/ocr/${encodeURIComponent(filename)}`);
+    if (!res.ok) return null;
+    const { lines } = (await res.json()) as { lines: string[] };
+    const found = new Set<number>();
+    for (const line of lines) {
+      for (const run of line.replace(/[.,\s]/g, "").match(/\d{4,7}/g) ?? []) {
+        found.add(Number(run));
+      }
+    }
+    return [...found].sort((a, b) => String(b).length - String(a).length);
+  } catch {
+    return null;
+  }
+}
+
 let workerPromise: Promise<any> | null = null;
 
 async function getWorker() {

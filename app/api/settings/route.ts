@@ -3,12 +3,17 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { getCommissionPcts } from "@/lib/analytics";
+import { getRetentionDays, setRetentionDays } from "@/lib/purge";
 
 export async function GET() {
   try {
     await requireAuth();
     const locale = (await cookies()).get("locale")?.value ?? "en";
-    return NextResponse.json({ locale, commissionPcts: await getCommissionPcts() });
+    return NextResponse.json({
+      locale,
+      commissionPcts: await getCommissionPcts(),
+      photoRetentionDays: await getRetentionDays(),
+    });
   } catch (e) {
     if (e instanceof Response) return e;
     throw e;
@@ -25,6 +30,10 @@ export async function POST(req: NextRequest) {
         path: "/",
         maxAge: 60 * 60 * 24 * 365,
       });
+    }
+
+    if (body.photoRetentionDays != null) {
+      await setRetentionDays(Number(body.photoRetentionDays));
     }
 
     if (body.commissionPcts) {

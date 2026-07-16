@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useI18n } from "@/components/I18nProvider";
 import { Btn, Card, Field, Input, PageTitle, Select } from "@/components/ui";
 
@@ -8,6 +8,24 @@ export default function SettingsPage() {
   const [oldPass, setOldPass] = useState("");
   const [newPass, setNewPass] = useState("");
   const [passMsg, setPassMsg] = useState("");
+  const [retention, setRetention] = useState<number | "">("");
+  const [retMsg, setRetMsg] = useState("");
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setRetention(d.photoRetentionDays ?? 30));
+  }, []);
+
+  const saveRetention = async () => {
+    const res = await fetch("/api/settings", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ photoRetentionDays: retention }),
+    });
+    setRetMsg(res.ok ? t("c.saved") : t("c.error"));
+    setTimeout(() => setRetMsg(""), 2000);
+  };
 
   const saveLocale = async (loc: string) => {
     await fetch("/api/locale", {
@@ -43,6 +61,23 @@ export default function SettingsPage() {
             <option value="ar">العربية</option>
           </Select>
         </Field>
+      </Card>
+
+      <Card>
+        <div className="font-semibold text-sm mb-1">{t("st.retention")}</div>
+        <p className="text-xs text-slate-400 mb-3">{t("st.retentionHint")}</p>
+        <div className="flex items-center gap-3">
+          <Input
+            type="number"
+            min={1}
+            max={30}
+            value={retention}
+            onChange={(e) => setRetention(e.target.value === "" ? "" : Number(e.target.value))}
+            className="max-w-24"
+          />
+          <Btn onClick={saveRetention}>{t("c.save")}</Btn>
+          {retMsg && <span className="text-emerald-600 text-sm">✓ {retMsg}</span>}
+        </div>
       </Card>
 
       <Card>

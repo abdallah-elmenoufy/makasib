@@ -310,6 +310,9 @@ const en: Record<string, string> = {
   "st.commissionsHint": "Used when a trip has no explicit commission amount",
   "st.changePass": "Change passphrase",
   "st.newPass": "New passphrase",
+  "st.retention": "Photo retention (days)",
+  "st.retentionHint":
+    "Odometer and receipt photos are deleted after this many days (max 30). The numbers read from them stay — only the image files are removed. Trip screenshots are never stored at all.",
 
   // plan your day
   "pl.title": "Plan your day!",
@@ -631,6 +634,9 @@ const ar: Record<string, string> = {
   "st.commissionsHint": "تُستخدم عندما لا يكون للرحلة عمولة محددة",
   "st.changePass": "تغيير كلمة المرور",
   "st.newPass": "كلمة مرور جديدة",
+  "st.retention": "مدة الاحتفاظ بالصور (أيام)",
+  "st.retentionHint":
+    "تُحذف صور العداد والإيصالات بعد هذا العدد من الأيام (بحد أقصى ٣٠). الأرقام المقروءة منها تبقى — تُحذف ملفات الصور فقط. لقطات شاشة الرحلات لا تُخزّن أصلاً.",
 
   "pl.title": "خطّط يومك!",
   "pl.subtitle": "متى تشتغل، من رحلاتك المسجلة — تزداد دقة مع كل رحلة تضيفها.",

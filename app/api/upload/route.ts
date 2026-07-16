@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { maybePurgeUploads } from "@/lib/purge";
 import { writeFile, mkdir, unlink } from "fs/promises";
 import { execFile } from "child_process";
 import { promisify } from "util";
@@ -13,6 +14,7 @@ const ALLOWED = new Set([".jpg", ".jpeg", ".png", ".webp", ".heic", ".gif"]);
 export async function POST(req: NextRequest) {
   try {
     await requireAuth();
+    maybePurgeUploads();
     const form = await req.formData();
     const file = form.get("file") as File | null;
     if (!file) return NextResponse.json({ error: "no file" }, { status: 400 });

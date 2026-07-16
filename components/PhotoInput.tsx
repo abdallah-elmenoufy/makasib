@@ -31,10 +31,13 @@ export function PhotoInput({
     if (onOcrDigits && filename) {
       setReading(true);
       try {
-        // OCR the served file — HEIC is converted to JPEG on the server
-        const { ocrOdometerCandidates } = await import("@/lib/ocr");
-        const served = await fetch(`/api/files/${filename}`).then((r) => r.blob());
-        const candidates = await ocrOdometerCandidates(served);
+        // Apple Vision server OCR first (reads LCDs); tesseract fallback
+        const { serverOdometerCandidates, ocrOdometerCandidates } = await import("@/lib/ocr");
+        let candidates = await serverOdometerCandidates(filename);
+        if (candidates == null || candidates.length === 0) {
+          const served = await fetch(`/api/files/${filename}`).then((r) => r.blob());
+          candidates = await ocrOdometerCandidates(served);
+        }
         if (candidates.length > 0) onOcrDigits(candidates);
       } catch {
         // OCR is best-effort — the field stays manual

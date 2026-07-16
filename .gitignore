@@ -23,6 +23,9 @@
 # local database + uploaded photos (personal data — never commit)
 /data/
 
+# compiled Vision OCR helper (built from tools/vision-ocr.swift on first use)
+/tools/vision-ocr
+
 # misc
 .DS_Store
 *.pem

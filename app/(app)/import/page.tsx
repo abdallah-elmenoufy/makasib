@@ -121,14 +121,17 @@ function ShiftPhotosImport({ vehicle }: { vehicle: any }) {
         // HEIC or stripped metadata — fall back to file date
       }
 
-      // 3) odometer digits (best-effort) — OCR the *served* file: HEIC has
-      // been converted to JPEG server-side, which browsers can decode
+      // 3) odometer digits — Apple Vision on the server reads dashboard LCDs
+      // reliably; tesseract on the served JPEG is the fallback
       let odo = "";
       let fromOcr = false;
       try {
-        const { ocrOdometerCandidates } = await import("@/lib/ocr");
-        const served = await fetch(`/api/files/${filename}`).then((r) => r.blob());
-        const candidates = await ocrOdometerCandidates(served);
+        const { serverOdometerCandidates, ocrOdometerCandidates } = await import("@/lib/ocr");
+        let candidates = await serverOdometerCandidates(filename);
+        if (candidates == null || candidates.length === 0) {
+          const served = await fetch(`/api/files/${filename}`).then((r) => r.blob());
+          candidates = await ocrOdometerCandidates(served);
+        }
         const min = vehicle.initialOdometer ?? 0;
         const plausible = candidates.filter((c) => c >= min && c < min + 500_000);
         if (plausible.length > 0) {
