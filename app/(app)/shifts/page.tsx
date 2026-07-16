@@ -5,6 +5,7 @@ import { useI18n } from "@/components/I18nProvider";
 import { Btn, Card, Empty, Field, Input, PageTitle, Table, Textarea } from "@/components/ui";
 import { useCrud, useVehicle } from "@/components/useCrud";
 import { PhotoInput } from "@/components/PhotoInput";
+import { GpsTracker } from "@/components/GpsTracker";
 import { fmtDateTime, fmtNum, toLocalInput, hoursBetween } from "@/lib/format";
 
 export default function ShiftsPage() {
@@ -39,7 +40,18 @@ export default function ShiftsPage() {
 
   return (
     <div>
-      <PageTitle>{t("sh.title")}</PageTitle>
+      <PageTitle
+        actions={
+          <Link
+            href="/import?tab=shift"
+            className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg px-3 py-2"
+          >
+            📷 {t("sh.fromPhotos")}
+          </Link>
+        }
+      >
+        {t("sh.title")}
+      </PageTitle>
 
       {active ? (
         <EndShiftCard shift={active} onEnd={(data) => update(active.id, data)} />
@@ -207,12 +219,15 @@ function EndShiftCard({
 
   return (
     <Card className="border-amber-300 bg-amber-50">
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center gap-2 mb-2">
         <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
         <span className="font-semibold text-sm">
           {t("sh.active")} · {t("sh.startedAt")} {fmtDateTime(shift.startTime, locale)} ·{" "}
           {fmtNum(shift.startOdometer, locale)} {t("c.km")}
         </span>
+      </div>
+      <div className="mb-3">
+        <GpsTracker shiftId={shift.id} initialKm={shift.gpsKm ?? null} />
       </div>
       <form
         onSubmit={async (e) => {

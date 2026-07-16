@@ -6,12 +6,16 @@ export type EntityConfig = {
   model: string; // prisma delegate name
   fields: Record<string, FieldType>;
   orderBy: Record<string, "asc" | "desc">;
+  /** NOT-NULL columns (schema requires a value): empty input is ignored so
+   *  Prisma defaults/existing values stand. Every other field: empty = clear. */
+  required: string[];
 };
 
 export const ENTITIES: Record<string, EntityConfig> = {
   vehicles: {
     model: "vehicle",
     orderBy: { createdAt: "desc" },
+    required: ["name", "fuelSetup", "ownership", "initialOdometer", "isActive"],
     fields: {
       name: "string",
       make: "string",
@@ -34,6 +38,7 @@ export const ENTITIES: Record<string, EntityConfig> = {
   shifts: {
     model: "shift",
     orderBy: { startTime: "desc" },
+    required: ["vehicleId", "startTime", "startOdometer"],
     fields: {
       vehicleId: "string",
       startTime: "date",
@@ -48,6 +53,7 @@ export const ENTITIES: Record<string, EntityConfig> = {
   trips: {
     model: "trip",
     orderBy: { startTime: "desc" },
+    required: ["vehicleId", "platform", "startTime", "fare", "paymentType", "tip", "source"],
     fields: {
       vehicleId: "string",
       shiftId: "string",
@@ -68,6 +74,7 @@ export const ENTITIES: Record<string, EntityConfig> = {
   tips: {
     model: "cashTip",
     orderBy: { date: "desc" },
+    required: ["vehicleId", "date", "amount"],
     fields: {
       vehicleId: "string",
       shiftId: "string",
@@ -79,6 +86,7 @@ export const ENTITIES: Record<string, EntityConfig> = {
   fuelups: {
     model: "fuelUp",
     orderBy: { date: "desc" },
+    required: ["vehicleId", "date", "odometer", "fuelType", "quantity", "pricePerUnit", "totalCost", "fullTank"],
     fields: {
       vehicleId: "string",
       date: "date",
@@ -96,6 +104,7 @@ export const ENTITIES: Record<string, EntityConfig> = {
   maintenance: {
     model: "maintenance",
     orderBy: { date: "desc" },
+    required: ["vehicleId", "date", "category", "cost"],
     fields: {
       vehicleId: "string",
       date: "date",
@@ -110,6 +119,7 @@ export const ENTITIES: Record<string, EntityConfig> = {
   expenses: {
     model: "expense",
     orderBy: { date: "desc" },
+    required: ["vehicleId", "date", "category", "amount", "isWork"],
     fields: {
       vehicleId: "string",
       date: "date",
@@ -123,6 +133,7 @@ export const ENTITIES: Record<string, EntityConfig> = {
   reminders: {
     model: "reminder",
     orderBy: { createdAt: "desc" },
+    required: ["vehicleId", "title", "active"],
     fields: {
       vehicleId: "string",
       title: "string",
@@ -138,21 +149,9 @@ export const ENTITIES: Record<string, EntityConfig> = {
   },
 };
 
-// Nullable columns where an empty value should explicitly clear/skip via null.
-const NULLABLE_OK = new Set([
-  "endTime",
-  "endOdometer",
-  "shiftId",
-  "distanceKm",
-  "commission",
-  "dueDate",
-  "dueOdometer",
-  "repeatKm",
-  "repeatMonths",
-  "odometer:maintenance",
-]);
-
-/** Coerce a JSON body into typed prisma data; empty optional values are omitted. */
+/** Coerce a JSON body into typed prisma data. Empty values CLEAR nullable
+ *  columns (null) and are ignored for required ones — so a user emptying a
+ *  field like depreciationPerKm genuinely removes the stored value. */
 export function coerceBody(
   config: EntityConfig,
   body: Record<string, unknown>
@@ -162,9 +161,7 @@ export function coerceBody(
     if (!(field in body)) continue;
     const raw = body[field];
     if (raw === "" || raw === null || raw === undefined) {
-      // null only where the column is nullable; otherwise omit so Prisma
-      // defaults apply (e.g. tip, fullTank) instead of erroring on null
-      if (NULLABLE_OK.has(field)) data[field] = null;
+      if (!config.required.includes(field)) data[field] = null;
       continue;
     }
     switch (type) {

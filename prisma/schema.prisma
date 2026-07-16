@@ -57,6 +57,8 @@ model Shift {
   endOdometer   Float?
   startPhoto    String? // uploaded screenshot/odometer photo filename
   endPhoto      String?
+  gpsKm         Float? // distance measured by in-shift GPS tracking
+  track         String? // JSON [[epochMs,lat,lng],…] recorded during the shift
   notes         String?
   createdAt     DateTime  @default(now())
 

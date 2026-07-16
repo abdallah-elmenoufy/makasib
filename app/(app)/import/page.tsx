@@ -1,20 +1,34 @@
 "use client";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useI18n } from "@/components/I18nProvider";
 import { Btn, Card, Empty, Field, Input, PageTitle, Select } from "@/components/ui";
 import { useVehicle } from "@/components/useCrud";
 import { parseEarningsActivityText, ActivityTrip } from "@/lib/earningsActivity";
 import { looksLikeTripRequest, parseTripRequestText, TripRequest } from "@/lib/tripRequest";
-import { fmtDate } from "@/lib/format";
+import { fmtDate, toLocalInput } from "@/lib/format";
 
 const PLATFORMS = ["UBER", "CAREEM", "INDRIVE", "BOLT", "OTHER"];
 const TARGET_FIELDS = ["startTime", "fare", "distanceKm", "paymentType", "tip"] as const;
+type Tab = "shift" | "ocr" | "pdf" | "csv";
 
 export default function ImportPage() {
+  return (
+    <Suspense>
+      <ImportInner />
+    </Suspense>
+  );
+}
+
+function ImportInner() {
   const { t } = useI18n();
   const { vehicle, loading } = useVehicle();
-  const [tab, setTab] = useState<"pdf" | "ocr" | "csv">("pdf");
+  const params = useSearchParams();
+  const requested = params.get("tab") as Tab | null;
+  const [tab, setTab] = useState<Tab>(
+    requested && ["shift", "ocr", "pdf", "csv"].includes(requested) ? requested : "shift"
+  );
 
   if (loading) return null;
   if (!vehicle) {
@@ -28,8 +42,9 @@ export default function ImportPage() {
   }
 
   const tabs = [
-    { id: "pdf" as const, label: t("im.tabPdf") },
-    { id: "ocr" as const, label: t("im.tabOcr") },
+    { id: "shift" as const, label: `📷 ${t("im.tabShift")}` },
+    { id: "ocr" as const, label: `📸 ${t("im.tabOcr")}` },
+    { id: "pdf" as const, label: `📄 ${t("im.tabPdf")}` },
     { id: "csv" as const, label: t("im.tabCsv") },
   ];
 
@@ -49,10 +64,205 @@ export default function ImportPage() {
           </button>
         ))}
       </div>
+      {tab === "shift" && <ShiftPhotosImport vehicle={vehicle} />}
       {tab === "pdf" && <PdfImport vehicleId={vehicle.id} />}
       {tab === "ocr" && <OcrImport vehicleId={vehicle.id} />}
       {tab === "csv" && <CsvImport vehicleId={vehicle.id} />}
     </div>
+  );
+}
+
+/* ---------------- Shift from odometer photos ---------------- */
+
+type ShiftPhoto = {
+  filename: string;
+  time: string; // datetime-local value
+  odo: string;
+  fromExif: boolean;
+  fromOcr: boolean;
+};
+
+function ShiftPhotosImport({ vehicle }: { vehicle: any }) {
+  const { t } = useI18n();
+  const [photos, setPhotos] = useState<ShiftPhoto[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState("");
+  const [result, setResult] = useState("");
+
+  const processFiles = async (incoming: File[]) => {
+    const images = incoming.filter((f) => f.type.startsWith("image/") || /\.heic$/i.test(f.name));
+    if (images.length === 0 || busy) return;
+    setBusy(true);
+    setResult("");
+    const next: ShiftPhoto[] = [...photos];
+    for (let i = 0; i < images.length && next.length < 2; i++) {
+      const file = images[i];
+      setProgress(t("im.ocrReading", { i: i + 1, n: images.length }));
+
+      // 1) upload for record-keeping
+      const form = new FormData();
+      form.append("file", file);
+      const up = await fetch("/api/upload", { method: "POST", body: form });
+      if (!up.ok) continue;
+      const { filename } = await up.json();
+
+      // 2) when the photo was taken (EXIF; file date as fallback)
+      let when = new Date(file.lastModified);
+      let fromExif = false;
+      try {
+        const exifr = (await import("exifr")).default;
+        const meta = await exifr.parse(file, ["DateTimeOriginal", "CreateDate"]);
+        const d = meta?.DateTimeOriginal ?? meta?.CreateDate;
+        if (d instanceof Date && !isNaN(d.getTime())) {
+          when = d;
+          fromExif = true;
+        }
+      } catch {
+        // HEIC or stripped metadata — fall back to file date
+      }
+
+      // 3) odometer digits (best-effort)
+      let odo = "";
+      let fromOcr = false;
+      try {
+        const { ocrOdometerCandidates } = await import("@/lib/ocr");
+        const candidates = await ocrOdometerCandidates(file);
+        const min = vehicle.initialOdometer ?? 0;
+        const plausible = candidates.filter((c) => c >= min && c < min + 500_000);
+        if (plausible.length > 0) {
+          odo = String(plausible.sort((a, b) => a - b)[0]);
+          fromOcr = true;
+        }
+      } catch {
+        // OCR can't decode some formats (e.g. HEIC on Chrome) — manual entry
+      }
+
+      next.push({ filename, time: toLocalInput(when), odo, fromExif, fromOcr });
+    }
+    // earlier photo is the start
+    next.sort((a, b) => a.time.localeCompare(b.time));
+    setPhotos(next);
+    setProgress("");
+    setBusy(false);
+  };
+
+  const save = async () => {
+    if (photos.length === 0) return;
+    const [start, end] = photos;
+    setBusy(true);
+    const res = await fetch("/api/shifts", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        vehicleId: vehicle.id,
+        startTime: new Date(start.time).toISOString(),
+        startOdometer: start.odo,
+        startPhoto: start.filename,
+        ...(end
+          ? {
+              endTime: new Date(end.time).toISOString(),
+              endOdometer: end.odo,
+              endPhoto: end.filename,
+            }
+          : {}),
+      }),
+    });
+    setBusy(false);
+    if (res.ok) {
+      setResult(`✓ ${t("im.shiftSaved")}${end ? "" : ` — ${t("sh.active")}`}`);
+      setPhotos([]);
+    } else {
+      setResult(t("c.error"));
+    }
+  };
+
+  const setPhoto = (i: number, patch: Partial<ShiftPhoto>) =>
+    setPhotos(photos.map((p, j) => (j === i ? { ...p, ...patch } : p)));
+
+  const canSave =
+    photos.length > 0 &&
+    photos.every((p) => p.time && p.odo !== "") &&
+    (photos.length < 2 || Number(photos[1].odo) > Number(photos[0].odo));
+
+  return (
+    <Card className="space-y-4">
+      <p className="text-sm text-slate-500">{t("im.shiftHint")}</p>
+
+      {photos.length < 2 && (
+        <label
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            processFiles(Array.from(e.dataTransfer.files));
+          }}
+          className={`block border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
+            busy ? "border-slate-200 text-slate-300" : "border-emerald-300 text-slate-500 hover:bg-emerald-50"
+          }`}
+        >
+          <input
+            type="file"
+            accept="image/*,.heic"
+            multiple
+            disabled={busy}
+            onChange={(e) => {
+              processFiles(Array.from(e.target.files ?? []));
+              e.target.value = "";
+            }}
+            className="hidden"
+          />
+          <div className="text-3xl mb-1">🚗</div>
+          <div className="text-sm font-semibold">{t("im.shiftDrop")}</div>
+        </label>
+      )}
+      {progress && <p className="text-sm text-slate-400 animate-pulse">{progress}</p>}
+
+      {photos.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {photos.map((p, i) => (
+            <div key={p.filename} className="border border-slate-200 rounded-xl p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-bold">
+                  {i === 0 ? `▶ ${t("im.shiftStart")}` : `⏹ ${t("im.shiftEnd")}`}
+                </span>
+                <button onClick={() => setPhotos(photos.filter((_, j) => j !== i))} className="text-red-400 text-xs">
+                  ✕
+                </button>
+              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={`/api/files/${p.filename}`} alt="" className="h-24 w-full object-cover rounded-lg" />
+              <Field
+                label={i === 0 ? t("sh.startTime") : t("sh.endTime")}
+                hint={p.fromExif ? `📷 ${t("im.timeFromPhoto")}` : undefined}
+              >
+                <Input type="datetime-local" value={p.time} onChange={(e) => setPhoto(i, { time: e.target.value })} />
+              </Field>
+              <Field
+                label={i === 0 ? t("sh.startOdo") : t("sh.endOdo")}
+                hint={p.fromOcr ? `📷 ${t("sh.ocrDetected")}` : undefined}
+              >
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={p.odo}
+                  onChange={(e) => setPhoto(i, { odo: e.target.value })}
+                  required
+                />
+              </Field>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {photos.length === 2 && photos[1].odo !== "" && Number(photos[1].odo) <= Number(photos[0].odo) && (
+        <p className="text-xs text-red-600">{t("im.odoOrder")}</p>
+      )}
+      {photos.length > 0 && (
+        <Btn onClick={save} disabled={busy || !canSave}>
+          {t("c.save")} {photos.length === 1 ? `(${t("sh.start")})` : ""}
+        </Btn>
+      )}
+      {result && <p className="text-emerald-700 text-sm font-semibold">{result}</p>}
+    </Card>
   );
 }
 

@@ -1,0 +1,17 @@
+{
+  "name": "Mekasib — Driver Profit Tracker",
+  "short_name": "Mekasib",
+  "description": "Know your real profit, not just your earnings",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#059669",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

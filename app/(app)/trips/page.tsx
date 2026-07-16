@@ -60,7 +60,18 @@ export default function TripsPage() {
 
   return (
     <div>
-      <PageTitle>{t("tr.title")}</PageTitle>
+      <PageTitle
+        actions={
+          <Link
+            href="/import?tab=ocr"
+            className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg px-3 py-2"
+          >
+            📸 {t("tr.fromScreens")}
+          </Link>
+        }
+      >
+        {t("tr.title")}
+      </PageTitle>
 
       <div className="flex gap-2 flex-wrap">
         <AddPanel buttonLabel={t("tr.add")} open={open} setOpen={setOpen}>

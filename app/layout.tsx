@@ -6,6 +6,18 @@ import { I18nProvider } from "@/components/I18nProvider";
 export const metadata: Metadata = {
   title: "Mekasib — Driver Profit Tracker",
   description: "Know your real profit, not just your earnings",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Mekasib",
+    statusBarStyle: "default",
+  },
+};
+
+export const viewport = {
+  themeColor: "#059669",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
