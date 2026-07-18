@@ -2,48 +2,16 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/components/I18nProvider";
-import { AddPanel, Btn, Card, Checkbox, Empty, Field, Input, PageTitle, Select, Table, Textarea } from "@/components/ui";
+import { AddPanel, Btn, Card, Empty, Field, Input, PageTitle, Table, Textarea } from "@/components/ui";
 import { useCrud, useVehicle } from "@/components/useCrud";
 import { fmtDateTime, fmtMoney, fmtNum, toLocalInput } from "@/lib/format";
-
-const PLATFORMS = ["UBER", "CAREEM", "INDRIVE", "BOLT", "OTHER"];
-
-const emptyTrip = () => ({
-  platform: "UBER",
-  startTime: toLocalInput(),
-  earnings: "",
-  cashCollected: "",
-  distanceKm: "",
-  paymentType: "CASH",
-  tip: "",
-  notes: "",
-});
-
-// Net-first: the driver types what the platform shows (net earnings) plus the
-// cash actually collected; fare/commission are derived for storage.
-function toTripData(form: any) {
-  const earnings = Number(form.earnings);
-  const cash = form.paymentType === "CASH" && form.cashCollected !== "" ? Number(form.cashCollected) : null;
-  return {
-    platform: form.platform,
-    startTime: new Date(form.startTime).toISOString(),
-    fare: cash ?? earnings,
-    commission: cash != null ? cash - earnings : 0,
-    distanceKm: form.distanceKm,
-    paymentType: form.paymentType,
-    tip: form.tip,
-    notes: form.notes,
-  };
-}
 
 export default function TripsPage() {
   const { t, locale } = useI18n();
   const { vehicle, loading: vLoading } = useVehicle();
-  const { rows: trips, loading, create, remove } = useCrud<any>("trips", vehicle?.id);
+  const { rows: trips, loading, remove } = useCrud<any>("trips", vehicle?.id);
   const tipsCrud = useCrud<any>("tips", vehicle?.id);
-  const [form, setForm] = useState<any>(emptyTrip());
   const [tipForm, setTipForm] = useState({ date: toLocalInput(), amount: "", notes: "" });
-  const [open, setOpen] = useState(false);
   const [tipOpen, setTipOpen] = useState(false);
 
   if (vLoading || loading) return null;
@@ -56,95 +24,31 @@ export default function TripsPage() {
       </Empty>
     );
   }
-  const set = (k: string, v: unknown) => setForm({ ...form, [k]: v });
 
   return (
     <div>
       <PageTitle
         actions={
-          <Link
-            href="/import?tab=ocr"
-            className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg px-3 py-2"
-          >
-            📸 {t("tr.fromScreens")}
-          </Link>
+          <div className="flex gap-2 flex-wrap">
+            <Link
+              href="/import?tab=ocr"
+              className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg px-3 py-2"
+            >
+              📸 {t("tr.fromScreens")}
+            </Link>
+            <Link
+              href="/import?tab=manual"
+              className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg px-3 py-2"
+            >
+              ➕ {t("tr.add")}
+            </Link>
+          </div>
         }
       >
         {t("tr.title")}
       </PageTitle>
 
       <div className="flex gap-2 flex-wrap">
-        <AddPanel buttonLabel={t("tr.add")} open={open} setOpen={setOpen}>
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              if (await create({ ...toTripData(form), vehicleId: vehicle.id })) {
-                setForm(emptyTrip());
-                setOpen(false);
-              }
-            }}
-            className="grid grid-cols-2 md:grid-cols-3 gap-3"
-          >
-            <Field label={t("tr.platform")}>
-              <Select value={form.platform} onChange={(e) => set("platform", e.target.value)}>
-                {PLATFORMS.map((p) => (
-                  <option key={p} value={p}>
-                    {t(`pf.${p}`)}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field label={t("tr.startTime")}>
-              <Input
-                type="datetime-local"
-                value={form.startTime}
-                onChange={(e) => set("startTime", e.target.value)}
-                required
-              />
-            </Field>
-            <Field label={t("tr.earnings")} hint={t("tr.earningsHint")}>
-              <Input
-                type="number"
-                step="0.01"
-                value={form.earnings}
-                onChange={(e) => set("earnings", e.target.value)}
-                required
-              />
-            </Field>
-            <Field label={t("tr.payment")}>
-              <Select value={form.paymentType} onChange={(e) => set("paymentType", e.target.value)}>
-                <option value="CASH">{t("tr.CASH")}</option>
-                <option value="CARD">{t("tr.CARD")}</option>
-              </Select>
-            </Field>
-            {form.paymentType === "CASH" && (
-              <Field label={t("tr.cashCollected")} hint={t("tr.cashCollectedHint")}>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={form.cashCollected}
-                  onChange={(e) => set("cashCollected", e.target.value)}
-                />
-              </Field>
-            )}
-            <Field label={t("tr.distance")}>
-              <Input type="number" step="0.1" value={form.distanceKm} onChange={(e) => set("distanceKm", e.target.value)} />
-            </Field>
-            <Field label={t("tr.tip")}>
-              <Input type="number" step="0.01" value={form.tip} onChange={(e) => set("tip", e.target.value)} />
-            </Field>
-            <div className="col-span-2">
-              <Field label={`${t("c.notes")} (${t("c.optional")})`}>
-                <Textarea value={form.notes} onChange={(e) => set("notes", e.target.value)} />
-              </Field>
-            </div>
-            <div className="col-span-2 md:col-span-3 flex items-center gap-3">
-              <Btn type="submit">{t("c.save")}</Btn>
-              <span className="text-xs text-slate-400">✓ {t("tr.autoMatch")}</span>
-            </div>
-          </form>
-        </AddPanel>
-
         <AddPanel buttonLabel={t("tip.add")} open={tipOpen} setOpen={setTipOpen}>
           <form
             onSubmit={async (e) => {

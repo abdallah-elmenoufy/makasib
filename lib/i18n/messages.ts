@@ -250,6 +250,7 @@ const en: Record<string, string> = {
   // import
   "im.title": "Import",
   "im.tabShift": "Shift (odometer photos)",
+  "im.tabManual": "Add trip manually",
   "im.shiftHint":
     "Photograph your odometer when you start and when you finish. Drop both photos here — the app reads the time from each photo and the km from the dial; check the values and save.",
   "im.shiftDrop": "Drop your odometer photos here (start & end), or tap to choose",
@@ -575,6 +576,7 @@ const ar: Record<string, string> = {
 
   "im.title": "الاستيراد",
   "im.tabShift": "الوردية (صور العداد)",
+  "im.tabManual": "إضافة رحلة يدويًا",
   "im.shiftHint":
     "صوّر عداد الكيلومترات عند بداية الوردية وعند نهايتها. أسقط الصورتين هنا — التطبيق يقرأ الوقت من كل صورة والكيلومترات من العداد؛ راجع القيم واحفظ.",
   "im.shiftDrop": "أسقط صور العداد هنا (البداية والنهاية) أو اضغط للاختيار",

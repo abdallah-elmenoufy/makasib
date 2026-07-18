@@ -3,15 +3,17 @@ import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useI18n } from "@/components/I18nProvider";
-import { Btn, Card, Empty, Field, Input, PageTitle, Select } from "@/components/ui";
+import { Btn, Card, Empty, Field, Input, PageTitle, Select, Textarea } from "@/components/ui";
 import { useVehicle } from "@/components/useCrud";
 import { parseEarningsActivityText, ActivityTrip } from "@/lib/earningsActivity";
 import { looksLikeTripRequest, parseTripRequestText, TripRequest } from "@/lib/tripRequest";
+import { emptyTripForm, toTripData, TripFormState, PLATFORMS as TRIP_PLATFORMS } from "@/lib/tripForm";
 import { fmtDate, toLocalInput } from "@/lib/format";
 
 const PLATFORMS = ["UBER", "CAREEM", "INDRIVE", "BOLT", "OTHER"];
 const TARGET_FIELDS = ["startTime", "fare", "distanceKm", "paymentType", "tip"] as const;
-type Tab = "shift" | "ocr" | "pdf" | "csv";
+const TABS = ["shift", "manual", "ocr", "pdf", "csv"] as const;
+type Tab = (typeof TABS)[number];
 
 export default function ImportPage() {
   return (
@@ -27,7 +29,7 @@ function ImportInner() {
   const params = useSearchParams();
   const requested = params.get("tab") as Tab | null;
   const [tab, setTab] = useState<Tab>(
-    requested && ["shift", "ocr", "pdf", "csv"].includes(requested) ? requested : "shift"
+    requested && (TABS as readonly string[]).includes(requested) ? requested : "shift"
   );
 
   if (loading) return null;
@@ -43,6 +45,7 @@ function ImportInner() {
 
   const tabs = [
     { id: "shift" as const, label: `📷 ${t("im.tabShift")}` },
+    { id: "manual" as const, label: `➕ ${t("im.tabManual")}` },
     { id: "ocr" as const, label: `📸 ${t("im.tabOcr")}` },
     { id: "pdf" as const, label: `📄 ${t("im.tabPdf")}` },
     { id: "csv" as const, label: t("im.tabCsv") },
@@ -51,12 +54,12 @@ function ImportInner() {
   return (
     <div>
       <PageTitle>{t("im.title")}</PageTitle>
-      <div className="flex gap-1 mb-4 bg-white border border-slate-200 rounded-lg p-1 w-fit flex-wrap">
+      <div className="grid grid-cols-2 sm:flex gap-1.5 mb-4 bg-white border border-slate-200 rounded-xl p-1.5 flex-wrap">
         {tabs.map((x) => (
           <button
             key={x.id}
             onClick={() => setTab(x.id)}
-            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+            className={`px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
               tab === x.id ? "bg-emerald-600 text-white" : "text-slate-500 hover:bg-slate-100"
             }`}
           >
@@ -65,10 +68,106 @@ function ImportInner() {
         ))}
       </div>
       {tab === "shift" && <ShiftPhotosImport vehicle={vehicle} />}
+      {tab === "manual" && <ManualTripImport vehicleId={vehicle.id} />}
       {tab === "pdf" && <PdfImport vehicleId={vehicle.id} />}
       {tab === "ocr" && <OcrImport vehicleId={vehicle.id} />}
       {tab === "csv" && <CsvImport vehicleId={vehicle.id} />}
     </div>
+  );
+}
+
+/* ---------------- Manual trip entry ---------------- */
+
+function ManualTripImport({ vehicleId }: { vehicleId: string }) {
+  const { t } = useI18n();
+  const [form, setForm] = useState<TripFormState>(emptyTripForm());
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState("");
+  const set = (k: keyof TripFormState, v: string) => setForm({ ...form, [k]: v });
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    const res = await fetch("/api/trips", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...toTripData(form), vehicleId }),
+    });
+    setBusy(false);
+    if (res.ok) {
+      setForm(emptyTripForm());
+      setResult(`✓ ${t("c.saved")} — ${t("tr.autoMatch")}`);
+      setTimeout(() => setResult(""), 3000);
+    } else {
+      setResult(t("c.error"));
+    }
+  };
+
+  return (
+    <Card>
+      <form onSubmit={submit} className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <Field label={t("tr.platform")}>
+          <Select value={form.platform} onChange={(e) => set("platform", e.target.value)}>
+            {TRIP_PLATFORMS.map((p) => (
+              <option key={p} value={p}>
+                {t(`pf.${p}`)}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label={t("tr.startTime")}>
+          <Input
+            type="datetime-local"
+            value={form.startTime}
+            onChange={(e) => set("startTime", e.target.value)}
+            required
+          />
+        </Field>
+        <Field label={t("tr.earnings")} hint={t("tr.earningsHint")}>
+          <Input
+            type="number"
+            step="0.01"
+            value={form.earnings}
+            onChange={(e) => set("earnings", e.target.value)}
+            required
+            autoFocus
+          />
+        </Field>
+        <Field label={t("tr.payment")}>
+          <Select value={form.paymentType} onChange={(e) => set("paymentType", e.target.value)}>
+            <option value="CASH">{t("tr.CASH")}</option>
+            <option value="CARD">{t("tr.CARD")}</option>
+          </Select>
+        </Field>
+        {form.paymentType === "CASH" && (
+          <Field label={t("tr.cashCollected")} hint={t("tr.cashCollectedHint")}>
+            <Input
+              type="number"
+              step="0.01"
+              value={form.cashCollected}
+              onChange={(e) => set("cashCollected", e.target.value)}
+            />
+          </Field>
+        )}
+        <Field label={t("tr.distance")}>
+          <Input type="number" step="0.1" value={form.distanceKm} onChange={(e) => set("distanceKm", e.target.value)} />
+        </Field>
+        <Field label={t("tr.tip")}>
+          <Input type="number" step="0.01" value={form.tip} onChange={(e) => set("tip", e.target.value)} />
+        </Field>
+        <div className="col-span-2 md:col-span-3">
+          <Field label={`${t("c.notes")} (${t("c.optional")})`}>
+            <Textarea value={form.notes} onChange={(e) => set("notes", e.target.value)} />
+          </Field>
+        </div>
+        <div className="col-span-2 md:col-span-3 flex items-center gap-3">
+          <Btn type="submit" disabled={busy}>
+            {t("c.save")}
+          </Btn>
+          {result && <span className="text-emerald-700 text-sm font-semibold">{result}</span>}
+        </div>
+      </form>
+    </Card>
   );
 }
 

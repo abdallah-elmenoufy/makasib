@@ -91,6 +91,24 @@ export default function DashboardPage() {
         {t("db.title")}
       </PageTitle>
 
+      {/* quick actions: the two things a driver taps every shift */}
+      <div className="grid grid-cols-2 gap-3">
+        <Link
+          href="/shifts"
+          className="flex items-center justify-center gap-2 rounded-xl px-4 py-4 text-base font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+        >
+          <span className="text-xl">🕐</span>
+          <span>{t("nav.shifts")}</span>
+        </Link>
+        <Link
+          href="/import"
+          className="flex items-center justify-center gap-2 rounded-xl px-4 py-4 text-base font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+        >
+          <span className="text-xl">📥</span>
+          <span>{t("nav.import")}</span>
+        </Link>
+      </div>
+
       {/* hero + stat tiles */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card className="col-span-2">
