@@ -32,12 +32,16 @@ export default function DashboardPage() {
   const { vehicle, loading: vLoading } = useVehicle();
   const [period, setPeriod] = useState<(typeof PERIODS)[number]>("week");
   const [a, setA] = useState<any>(null);
+  const [bench, setBench] = useState<any>(null);
 
   useEffect(() => {
     if (vehicle) {
       fetch(`/api/analytics?vehicleId=${vehicle.id}&period=${period}`)
         .then((r) => (r.ok ? r.json() : null))
         .then(setA);
+      fetch(`/api/benchmark?vehicleId=${vehicle.id}&period=${period}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then(setBench);
     }
   }, [vehicle, period]);
 
@@ -91,20 +95,27 @@ export default function DashboardPage() {
         {t("db.title")}
       </PageTitle>
 
-      {/* quick actions: the two things a driver taps every shift */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* quick actions: what a driver does constantly through a shift */}
+      <div className="grid grid-cols-3 gap-2 md:gap-3">
         <Link
           href="/shifts"
-          className="flex items-center justify-center gap-2 rounded-xl px-4 py-4 text-base font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+          className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 rounded-xl px-2 py-3 md:py-4 text-sm md:text-base font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
         >
-          <span className="text-xl">🕐</span>
+          <span className="text-lg md:text-xl">🕐</span>
           <span>{t("nav.shifts")}</span>
         </Link>
         <Link
-          href="/import"
-          className="flex items-center justify-center gap-2 rounded-xl px-4 py-4 text-base font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+          href="/score"
+          className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 rounded-xl px-2 py-3 md:py-4 text-sm md:text-base font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
         >
-          <span className="text-xl">📥</span>
+          <span className="text-lg md:text-xl">⚡</span>
+          <span>{t("nav.score")}</span>
+        </Link>
+        <Link
+          href="/import"
+          className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 rounded-xl px-2 py-3 md:py-4 text-sm md:text-base font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+        >
+          <span className="text-lg md:text-xl">📥</span>
           <span>{t("nav.import")}</span>
         </Link>
       </div>
@@ -244,6 +255,41 @@ export default function DashboardPage() {
         </Card>
       </div>
 
+      {/* you vs. other drivers — a real cross-vehicle average, only shows
+          once other drivers' data actually exists (see lib/benchmark.ts) */}
+      {bench && (
+        <Card>
+          <div className="text-sm font-semibold mb-3">{t("bm.title")}</div>
+          {bench.others.driverCount === 0 ? (
+            <Empty>{t("bm.notEnough")}</Empty>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <BenchMetric
+                  label={t("db.perHour")}
+                  you={bench.you.profitPerHour}
+                  others={bench.others.profitPerHour}
+                  fmt={money}
+                  youLabel={t("bm.you")}
+                  othersLabel={t("bm.others")}
+                />
+                <BenchMetric
+                  label={t("db.perKm")}
+                  you={bench.you.profitPerKm}
+                  others={bench.others.profitPerKm}
+                  fmt={money}
+                  youLabel={t("bm.you")}
+                  othersLabel={t("bm.others")}
+                />
+              </div>
+              <div className="text-xs text-slate-400 mt-3 text-center">
+                {t("bm.driverCount", { n: bench.others.driverCount })}
+              </div>
+            </>
+          )}
+        </Card>
+      )}
+
       {/* cash reconciliation */}
       <Card>
         <div className="text-sm font-semibold mb-3">{t("db.cash")}</div>
@@ -340,6 +386,46 @@ function MiniTile({ label, value }: { label: string; value: string }) {
       <div className="text-xs font-semibold text-slate-500">{label}</div>
       <div className="text-lg font-bold mt-0.5">{value}</div>
     </Card>
+  );
+}
+
+function BenchMetric({
+  label,
+  you,
+  others,
+  fmt,
+  youLabel,
+  othersLabel,
+}: {
+  label: string;
+  you: number | null;
+  others: number | null;
+  fmt: (n: number) => string;
+  youLabel: string;
+  othersLabel: string;
+}) {
+  const youWins = you != null && others != null && you >= others;
+  return (
+    <div>
+      <div className="text-xs text-slate-500 mb-1 text-center">{label}</div>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="text-center">
+          <div className="text-[10px] text-slate-400">{youLabel}</div>
+          <div
+            className="text-lg font-bold"
+            style={{ fontVariantNumeric: "tabular-nums", color: youWins ? "#006300" : undefined }}
+          >
+            {you != null ? fmt(you) : "—"}
+          </div>
+        </div>
+        <div className="text-center">
+          <div className="text-[10px] text-slate-400">{othersLabel}</div>
+          <div className="text-lg font-bold text-slate-600" style={{ fontVariantNumeric: "tabular-nums" }}>
+            {others != null ? fmt(others) : "—"}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

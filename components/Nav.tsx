@@ -3,11 +3,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useI18n } from "./I18nProvider";
 
-// The two things a driver does every single shift — always rendered as a
-// fixed, large, always-visible pair (never inside the scrollable link row),
+// The things a driver does constantly through a shift (start/end it, score
+// incoming offers, import the day's screenshots) — always rendered as a
+// fixed, large, always-visible row (never inside the scrollable link list),
 // so they're never buried or require scrolling to reach.
 const PRIMARY: { href: string; key: string; icon: string }[] = [
   { href: "/shifts", key: "nav.shifts", icon: "🕐" },
+  { href: "/score", key: "nav.score", icon: "⚡" },
   { href: "/import", key: "nav.import", icon: "📥" },
 ];
 
@@ -54,12 +56,12 @@ export function Nav() {
 
       {/* primary actions: fixed grid, not part of any scroll row — always
           fully visible the instant the app opens, on phone or desktop */}
-      <div className="grid grid-cols-2 gap-2 mb-3">
+      <div className="grid grid-cols-3 gap-1.5 mb-3">
         {PRIMARY.map((l) => (
           <Link
             key={l.href}
             href={l.href}
-            className={`flex items-center justify-center gap-1.5 rounded-xl px-2 py-3 text-sm font-bold transition-colors ${
+            className={`flex flex-col md:flex-row items-center justify-center gap-1 md:gap-1.5 rounded-xl px-1.5 py-2.5 text-xs md:text-sm font-bold transition-colors ${
               pathname === l.href
                 ? "bg-emerald-700 text-white ring-2 ring-emerald-300"
                 : "bg-emerald-600 text-white hover:bg-emerald-700"

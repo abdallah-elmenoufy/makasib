@@ -459,8 +459,36 @@ the photo.
 3. **Server dependencies**: replace `sips` (HEIC) and Vision OCR (§12)
    before cutting over — this is the one gap that actively breaks if
    ignored, not just a missing feature.
-4. **Hosting**: Vercel (pairs naturally with Next.js) or any Node host;
-   Supabase Storage instead of local `data/uploads/` for photos.
+4. **Database hosting** (researched 2026-07-18): Supabase remains the right
+   default — it bundles Postgres + Auth + Storage + RLS in one place, which
+   matters more than raw price for a small team shipping fast. Free tier:
+   2 projects, 500MB DB, 1GB storage, 5GB bandwidth, but **pauses after 7
+   days idle** (fine for active development, not for a "sleeping" demo).
+   Paid: $25/mo flat (Pro), no scale-to-zero — you pay for the instance
+   24/7. **Neon** is the pure-Postgres alternative worth knowing about: 10x
+   cheaper entry ($19/mo Launch vs. $25 Pro) and true scale-to-zero
+   (compute auto-suspends after 5 min idle), but no bundled Auth/Storage/RLS
+   — you'd wire NextAuth + S3-compatible storage yourself. Reasonable
+   trigger to reconsider: if usage is spiky (most users driving only certain
+   hours) rather than steady, Neon's scale-to-zero could meaningfully
+   undercut Supabase's always-on Pro compute. **Railway** is not a
+   database-specialist product (generic managed Postgres, no branching, no
+   serverless-tuned pooler) — skip it for this app. At current expected
+   scale (single-driver rows, text + small JSON GPS tracks, no photo
+   retention beyond 30 days per §10) database size stays tiny for a long
+   time; the real cost driver later is bandwidth/egress if the multi-driver
+   aggregated-stats feature (see backlog) starts serving heavier read
+   traffic — budget for that when it's scheduled, not now.
+5. **Web UI hosting**: Vercel is the natural fit for Next.js (built by the
+   same team, zero-config deploys, 6,000 free build minutes vs. Netlify's
+   300) — **but Vercel's free tier explicitly prohibits commercial use**,
+   which this product is headed toward (§ Phase 3 sells to drivers). Since
+   this app will eventually charge money, budget for **Vercel Pro ($20/mo
+   per seat)** once monetized, or launch straight onto Netlify instead
+   (flat $20/mo for the whole team, commercial use allowed even on its free
+   tier, solid — if slightly less polished — Next.js support via
+   `@netlify/next`). Either way, Supabase Storage replaces local
+   `data/uploads/` for photos once hosted.
 
 ### Phase 3 — mobile app
 - React Native/Expo, reusing the same REST API under `app/api/` unchanged.
@@ -481,12 +509,29 @@ the photo.
   a "best zones to drive" panel in Plan-your-day (§8's known gap).
 - Attribute in-shift GPS tracks (§9) to individual trips for a true
   pickup-vs-cruising map, not just an address-label proxy.
-- Multi-driver aggregated stats (phase 2+, needs multi-tenant data — the
-  long-term moat: new drivers get useful Plan-your-day answers from day one
-  once enough drivers contribute anonymized data).
+- ~~Multi-driver aggregated stats~~ — **built 2026-07-18** as
+  `lib/benchmark.ts` (real cross-vehicle average, honestly reports
+  `driverCount: 0` until phase 2 has more than one driver's data — see §15).
+  Remaining work is purely "have more drivers" — no more code needed.
 - Remove the vestigial `commissionPcts` setting (§12).
 - Vehicle switcher UI (schema already supports multiple vehicles).
 - Automated test suite (§12).
+- **Airport pickup alerts** (researched 2026-07-18, not built): the idea —
+  alert drivers when a flight is landing at CAI/HBE so they can position for
+  pickups, the way Egyptian drivers already do manually via FlightRadar24 —
+  is sound, but **no adequate free flight-tracking API exists** for it.
+  OpenSky Network is free but explicitly **non-commercial-licensed** (a
+  dealbreaker for a product headed toward paid subscriptions) and its
+  ADS-B coverage outside Europe/North America depends on volunteer ground
+  receivers, with no guarantee of reliable Cairo coverage. Aviationstack's
+  free tier is 100 calls/month — exhausted in under a day of polling one
+  airport. The realistic path, if revisited: **AeroDataBox** via RapidAPI,
+  paid tiers from ~$5–15/mo for the call volume a single-airport polling job
+  would need — cheap, but not free, so it doesn't meet the condition this
+  was gated on. Uber's own in-app airport-timing alerts (which the user
+  already gets) also reduce the marginal value of duplicating this. Revisit
+  only if the budget bar changes or a genuinely free/generous aviation API
+  appears.
 
 ---
 
@@ -506,3 +551,49 @@ the photo.
 For the *why* behind any of these, the commit messages are written in full
 prose and are the fastest way to recover intent without re-reading this
 whole document.
+
+---
+
+## 15. Live offer scoring & driver benchmark (added 2026-07-18)
+
+Two features added directly from competitive research (Gridwise/Solo/Para/
+rutera comparison) plus the product owner's own request — see git history for
+the exact commit.
+
+### Offer scoring (`/score`, `lib/offerScore.ts`)
+Modeled on rutera's "read the offer screen automatically, show real $/mile
+before accepting" — the closest existing competitor to this exact idea.
+**Phase-1 constraint, stated honestly in-app**: this is a screenshot-and-check
+flow, not a live overlay — a plain web app can't read another app's screen
+without switching to it (that's a native-app-only capability; see phase 3).
+The driver screenshots the incoming request card the instant it appears,
+switches to Mekasib, and picks that photo; the existing `lib/tripRequest.ts`
+parser (built for the batch OCR import) extracts fare/pickup/trip km+min;
+`scoreOffer()` computes an estimated profit/km and profit/hour for *this one
+offer*, using the driver's own historical cost/km (`getAnalytics().rates`)
+and comparing against their own historical `perHour`/`perKm` — never a
+generic or invented number. The verdict (`good`/`ok`/`bad`) is driven by
+profit/**hour** (time is the scarcer resource for a driver), and stays
+`unknown` — honestly — until the driver has logged enough history to have a
+baseline at all.
+
+Speed matters: Uber's accept countdown is ~15 seconds and the whole
+screenshot→switch-app→pick-photo→OCR round trip has to fit inside it. Two
+mitigations: `warmupOcr()` (`lib/ocr.ts`) fires on page mount so tesseract's
+worker/model is already downloaded before a photo is ever picked, and every
+field is live-editable with no submit step — the score recomputes instantly
+as OCR lands or gets corrected. **Phase 3 (native mobile) is where this
+becomes genuinely instant** — an accessibility-service/overlay reading the
+request card with zero app-switching, closing the gap with rutera's real UX.
+
+### Driver benchmark (`lib/benchmark.ts`, dashboard card)
+"You vs. other drivers," Gridwise-style. Built as a **real** cross-vehicle
+aggregation — averages every *other* active `Vehicle`'s own `perHour`/
+`perKm` for the period — never fabricated comparison numbers. In today's
+single-install deployment there's no other vehicle to compare against, so it
+honestly reports `driverCount: 0` and the dashboard shows "not enough other
+drivers yet" rather than inventing a benchmark. The instant a second
+vehicle's data exists in the same database — a local test vehicle now, or
+real other drivers once phase 2 hosts multiple users — the comparison
+activates with **zero code changes**; this was written to generalize, not to
+be rebuilt later.

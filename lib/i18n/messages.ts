@@ -9,6 +9,7 @@ const en: Record<string, string> = {
   // nav
   "nav.dashboard": "Dashboard",
   "nav.plan": "Plan your day!",
+  "nav.score": "Score offer",
   "nav.shifts": "Shifts",
   "nav.trips": "Trips",
   "nav.fuel": "Fuel",
@@ -246,6 +247,12 @@ const en: Record<string, string> = {
   "db.noVehicle": "Set up your vehicle first",
   "db.profitTrend": "Daily profit",
   "db.remindersDue": "Reminders needing attention",
+  "bm.title": "You vs. other Mekasib drivers",
+  "bm.you": "You",
+  "bm.others": "Others' average",
+  "bm.notEnough":
+    "Not enough other drivers yet to compare — this unlocks automatically as more drivers join.",
+  "bm.driverCount": "Compared with {n} other driver(s)",
 
   // import
   "im.title": "Import",
@@ -315,6 +322,28 @@ const en: Record<string, string> = {
   "st.retentionHint":
     "Odometer and receipt photos are deleted after this many days (max 30). The numbers read from them stay — only the image files are removed. Trip screenshots are never stored at all.",
 
+  // score this offer!
+  "score.title": "Score this offer!",
+  "score.subtitle": "Screenshot the incoming trip request, then check it here before you accept.",
+  "score.hurryNote": "You usually only have ~15 seconds on the real request — move fast.",
+  "score.drop": "Choose the offer screenshot",
+  "score.reading": "Reading…",
+  "score.notRecognized": "Couldn't read this as an offer screen — check/enter the numbers below.",
+  "score.pickupKm": "Pickup (km)",
+  "score.pickupMin": "Pickup (min)",
+  "score.tripKm": "Trip (km)",
+  "score.tripMin": "Trip (min)",
+  "score.profitPerKm": "Est. profit / km",
+  "score.profitPerHour": "Est. profit / hour",
+  "score.vsAverage": "vs. your average {n}/hr",
+  "score.verdict.good": "Take it!",
+  "score.verdict.ok": "Average — your call",
+  "score.verdict.bad": "Below your average — think twice",
+  "score.verdict.unknown": "Log more trips to unlock a verdict",
+  "score.scoreAnother": "Score another offer",
+  "score.noBaseline":
+    "Once you've logged enough shifts and trips, this page compares each offer to your own average automatically.",
+
   // plan your day
   "pl.title": "Plan your day!",
   "pl.subtitle": "When to drive, from your own logged trips — it sharpens with every trip you add.",
@@ -347,6 +376,7 @@ const ar: Record<string, string> = {
 
   "nav.dashboard": "لوحة التحكم",
   "nav.plan": "خطّط يومك!",
+  "nav.score": "قيّم العرض",
   "nav.shifts": "الورديات",
   "nav.trips": "الرحلات",
   "nav.fuel": "الوقود",
@@ -573,6 +603,11 @@ const ar: Record<string, string> = {
   "db.noVehicle": "أنشئ ملف سيارتك أولاً",
   "db.profitTrend": "الربح اليومي",
   "db.remindersDue": "تذكيرات تحتاج انتباهك",
+  "bm.title": "أنت مقابل سائقي مكاسب الآخرين",
+  "bm.you": "أنت",
+  "bm.others": "متوسط الآخرين",
+  "bm.notEnough": "لسه مفيش سائقين تانيين كفاية للمقارنة — هتتفعل تلقائيًا أول ما ينضم سائقين أكتر.",
+  "bm.driverCount": "بالمقارنة مع {n} سائق آخر",
 
   "im.title": "الاستيراد",
   "im.tabShift": "الوردية (صور العداد)",
@@ -639,6 +674,26 @@ const ar: Record<string, string> = {
   "st.retention": "مدة الاحتفاظ بالصور (أيام)",
   "st.retentionHint":
     "تُحذف صور العداد والإيصالات بعد هذا العدد من الأيام (بحد أقصى ٣٠). الأرقام المقروءة منها تبقى — تُحذف ملفات الصور فقط. لقطات شاشة الرحلات لا تُخزّن أصلاً.",
+
+  "score.title": "قيّم العرض!",
+  "score.subtitle": "صوّر شاشة طلب الرحلة، وشيّكها هنا قبل ما تقبل.",
+  "score.hurryNote": "في الطلب الحقيقي عندك عادةً ١٥ ثانية بس — يلا بسرعة.",
+  "score.drop": "اختار صورة العرض",
+  "score.reading": "بيقرأ…",
+  "score.notRecognized": "معرفتش أقرا العرض من الصورة — راجع/دخّل الأرقام تحت.",
+  "score.pickupKm": "الوصول (كم)",
+  "score.pickupMin": "الوصول (دقيقة)",
+  "score.tripKm": "الرحلة (كم)",
+  "score.tripMin": "الرحلة (دقيقة)",
+  "score.profitPerKm": "الربح التقديري / كم",
+  "score.profitPerHour": "الربح التقديري / ساعة",
+  "score.vsAverage": "مقابل متوسطك {n}/ساعة",
+  "score.verdict.good": "خدها!",
+  "score.verdict.ok": "عادية — قرارك",
+  "score.verdict.bad": "أقل من متوسطك — فكر تاني",
+  "score.verdict.unknown": "سجّل رحلات أكتر عشان نقدر نحكم",
+  "score.scoreAnother": "قيّم عرض تاني",
+  "score.noBaseline": "أول ما تسجّل ورديات ورحلات كفاية، الصفحة دي هتقارن كل عرض بمتوسطك تلقائيًا.",
 
   "pl.title": "خطّط يومك!",
   "pl.subtitle": "متى تشتغل، من رحلاتك المسجلة — تزداد دقة مع كل رحلة تضيفها.",

@@ -32,6 +32,13 @@ async function getWorker() {
   return workerPromise;
 }
 
+/** Kick off the tesseract worker download/init ahead of time (fire-and-forget)
+ *  so the first real OCR call — e.g. scoring an incoming offer under a
+ *  countdown — doesn't pay the cold-start cost. Safe to call repeatedly. */
+export function warmupOcr(): void {
+  void getWorker();
+}
+
 /** Draw to canvas, downscale huge images, auto-invert dark screenshots.
  *  `boost` adds grayscale + contrast stretch (helps dashboard odometers). */
 async function toCanvas(file: File | Blob, boost = false): Promise<HTMLCanvasElement> {

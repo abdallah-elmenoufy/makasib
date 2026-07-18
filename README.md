@@ -25,9 +25,13 @@ quick-start.
 - **Fuel, maintenance, expenses, reminders** — all odometer-taggable, all
   with a notes field.
 - **Dashboard** — true profit (not gross), fuel economy, cash-owed-to-
-  platform reconciliation, on-trip vs. dead vs. personal km.
+  platform reconciliation, on-trip vs. dead vs. personal km, and (once other
+  drivers' data exists) a you-vs-others benchmark.
 - **Plan your day!** (خطّط يومك) — a heatmap of your best times to drive,
   built from your own logged history.
+- **Score this offer!** (قيّم العرض) — screenshot an incoming trip request
+  and get an instant profit/km and profit/hour estimate against your own
+  average, before you accept.
 - **Full English/Arabic UI**, switchable any time, RTL-correct.
 
 ## Requirements
