@@ -253,24 +253,6 @@ export async function getAnalytics(vehicleId: string, period: Period) {
     periodPositive.length >= 2 ? Math.max(...periodPositive) - Math.min(...periodPositive) : shiftKm;
   const personalKm = Math.max(0, periodTotalKm - shiftKm);
 
-  // ---- Cash reconciliation per platform ----
-  const platforms = [...new Set(trips.map((t) => t.platform))];
-  const cashByPlatform = platforms.map((p) => {
-    const pt = trips.filter((t) => t.platform === p);
-    const oweToPlatform = pt
-      .filter((t) => t.paymentType === "CASH")
-      .reduce((s, t) => s + tripCommission(t, pcts), 0);
-    const platformOwes = pt
-      .filter((t) => t.paymentType === "CARD")
-      .reduce((s, t) => s + (t.fare - tripCommission(t, pcts)), 0);
-    return { platform: p, oweToPlatform, platformOwes, net: platformOwes - oweToPlatform };
-  });
-  const cashTotals = {
-    oweToPlatform: cashByPlatform.reduce((s, x) => s + x.oweToPlatform, 0),
-    platformOwes: cashByPlatform.reduce((s, x) => s + x.platformOwes, 0),
-    net: cashByPlatform.reduce((s, x) => s + x.net, 0),
-  };
-
   // ---- Daily profit trend (last 14 days, independent of selected period) ----
   const since = new Date(Date.now() - 14 * 86_400_000);
   const [trendShifts, trendTrips, trendTipsRows, trendExpenses] = await Promise.all([
@@ -337,7 +319,6 @@ export async function getAnalytics(vehicleId: string, period: Period) {
     perKm: shiftKm > 0 ? trueProfit / shiftKm : null,
     kmSplit: { shiftKm, tripKm, deadKm, pickupKm, cruisingKm, personalKm, periodTotalKm },
     fuelEconomy: fuelEconomy(fuelUpsAll),
-    cash: { byPlatform: cashByPlatform, totals: cashTotals },
     reminders: reminderStatuses(reminders, currentOdo),
     trend: days,
   };

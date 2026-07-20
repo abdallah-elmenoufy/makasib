@@ -138,8 +138,8 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <MiniTile label={t("db.hoursWorked")} value={fmtNum(a.counts.hoursWorked, locale)} />
-        <MiniTile label={t("db.shiftCount")} value={String(a.counts.shifts)} />
-        <MiniTile label={t("db.tripCount")} value={String(a.counts.trips)} />
+        <MiniTile label={t("db.shiftCount")} value={fmtNum(a.counts.shifts, locale, 0)} />
+        <MiniTile label={t("db.tripCount")} value={fmtNum(a.counts.trips, locale, 0)} />
         <MiniTile label={t("veh.currentOdo")} value={`${fmtNum(a.currentOdo, locale)} ${t("c.km")}`} />
       </div>
 
@@ -283,57 +283,13 @@ export default function DashboardPage() {
                 />
               </div>
               <div className="text-xs text-slate-400 mt-3 text-center">
-                {t("bm.driverCount", { n: bench.others.driverCount })}
+                {t("bm.driverCount", { n: fmtNum(bench.others.driverCount, locale, 0) })}
               </div>
             </>
           )}
         </Card>
       )}
 
-      {/* cash reconciliation */}
-      <Card>
-        <div className="text-sm font-semibold mb-3">{t("db.cash")}</div>
-        {a.cash.byPlatform.length === 0 ? (
-          <Empty>{t("c.noData")}</Empty>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-xs text-slate-500 border-b border-slate-200">
-                  <th className="text-start py-1.5 px-2 font-semibold">{t("tr.platform")}</th>
-                  <th className="text-start py-1.5 px-2 font-semibold">{t("db.youOwe")}</th>
-                  <th className="text-start py-1.5 px-2 font-semibold">{t("db.owesYou")}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {a.cash.byPlatform.map((p: any) => (
-                  <tr key={p.platform}>
-                    <td className="py-1.5 px-2 font-semibold">{t(`pf.${p.platform}`)}</td>
-                    <td className="py-1.5 px-2" style={{ fontVariantNumeric: "tabular-nums" }}>
-                      {money(p.oweToPlatform)}
-                    </td>
-                    <td className="py-1.5 px-2" style={{ fontVariantNumeric: "tabular-nums" }}>
-                      {money(p.platformOwes)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="text-center py-2">
-              <div className="text-xs font-semibold text-slate-500">{t("db.cashNet")}</div>
-              <div
-                className="text-3xl font-black mt-1"
-                style={{ color: a.cash.totals.net >= 0 ? C.goodText : C.critical }}
-              >
-                {money(a.cash.totals.net)}
-              </div>
-              <div className="text-xs text-slate-400 mt-1">
-                {a.cash.totals.net >= 0 ? t("db.cashNetHintGet") : t("db.cashNetHintOwe")}
-              </div>
-            </div>
-          </div>
-        )}
-      </Card>
 
       {/* reminders needing attention */}
       {attention.length > 0 && (
