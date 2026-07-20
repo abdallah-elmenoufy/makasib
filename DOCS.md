@@ -188,8 +188,9 @@ equals the driver's net earnings, and `commission` only carries meaning for
 
 - **Cash trip:** `fare = cashCollected`, `commission = cashCollected - earnings`.
   A positive commission means the driver is holding money that belongs to the
-  platform (deducted from the next payout) — this is what powers the "you owe
-  Uber X" cash-reconciliation panel on the dashboard.
+  platform (deducted from the next payout). Uber's own Wallet already shows
+  this authoritatively (real payout cycle, tolls, refunds, promotions) —
+  Makasib doesn't attempt to reproduce it as a dashboard panel; see §16.
 - **Card trip:** `fare = earnings`, `commission = 0` — the money already
   arrived net, nothing to reconcile.
 
@@ -295,9 +296,14 @@ covering shift.
   `deadKm`) and `cruisingKm` (the remainder) — only shown once pickup data
   exists. `personalKm` is the odometer span **between** shifts (i.e. driving
   the app never saw a shift for).
-- **Cash reconciliation**: per platform, sums `commission` (positive =
-  cash-in-hand owed to the platform) across cash trips vs. the card-trip
-  fare (money the platform owes the driver) — see §5's net-first note.
+- **No cash-reconciliation panel, by design**: an earlier version summed
+  `commission` per platform into a "you owe / platform owes you" dashboard
+  card. Removed 2026-07-20 — it duplicated what Uber's own Wallet already
+  computes authoritatively (real payout cycle, tolls, refunds, promotions),
+  and a period-scoped approximation could only ever diverge from that real
+  number, confusing drivers rather than helping them. `Trip.commission`
+  itself is untouched (see §5's net-first note) — only the summary panel
+  is gone. See §16 for the fuller reasoning.
 - **Cost amortization**: fuel and maintenance cost-per-km are computed from
   **all-time** totals ÷ **all-time** km (not the selected period), so a
   single expensive week doesn't distort that week's apparent profitability —
@@ -597,3 +603,76 @@ vehicle's data exists in the same database — a local test vehicle now, or
 real other drivers once phase 2 hosts multiple users — the comparison
 activates with **zero code changes**; this was written to generalize, not to
 be rebuilt later.
+
+---
+
+## 16. Going commercial: legal, payments, and pricing (researched 2026-07-20)
+
+Notes from a product-strategy discussion, not legal or tax advice — get a
+real accountant/lawyer before the first paid customer. Captured here so the
+reasoning survives past the conversation it came from.
+
+### Legal setup (Egypt)
+- Minimum to legally invoice a customer: a **سجل تجاري** (commercial
+  registry) + tax card as a sole proprietor/freelancer. VAT (14%)
+  registration is required once revenue crosses the threshold. Egypt's
+  e-invoice system (ETA) increasingly expects registered invoices even for
+  small businesses — worth confirming with an accountant before launch, not
+  after.
+- An LLC is only worth the extra cost/paperwork if outside investment is
+  the goal, or if a paid **Apple Developer** organization account is needed
+  (requires a D-U-N-S number, which individuals don't have).
+- Egypt's Personal Data Protection Law (151/2020) applies the moment the
+  app hosts *other people's* financial + location data — a real privacy
+  policy and documented lawful basis become necessary, not just the
+  Phase-1 personal-use posture this document assumes elsewhere.
+
+### Payments / subscriptions
+- **Paymob** is the strongest fit for this market: cards, Meeza, and
+  Egyptian mobile wallets (Vodafone Cash, Etisalat Cash, Orange Cash) —
+  wallet support matters because many drivers won't have a credit card.
+  Paymob also has a tokenization/subscription API for genuine recurring
+  billing in EGP.
+- **Fawry** has huge reach (payable at any kiosk) but suits one-off /
+  reference-code payments better than clean auto-renewing subscriptions.
+- Stripe doesn't support Egyptian merchant accounts directly. Global
+  subscription platforms (Paddle, Lemon Squeezy) can act as
+  merchant-of-record for international cards but don't solve the
+  wallet-payment gap that matters most for this audience. **Paymob is the
+  practical default**, possibly alongside Fawry as a secondary option for
+  drivers who prefer paying cash at a kiosk.
+
+### What the app needs before it can charge anyone
+All of this sits on top of the Phase 2 hosting migration already scoped in
+§13 — commercializing isn't a separate track, it's Phase 2 plus:
+1. A `Subscription`/`Plan` model tied to a real per-user `userId` (today's
+   single-passphrase auth has no user model at all — see §13's Phase 2
+   auth step).
+2. A webhook endpoint (e.g. `/api/webhooks/paymob`) to receive
+   renewal/payment events and update subscription status — needs a public
+   HTTPS host reachable by the payment gateway, so it can't run against a
+   local Mac dev server; this falls out naturally once hosted on
+   Vercel/Netlify per §13.
+3. A `requireActiveSubscription()` gate sitting alongside the existing
+   `requireAuth()` in `lib/auth.ts`, with a grace period for failed/late
+   renewals rather than an instant hard lockout.
+
+### Pricing shape
+Driver income is weekly and cash-heavy, so **weekly billing** (roughly
+EGP 20–40/week) likely converts better than a monthly plan — it mirrors
+Uber's own payout cadence, which is the cash rhythm drivers already think
+in. Pair it with a free trial and a free/paid split (free = manual entry
+and the dashboard; paid = OCR screenshot import, offer scoring, and
+Plan-your-day) so the paywall is felt as "unlock the time-saving features"
+rather than "pay to use anything at all."
+
+### Distribution
+Makasib is already a PWA (`public/manifest.webmanifest`, "Add to Home
+Screen") — sellable today with no app-store gatekeeper and no Apple/Google
+cut, since that cut only applies to purchases made through the native
+store/in-app-purchase flow, not a web-based subscription reached via
+Safari/Chrome. The Phase 3 native app (React Native/Expo, §13) only
+becomes necessary for background GPS or Android notification-based auto
+trip capture — and it brings Apple Developer Program ($99/yr) + Google
+Play ($25 one-time) + store review, plus their revenue cut if subscriptions
+are sold through the store rather than routed externally.
