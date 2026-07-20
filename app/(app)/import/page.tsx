@@ -438,7 +438,11 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
     setReqs([]);
     setResult("");
     const { ocrScreenshot } = await import("@/lib/ocr");
-    let activityText = "";
+    // each screenshot is OCR'd and parsed on its own — never concatenated
+    // into one text blob first. Concatenating let an incomplete trailing
+    // card's parse state leak into the next screenshot's lines (wrong
+    // times/amounts attaching to the wrong trip — a real UAT bug).
+    let activityTrips: ActivityTrip[] = [];
     const requests: TripRequest[] = [];
     for (let i = 0; i < batch.length; i++) {
       setProgress(t("im.ocrReading", { i: i + 1, n: batch.length }));
@@ -447,11 +451,19 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
         const r = parseTripRequestText(text);
         if (r) requests.push(r);
       } else {
-        activityText += "\n" + text;
+        activityTrips = activityTrips.concat(parseEarningsActivityText(text, year));
       }
     }
     setProgress("");
-    const trips = parseEarningsActivityText(activityText, year);
+    // most screenshots in a batch are the same day, but only the topmost one
+    // (closest to "now") shows the "Mon, Jul 20" header — the rest scroll
+    // past it. Backfill trips with no date from the single date any
+    // screenshot in the batch revealed, rather than leaving them all blank.
+    const seenDates = new Set(activityTrips.map((t) => t.date).filter((d): d is string => d != null));
+    const trips =
+      seenDates.size === 1
+        ? activityTrips.map((t) => (t.date == null ? { ...t, date: [...seenDates][0] } : t))
+        : activityTrips;
     setRows(trips);
     setReqs(requests);
     if (trips.length === 0 && requests.length === 0) setResult(t("im.ocrNoTrips"));

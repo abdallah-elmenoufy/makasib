@@ -4,12 +4,12 @@ import { getT } from "@/lib/i18n/server";
 import { I18nProvider } from "@/components/I18nProvider";
 
 export const metadata: Metadata = {
-  title: "Mekasib — Driver Profit Tracker",
+  title: "Makasib — Driver Profit Tracker",
   description: "Know your real profit, not just your earnings",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "Mekasib",
+    title: "Makasib",
     statusBarStyle: "default",
   },
 };

@@ -7,10 +7,20 @@ import { normalizeProduct } from "./earningsActivity";
 const CURRENCY = "(?:EGP|ECP|EGF|E6P|£GP)";
 const AWAY_RE = /(\d+)\s*mins?\s*[({[]?\s*([\d.]+)\s*km\s*[)}\]]?\s*away/i;
 const TRIP_RE = /(\d+)\s*mins?\s*[({[]?\s*([\d.]+)\s*km\s*[)}\]]?\s*trip/i;
-const FARE_RE = new RegExp(`${CURRENCY}\\s*([\\d,]+\\.\\d{2})`, "i");
+// decimal separator optional — tesseract frequently drops it ("EGP 39750"
+// for "EGP 397.50"); recovered in money() below
+const FARE_RE = new RegExp(`${CURRENCY}[A-Za-z]?\\s*([\\d,]+(?:\\.\\d{2})?)`, "i");
 const CASH_RE = /cash\s*payment/i;
 const CLOCK_RE = /(\d{1,2}):(\d{2})/;
 const NOISE_RE = /accept|exclusive|net of service|priority pickup|included|4g|5g|wi-?fi|^\W*$/i;
+
+function money(s: string): number {
+  const cleaned = s.replace(/,/g, "");
+  if (!cleaned.includes(".") && cleaned.length > 2) {
+    return Number(`${cleaned.slice(0, -2)}.${cleaned.slice(-2)}`);
+  }
+  return Number(cleaned);
+}
 
 export type TripRequest = {
   fare: number; // net offer
@@ -93,7 +103,7 @@ export function parseTripRequestText(text: string): TripRequest | null {
   dropoffAddress = stripMapNoise(dropoffAddress);
 
   return {
-    fare: Number(fare[1].replace(/,/g, "")),
+    fare: money(fare[1]),
     isCash: CASH_RE.test(text),
     pickupMin: Number(away[1]),
     pickupKm: Number(away[2]),

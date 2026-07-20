@@ -3,7 +3,7 @@ export type Locale = "en" | "ar";
 export const LOCALES: Locale[] = ["en", "ar"];
 
 const en: Record<string, string> = {
-  appName: "Mekasib",
+  appName: "Makasib",
   tagline: "Know your real profit, not just your earnings",
 
   // nav
@@ -142,6 +142,11 @@ const en: Record<string, string> = {
   // standalone tips
   "tip.add": "Add cash tip",
   "tip.amount": "Tip amount",
+  "tip.selectTrip": "Trip",
+  "tip.noTrip": "Not tied to a trip",
+  "tip.tiedHint": "Pick the trip this tip belongs to — it's added straight to that trip's earnings",
+  "tr.pickupKmHint": "Distance to the rider, in case it wasn't captured automatically",
+  "c.clickToEdit": "Click to edit",
 
   // fuel
   "fu.title": "Fuel-ups",
@@ -247,7 +252,7 @@ const en: Record<string, string> = {
   "db.noVehicle": "Set up your vehicle first",
   "db.profitTrend": "Daily profit",
   "db.remindersDue": "Reminders needing attention",
-  "bm.title": "You vs. other Mekasib drivers",
+  "bm.title": "You vs. other Makasib drivers",
   "bm.you": "You",
   "bm.others": "Others' average",
   "bm.notEnough":
@@ -503,6 +508,11 @@ const ar: Record<string, string> = {
 
   "tip.add": "إضافة بقشيش كاش",
   "tip.amount": "قيمة البقشيش",
+  "tip.selectTrip": "الرحلة",
+  "tip.noTrip": "غير مرتبط برحلة",
+  "tip.tiedHint": "اختر الرحلة التي يخص بها هذا البقشيش — يُضاف مباشرة لأرباح تلك الرحلة",
+  "tr.pickupKmHint": "المسافة إلى الراكب، في حالة لم تُسجَّل تلقائيًا",
+  "c.clickToEdit": "اضغط للتعديل",
 
   "fu.title": "تموين الوقود",
   "fu.add": "إضافة تموين",

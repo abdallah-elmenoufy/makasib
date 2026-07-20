@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/components/I18nProvider";
 import { Card, Empty, PageTitle } from "@/components/ui";
@@ -86,7 +86,7 @@ export default function PlanPage() {
                   </div>
                 ))}
                 {DOW_ORDER.map((dow) => (
-                  <>
+                  <Fragment key={dow}>
                     <div key={`d${dow}`} className="text-[10px] text-slate-500 font-semibold flex items-center">
                       {dayName(dow, locale)}
                     </div>
@@ -106,7 +106,7 @@ export default function PlanPage() {
                         />
                       );
                     })}
-                  </>
+                  </Fragment>
                 ))}
               </div>
               <div className="flex items-center gap-2 mt-3 text-[10px] text-slate-400">

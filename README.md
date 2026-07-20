@@ -1,4 +1,4 @@
-# Mekasib (مكاسب) — Driver Profit Tracker
+# Makasib (مكاسب) — Driver Profit Tracker
 
 Shows ride-hailing drivers their **true profit**, not just gross earnings:
 after fuel, maintenance, depreciation, and dead kilometers. Built for the

@@ -61,14 +61,14 @@ export function Nav() {
           <Link
             key={l.href}
             href={l.href}
-            className={`flex flex-col md:flex-row items-center justify-center gap-1 md:gap-1.5 rounded-xl px-1.5 py-2.5 text-xs md:text-sm font-bold transition-colors ${
+            className={`flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2.5 text-[11px] leading-tight text-center font-bold transition-colors ${
               pathname === l.href
                 ? "bg-emerald-700 text-white ring-2 ring-emerald-300"
                 : "bg-emerald-600 text-white hover:bg-emerald-700"
             }`}
           >
-            <span className="text-lg">{l.icon}</span>
-            <span>{t(l.key)}</span>
+            <span className="text-lg leading-none">{l.icon}</span>
+            <span className="break-words">{t(l.key)}</span>
           </Link>
         ))}
       </div>

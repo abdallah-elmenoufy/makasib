@@ -1,11 +1,11 @@
-# Mekasib (مكاسب) — Project Documentation
+# Makasib (مكاسب) — Project Documentation
 
 Full technical reference for the codebase: architecture, data model, business
 logic, ingestion pipeline, known gaps, and the phased roadmap. The README is
 the quick-start; this file is "so no developer (including future-you) has to
 re-derive anything from the source."
 
-Working name: **Mekasib** ("gains/profits" in Arabic). Not final — alternatives
+Working name: **Makasib** ("gains/profits" in Arabic). Not final — alternatives
 considered: Rabih (رابح, "the one who profits"), Hesbetak (حسبتك, "your
 calculation" — echoes the Egyptian phrase "اعمل حسبتك"), Meshwar (مشوار,
 rejected — means "trip," not "profit").
@@ -567,7 +567,7 @@ before accepting" — the closest existing competitor to this exact idea.
 flow, not a live overlay — a plain web app can't read another app's screen
 without switching to it (that's a native-app-only capability; see phase 3).
 The driver screenshots the incoming request card the instant it appears,
-switches to Mekasib, and picks that photo; the existing `lib/tripRequest.ts`
+switches to Makasib, and picks that photo; the existing `lib/tripRequest.ts`
 parser (built for the batch OCR import) extracts fare/pickup/trip km+min;
 `scoreOffer()` computes an estimated profit/km and profit/hour for *this one
 offer*, using the driver's own historical cost/km (`getAnalytics().rates`)

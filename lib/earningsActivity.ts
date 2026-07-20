@@ -10,10 +10,17 @@ const DAY_HEADER_RE =
   /(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[,.]?\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[,.]?\s+(\d{1,2})/;
 // EGP with common OCR confusions of the letters
 const CURRENCY = "(?:EGP|ECP|EGF|E6P|£GP)";
-const EARNINGS_RE = new RegExp(`${CURRENCY}\\s*([\\d,]+[.,]\\d{2})`, "i");
+// tesseract frequently drops the decimal separator when the amount sits
+// tight against "EGP" or another digit run ("EGP9143" for "EGP 91.43"),
+// and sometimes glues a stray OCR letter onto the currency code
+// ("EGPG63.52"). Both are tolerated here and recovered in money().
+const EARNINGS_RE = new RegExp(`${CURRENCY}[A-Za-z]?\\s*([\\d,]+(?:[.,]\\d{2})?)`, "i");
 const TIME_RE = /(\d{1,2}):(\d{2})\s*(AM|PM)/i;
 const DETAIL_RE = /(\d+)\s*min(?:\s*(\d+)\s*sec)?\s*[·.\-•]?\s*([\d.]+)\s*km/i;
-const CASH_RE = new RegExp(`${CURRENCY}\\s*([\\d,]+[.,]\\d{2})\\s*Cash\\s*Collected`, "i");
+const CASH_RE = new RegExp(`${CURRENCY}[A-Za-z]?\\s*([\\d,]+(?:[.,]\\d{2})?)\\s*Cash\\s*Collected`, "i");
+// non-fare EGP amounts (tolls, fees, ...) that must never be mistaken for a
+// new trip's earnings line
+const NOT_FARE_RE = /toll|fee|refund|adjustment/i;
 // Google place labels under each card end with the country code
 const ADDRESS_RE = /^[©@oO0¢€&\-·.\s]*(.+?\s(?:EG|AE|SA))\s*$/;
 
@@ -30,7 +37,29 @@ export type ActivityTrip = {
 };
 
 function money(s: string): number {
-  return Number(s.replace(/,/g, m => (m === "," && s.indexOf(".") === -1 ? "." : "")).replace(/,/g, ""));
+  const cleaned = s.replace(/,/g, (m) => (m === "," && s.indexOf(".") === -1 ? "." : "")).replace(/,/g, "");
+  // OCR dropped the decimal point entirely ("9143" for "91.43") — EGP fares
+  // always carry two-decimal cents, so recover it rather than treat as whole
+  if (!cleaned.includes(".") && cleaned.length > 2) {
+    return Number(`${cleaned.slice(0, -2)}.${cleaned.slice(-2)}`);
+  }
+  return Number(cleaned);
+}
+
+// tesseract sometimes drops the decimal point in the trip-distance figure
+// too ("2793 km" for "27.93 km"); recover it only when the raw reading
+// implies a physically impossible average speed and the fix makes it plausible
+function recoverKm(raw: string, durationMin: number | null): number {
+  const km = Number(raw);
+  if (!raw.includes(".") && durationMin && durationMin > 0) {
+    const speed = km / (durationMin / 60);
+    if (speed > 140) {
+      const fixed = km / 100;
+      const fixedSpeed = fixed / (durationMin / 60);
+      if (fixedSpeed >= 3 && fixedSpeed <= 140) return fixed;
+    }
+  }
+  return km;
 }
 
 function iso(d: Date): string {
@@ -105,7 +134,7 @@ export function parseEarningsActivityText(text: string, refYear: number): Activi
         current = newTrip(NaN);
       }
       current.durationMin = Number(detail[1]);
-      current.distanceKm = Number(detail[3]);
+      current.distanceKm = recoverKm(detail[3], Number(detail[1]));
       const beforeMin = line
         .slice(0, line.search(/\d+\s*min/))
         .replace(/[·.\-•|]+\s*$/, "")
@@ -115,7 +144,7 @@ export function parseEarningsActivityText(text: string, refYear: number): Activi
     }
 
     const earn = line.match(EARNINGS_RE);
-    if (earn && !CASH_RE.test(line)) {
+    if (earn && !CASH_RE.test(line) && !NOT_FARE_RE.test(line)) {
       flush();
       current = newTrip(money(earn[1]));
       const tm = line.match(TIME_RE);
