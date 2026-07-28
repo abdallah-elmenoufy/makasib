@@ -2,8 +2,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/components/I18nProvider";
-import { AddPanel, Btn, Card, Checkbox, Empty, Field, Input, PageTitle, Select, Table, Textarea } from "@/components/ui";
-import { useCrud, useVehicle } from "@/components/useCrud";
+import { AddPanel, Btn, Card, Checkbox, Empty, Field, Input, PageTitle, Pagination, Select, Table, Textarea } from "@/components/ui";
+import { useCrud } from "@/components/useCrud";
+import { useVehicle } from "@/components/VehicleProvider";
 import { fmtDate, fmtMoney, toLocalInput } from "@/lib/format";
 
 const CATEGORIES = ["WASH", "FINE", "PARKING", "MOBILE_DATA", "RENTAL", "INSURANCE", "LICENSE", "TOLL", "OTHER"];
@@ -20,7 +21,7 @@ const empty = () => ({
 export default function ExpensesPage() {
   const { t, locale } = useI18n();
   const { vehicle, loading: vLoading } = useVehicle();
-  const { rows, loading, create, remove } = useCrud<any>("expenses", vehicle?.id);
+  const { rows, loading, create, remove, page, setPage, totalPages } = useCrud<any>("expenses", vehicle?.id);
   const [form, setForm] = useState<any>(empty());
   const [open, setOpen] = useState(false);
 
@@ -28,7 +29,7 @@ export default function ExpensesPage() {
   if (!vehicle) {
     return (
       <Empty>
-        <Link href="/vehicle" className="text-emerald-600 underline">
+        <Link href="/cars" className="text-emerald-600 underline">
           {t("veh.createFirst")}
         </Link>
       </Empty>
@@ -104,6 +105,14 @@ export default function ExpensesPage() {
             ))}
           </Table>
         )}
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          onPage={setPage}
+          labelPrev={t("c.prev")}
+          labelNext={t("c.next")}
+          labelPage={t("c.pageOf", { page, total: totalPages })}
+        />
       </Card>
     </div>
   );

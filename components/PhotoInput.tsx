@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useI18n } from "./I18nProvider";
+import { useTrackedTask } from "./ActivityIndicator";
 
 export function PhotoInput({
   value,
@@ -13,6 +14,7 @@ export function PhotoInput({
   onOcrDigits?: (candidates: number[]) => void;
 }) {
   const { t } = useI18n();
+  const track = useTrackedTask();
   const [busy, setBusy] = useState(false);
   const [reading, setReading] = useState(false);
 
@@ -20,7 +22,7 @@ export function PhotoInput({
     setBusy(true);
     const form = new FormData();
     form.append("file", file);
-    const res = await fetch("/api/upload", { method: "POST", body: form });
+    const res = await track(t("act.uploading"), () => fetch("/api/upload", { method: "POST", body: form }));
     setBusy(false);
     let filename: string | null = null;
     if (res.ok) {
@@ -32,12 +34,16 @@ export function PhotoInput({
       setReading(true);
       try {
         // Apple Vision server OCR first (reads LCDs); tesseract fallback
-        const { serverOdometerCandidates, ocrOdometerCandidates } = await import("@/lib/ocr");
-        let candidates = await serverOdometerCandidates(filename);
-        if (candidates == null || candidates.length === 0) {
-          const served = await fetch(`/api/files/${filename}`).then((r) => r.blob());
-          candidates = await ocrOdometerCandidates(served);
-        }
+        const fname = filename;
+        const candidates = await track(t("act.reading"), async () => {
+          const { serverOdometerCandidates, ocrOdometerCandidates } = await import("@/lib/ocr");
+          let c = await serverOdometerCandidates(fname);
+          if (c == null || c.length === 0) {
+            const served = await fetch(`/api/files/${fname}`).then((r) => r.blob());
+            c = await ocrOdometerCandidates(served);
+          }
+          return c;
+        });
         if (candidates.length > 0) onOcrDigits(candidates);
       } catch {
         // OCR is best-effort — the field stays manual

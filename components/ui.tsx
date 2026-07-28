@@ -136,6 +136,44 @@ export function AddPanel({
   );
 }
 
+export function Pagination({
+  page,
+  totalPages,
+  onPage,
+  labelPrev,
+  labelNext,
+  labelPage,
+}: {
+  page: number;
+  totalPages: number;
+  onPage: (p: number) => void;
+  labelPrev: string;
+  labelNext: string;
+  /** e.g. "Page {page} of {total}" already interpolated by the caller */
+  labelPage: string;
+}) {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-slate-100">
+      <button
+        onClick={() => onPage(page - 1)}
+        disabled={page <= 1}
+        className="text-sm font-semibold text-emerald-700 disabled:text-slate-300 disabled:cursor-not-allowed"
+      >
+        ← {labelPrev}
+      </button>
+      <span className="text-xs text-slate-400">{labelPage}</span>
+      <button
+        onClick={() => onPage(page + 1)}
+        disabled={page >= totalPages}
+        className="text-sm font-semibold text-emerald-700 disabled:text-slate-300 disabled:cursor-not-allowed"
+      >
+        {labelNext} →
+      </button>
+    </div>
+  );
+}
+
 export function Table({ head, children }: { head: string[]; children: React.ReactNode }) {
   return (
     <div className="overflow-x-auto">

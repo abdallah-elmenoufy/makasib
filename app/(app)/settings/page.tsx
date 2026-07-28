@@ -10,6 +10,8 @@ export default function SettingsPage() {
   const [passMsg, setPassMsg] = useState("");
   const [retention, setRetention] = useState<number | "">("");
   const [retMsg, setRetMsg] = useState("");
+  const [healthBusy, setHealthBusy] = useState(false);
+  const [healthMsg, setHealthMsg] = useState("");
 
   useEffect(() => {
     fetch("/api/settings")
@@ -34,6 +36,19 @@ export default function SettingsPage() {
       body: JSON.stringify({ locale: loc }),
     });
     location.reload();
+  };
+
+  const runHealthCheck = async () => {
+    setHealthBusy(true);
+    setHealthMsg("");
+    const res = await fetch("/api/health-check", { method: "POST" });
+    setHealthBusy(false);
+    if (res.ok) {
+      const d = await res.json();
+      setHealthMsg(d.fixed > 0 ? t("st.healthFixed", { n: d.fixed }) : t("st.healthClean"));
+    } else {
+      setHealthMsg(t("c.error"));
+    }
   };
 
   const changePass = async (e: React.FormEvent) => {
@@ -77,6 +92,39 @@ export default function SettingsPage() {
           />
           <Btn onClick={saveRetention}>{t("c.save")}</Btn>
           {retMsg && <span className="text-emerald-600 text-sm">✓ {retMsg}</span>}
+        </div>
+      </Card>
+
+      <Card>
+        <div className="font-semibold text-sm mb-1">{t("st.manual")}</div>
+        <p className="text-xs text-slate-400 mb-3">{t("st.manualHint")}</p>
+        <div className="flex items-center gap-3 flex-wrap">
+          <a
+            href="/manual-ar.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-lg font-semibold transition-colors bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 text-sm"
+          >
+            📖 {t("st.manualOpen")}
+          </a>
+          <a
+            href="/manual-ar.html"
+            download="دليل-استخدام-مكاسب.html"
+            className="rounded-lg font-semibold transition-colors bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-4 py-2 text-sm"
+          >
+            ⬇️ {t("st.manualDownload")}
+          </a>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="font-semibold text-sm mb-1">{t("st.health")}</div>
+        <p className="text-xs text-slate-400 mb-3">{t("st.healthHint")}</p>
+        <div className="flex items-center gap-3">
+          <Btn onClick={runHealthCheck} disabled={healthBusy} variant="secondary">
+            {t("st.healthRun")}
+          </Btn>
+          {healthMsg && <span className="text-emerald-600 text-sm">{healthMsg}</span>}
         </div>
       </Card>
 

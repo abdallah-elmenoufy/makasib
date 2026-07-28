@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { ENTITIES, coerceBody } from "@/lib/crud";
+import { reconcileShiftTrips } from "@/lib/analytics";
 
 type Ctx = { params: Promise<{ entity: string; id: string }> };
 
@@ -32,6 +33,13 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (!config) return NextResponse.json({ error: "unknown entity" }, { status: 404 });
     const data = coerceBody(config, await req.json());
     const row = await delegate(config.model).update({ where: { id }, data });
+
+    // ending a shift (or otherwise changing its window) may newly cover
+    // trips that were orphaned or logged before the shift existed
+    if (entity === "shifts") {
+      await reconcileShiftTrips(row.vehicleId, row.id);
+    }
+
     return NextResponse.json(row);
   } catch (e) {
     if (e instanceof Response) return e;

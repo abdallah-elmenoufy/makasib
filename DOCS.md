@@ -437,9 +437,19 @@ the photo.
   for backward compatibility with existing rows but no longer read
   meaningfully by the net-first analytics engine (`DEFAULT_COMMISSION_PCT`
   is all zeros). Fine to remove entirely in a future cleanup pass.
-- **Single vehicle/single user.** `useVehicle()` picks the first active
-  vehicle; there's no vehicle switcher UI even though the schema supports
-  multiple `Vehicle` rows per install. Fine for phase 1's personal-use scope.
+- ~~Single vehicle/single user~~ — **built 2026-07-21.** Multi-car support:
+  `VehicleProvider` (`components/VehicleProvider.tsx`) holds the driver's
+  cars + sticky "default car" (`Setting.defaultVehicleId`) in a single React
+  context shared by every page, so switching cars anywhere (the Nav
+  dropdown, or picking a different car when starting a shift) applies
+  everywhere until switched again. `/cars` (`lib/vehicleSummary.ts`) lists
+  every car as an asset — current odometer, km driven, depreciation so far,
+  all-time true profit — with archive-not-delete once a car has any
+  history. `getProfileAnalytics()` (`lib/analytics.ts`) aggregates profit
+  across the whole profile (dashboard's "All cars" toggle); `lib/carInsights.ts`
+  surfaces a lean set of honest, data-gated suggestions (best performer,
+  idle car, ROI/payback, negative true profit) — still single-user, just no
+  longer single-vehicle.
 
 ---
 
@@ -520,7 +530,7 @@ the photo.
   `driverCount: 0` until phase 2 has more than one driver's data — see §15).
   Remaining work is purely "have more drivers" — no more code needed.
 - Remove the vestigial `commissionPcts` setting (§12).
-- Vehicle switcher UI (schema already supports multiple vehicles).
+- ~~Vehicle switcher UI~~ — **built 2026-07-21** (§12).
 - Automated test suite (§12).
 - **Airport pickup alerts** (researched 2026-07-18, not built): the idea —
   alert drivers when a flight is landing at CAI/HBE so they can position for

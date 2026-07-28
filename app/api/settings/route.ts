@@ -9,10 +9,12 @@ export async function GET() {
   try {
     await requireAuth();
     const locale = (await cookies()).get("locale")?.value ?? "en";
+    const defaultVehicleRow = await prisma.setting.findUnique({ where: { key: "defaultVehicleId" } });
     return NextResponse.json({
       locale,
       commissionPcts: await getCommissionPcts(),
       photoRetentionDays: await getRetentionDays(),
+      defaultVehicleId: defaultVehicleRow?.value ?? null,
     });
   } catch (e) {
     if (e instanceof Response) return e;
@@ -41,6 +43,14 @@ export async function POST(req: NextRequest) {
         where: { key: "commissionPcts" },
         create: { key: "commissionPcts", value: JSON.stringify(body.commissionPcts) },
         update: { value: JSON.stringify(body.commissionPcts) },
+      });
+    }
+
+    if (body.defaultVehicleId !== undefined) {
+      await prisma.setting.upsert({
+        where: { key: "defaultVehicleId" },
+        create: { key: "defaultVehicleId", value: String(body.defaultVehicleId) },
+        update: { value: String(body.defaultVehicleId) },
       });
     }
 

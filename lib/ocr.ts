@@ -40,8 +40,10 @@ export function warmupOcr(): void {
 }
 
 /** Draw to canvas, downscale huge images, auto-invert dark screenshots.
- *  `boost` adds grayscale + contrast stretch (helps dashboard odometers). */
-async function toCanvas(file: File | Blob, boost = false): Promise<HTMLCanvasElement> {
+ *  `boost` adds grayscale + contrast stretch (helps dashboard odometers).
+ *  `forceInvert` skips detection and always inverts — a fallback retry for
+ *  screenshots whose auto-detected polarity produced unreadable text. */
+async function toCanvas(file: File | Blob, boost = false, forceInvert = false): Promise<HTMLCanvasElement> {
   const url = URL.createObjectURL(file);
   try {
     const img = await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -59,14 +61,20 @@ async function toCanvas(file: File | Blob, boost = false): Promise<HTMLCanvasEle
 
     const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const px = data.data;
+    // bias the sample toward the bottom two-thirds of the frame: request
+    // cards, earnings-activity cards, and receipt cards all dock at the
+    // bottom over a lighter map/background — a whole-image average lets
+    // that brighter top skew the reading and miss a dark card entirely
+    const sampleFromRow = Math.floor(canvas.height * 0.33);
+    const rowStride = canvas.width * 4;
     let lum = 0;
     const step = 40 * 4;
     let n = 0;
-    for (let i = 0; i < px.length; i += step) {
+    for (let i = sampleFromRow * rowStride; i < px.length; i += step) {
       lum += 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
       n++;
     }
-    const dark = lum / n < 110;
+    const dark = forceInvert || lum / n < 120;
     if (dark || boost) {
       let min = 255;
       let max = 0;
@@ -107,11 +115,17 @@ async function toCanvas(file: File | Blob, boost = false): Promise<HTMLCanvasEle
   }
 }
 
-/** Full-text OCR of an app screenshot. */
-export async function ocrScreenshot(file: File | Blob): Promise<string> {
+/** Full-text OCR of an app screenshot. `forceInvert` is a fallback retry
+ *  for a screenshot whose auto-detected polarity produced unreadable text.
+ *  Always contrast-boosted — small low-contrast UI text (status-bar clock,
+ *  product-tag pills) sitting over a busy map background is otherwise
+ *  frequently dropped entirely by tesseract, confirmed against real trip
+ *  request screenshots where boosting recovered the product tag the
+ *  unboosted pass missed completely. */
+export async function ocrScreenshot(file: File | Blob, forceInvert = false): Promise<string> {
   const worker = await getWorker();
   await worker.setParameters({ tessedit_char_whitelist: "" });
-  const canvas = await toCanvas(file);
+  const canvas = await toCanvas(file, true, forceInvert);
   const {
     data: { text },
   } = await worker.recognize(canvas);

@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>دليل استخدام مكاسب</title>
+<style>
+  :root {
+    color-scheme: light;
+    --green: #059669;
+    --green-dark: #047857;
+    --text: #1e293b;
+    --muted: #64748b;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --border: #e2e8f0;
+    --amber: #b45309;
+    --amber-bg: #fffbeb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.9;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 24px 18px 80px; }
+  header.top {
+    text-align: center;
+    padding: 28px 16px 22px;
+    background: linear-gradient(180deg, var(--green), var(--green-dark));
+    color: white;
+    border-radius: 0 0 20px 20px;
+    margin-bottom: 20px;
+  }
+  header.top h1 { margin: 0 0 6px; font-size: 26px; font-weight: 800; }
+  header.top p { margin: 0; opacity: 0.92; font-size: 15px; }
+  nav.toc {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-bottom: 22px;
+  }
+  nav.toc h2 { font-size: 15px; margin: 0 0 10px; color: var(--green-dark); }
+  nav.toc ol { margin: 0; padding-inline-start: 20px; columns: 1; font-size: 14px; }
+  nav.toc li { margin-bottom: 6px; }
+  nav.toc a { color: var(--text); text-decoration: none; }
+  nav.toc a:hover { color: var(--green-dark); text-decoration: underline; }
+  section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px 20px 8px;
+    margin-bottom: 16px;
+    scroll-margin-top: 16px;
+  }
+  section h2 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 18px;
+    color: var(--green-dark);
+    margin: 0 0 12px;
+  }
+  section h2 .num {
+    background: var(--green);
+    color: white;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700; flex-shrink: 0;
+  }
+  section p { margin: 0 0 12px; font-size: 15px; }
+  section ul, section ol { margin: 0 0 12px; padding-inline-start: 22px; font-size: 15px; }
+  section li { margin-bottom: 8px; }
+  .tip {
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 14px;
+    margin-bottom: 14px;
+  }
+  .tip b { color: var(--green-dark); }
+  .warn {
+    background: var(--amber-bg);
+    border: 1px solid #fde68a;
+    color: var(--amber);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 14px;
+    margin-bottom: 14px;
+  }
+  .steps { counter-reset: step; list-style: none; padding-inline-start: 0; }
+  .steps li {
+    counter-increment: step;
+    position: relative;
+    padding-inline-start: 34px;
+    margin-bottom: 12px;
+  }
+  .steps li::before {
+    content: counter(step);
+    position: absolute;
+    inset-inline-start: 0;
+    top: 0;
+    background: var(--green);
+    color: white;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 30px;
+  }
+  @media print {
+    body { background: white; }
+    nav.toc { display: none; }
+    section { break-inside: avoid; border: none; box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <h1>📱 دليل استخدام مكاسب</h1>
+    <p>اعرف صافي ربحك الحقيقي، مش بس اللي بتكسبه</p>
+  </header>
+
+  <nav class="toc">
+    <h2>محتويات الدليل</h2>
+    <ol>
+      <li><a href="#intro">مكاسب بيعمل إيه؟</a></li>
+      <li><a href="#car">أول خطوة: ضيف عربيتك</a></li>
+      <li><a href="#shift">الوردية: ابدأ وخلّص</a></li>
+      <li><a href="#trips">تسجيل رحلاتك</a></li>
+      <li><a href="#score">قيّم العرض قبل ما تقبل</a></li>
+      <li><a href="#fuel">الوقود</a></li>
+      <li><a href="#maintenance">الصيانة</a></li>
+      <li><a href="#expenses">المصاريف</a></li>
+      <li><a href="#reminders">التذكيرات</a></li>
+      <li><a href="#dashboard">لوحة التحكم — إزاي تقرا أرقامك</a></li>
+      <li><a href="#plan">خطط يومك</a></li>
+      <li><a href="#multicar">لو عندك أكتر من عربية</a></li>
+      <li><a href="#settings">الإعدادات والأمان</a></li>
+      <li><a href="#tips">نصائح عشان البيانات تبقى مظبوطة</a></li>
+    </ol>
+  </nav>
+
+  <section id="intro">
+    <h2><span class="num">1</span> مكاسب بيعمل إيه؟</h2>
+    <p>
+      مكاسب بيساعدك تعرف صافي ربحك الحقيقي من شغلك كسائق — مش بس الفلوس اللي بتوصلك من التطبيقات.
+      بعد ما تحسب البنزين والصيانة والمصاريف وقيمة العربية اللي بتقل مع الاستعمال، هتشوف رقم واحد واضح:
+      أنت كسبت قد إيه فعلاً.
+    </p>
+    <div class="tip"><b>معلومة:</b> كل حاجة بتحسبها التطبيق بتتحسب أوتوماتيك — إنت بس سجّل ورديتك ورحلاتك ومصاريفك، والباقي على مكاسب.</div>
+  </section>
+
+  <section id="car">
+    <h2><span class="num">2</span> أول خطوة: ضيف عربيتك</h2>
+    <p>افتح صفحة <b>السيارات</b> من القائمة، واضغط "إضافة سيارة". اكتب:</p>
+    <ul>
+      <li>اسم العربية ورقم اللوحة</li>
+      <li>قراءة العداد الحالية (كام كيلو ماشية العربية)</li>
+      <li>نوع الوقود (بنزين / غاز / الاتنين)</li>
+      <li>العربية ملكك ولا بالتقسيط ولا إيجار ولا على نظام تارجت</li>
+    </ul>
+    <p>لو دفعت تمن العربية، اكتبه — عشان التطبيق يحسبلك قد إيه العربية بتقل في قيمتها كل ما تشتغل بيها.</p>
+  </section>
+
+  <section id="shift">
+    <h2><span class="num">3</span> الوردية: ابدأ وخلّص</h2>
+    <p>الوردية هي الفترة اللي بتشتغل فيها فعلاً. من صفحة <b>الورديات</b>:</p>
+    <ol class="steps">
+      <li>اضغط "بدء وردية" واكتب قراءة العداد دلوقتي (أو صوّرها والتطبيق هيقراها لوحده)</li>
+      <li>اشتغل عادي طول اليوم</li>
+      <li>لما تخلص، ارجع وافتح "إنهاء الوردية" واكتب قراءة العداد تاني</li>
+    </ol>
+    <div class="tip"><b>ليه ده مهم؟</b> الكيلومترات اللي بتمشيها في الوردية هي اللي بتتحسب في تكلفة الوقود والصيانة الخاصة بالشغل. أي كيلومترات تمشيها براها (زي رجوعك البيت) بتتحسب "شخصية" ومش بتأثر على حساب أرباح الشغل.</div>
+  </section>
+
+  <section id="trips">
+    <h2><span class="num">4</span> تسجيل رحلاتك</h2>
+    <p>عندك أكتر من طريقة تسجّل بيها الرحلات، اختار الأسهل لك:</p>
+    <ul>
+      <li><b>تسجيل يدوي:</b> تكتب الرحلة بنفسك — المبلغ والوقت ونوع الدفع.</li>
+      <li><b>صور شاشة الرحلات:</b> صوّر شاشة "الأرباح" من تطبيق أوبر، وارفعها — مكاسب هيقرا الرحلات لوحده.</li>
+      <li><b>صور العداد:</b> صوّر عداد العربية أول وآخر الوردية، والتطبيق هيسجل الوردية أوتوماتيك.</li>
+      <li><b>كشف حساب أوبر الأسبوعي:</b> ارفع ملف الـ PDF اللي بتاخده من أوبر، وهيتسجل كل حاجة فيه لوحدها.</li>
+    </ul>
+    <div class="warn">
+      <b>لو صورة مش واضحة:</b> ممكن التطبيق ميعرفش يقرا كل التفاصيل من صورة مش واضحة أو معتمة.
+      لما يحصل كده هيقولك بوضوح إن الصورة دي محتاجة مراجعة — راجعها وكمّل البيانات الناقصة بإيدك.
+    </div>
+  </section>
+
+  <section id="score">
+    <h2><span class="num">5</span> قيّم العرض قبل ما تقبل</h2>
+    <p>
+      لما يجيلك طلب رحلة، صوّر شاشة الطلب قبل ما تقبل، وروح لصفحة <b>قيّم العرض</b> وحمّل الصورة.
+      مكاسب هيوريك تقريبًا هتكسب قد إيه في الساعة وفي الكيلومتر من الرحلة دي، وهيقارنها بمتوسط شغلك المعتاد —
+      عشان تقرر تقبل ولا لأ في ثواني.
+    </p>
+  </section>
+
+  <section id="fuel">
+    <h2><span class="num">6</span> الوقود</h2>
+    <p>كل ما تعبّي بنزين أو غاز، سجّل التعبئة من صفحة <b>الوقود</b>: التاريخ، قراءة العداد، الكمية، والسعر.</p>
+    <div class="tip"><b>نصيحة:</b> لو عبّيت "تعبئة كاملة" (لحد ما الخزان يمتلي) بدّل عليها في الفورم — ده بيخلي حساب استهلاك الوقود أدق بكتير.</div>
+  </section>
+
+  <section id="maintenance">
+    <h2><span class="num">7</span> الصيانة</h2>
+    <p>سجّل أي حاجة تصلحها في العربية — زيت، فرامل، كاوتش، أي حاجة — من صفحة <b>الصيانة</b>. ده بيدخل في حساب مصاريفك الحقيقية.</p>
+  </section>
+
+  <section id="expenses">
+    <h2><span class="num">8</span> المصاريف</h2>
+    <p>مصاريف زي الغسيل، المخالفات، الباركينج، تعبئة الرصيد — سجّلها من صفحة <b>المصاريف</b>. اختار هل المصروف ده خاص بالشغل ولا شخصي.</p>
+  </section>
+
+  <section id="reminders">
+    <h2><span class="num">9</span> التذكيرات</h2>
+    <p>ضيف تذكير لأي حاجة دورية — تغيير زيت كل كذا كيلو، رخصة العربية، إلخ. مكاسب هيفكّرك لما يقرب الميعاد.</p>
+  </section>
+
+  <section id="dashboard">
+    <h2><span class="num">10</span> لوحة التحكم — إزاي تقرا أرقامك</h2>
+    <ul>
+      <li><b>الربح الحقيقي:</b> صافي فلوسك بعد خصم كل حاجة (وقود، صيانة، مصاريف، وقيمة العربية اللي قلّت).</li>
+      <li><b>أرباحك:</b> اللي التطبيق بيديهولك زي ما هو، من غير خصم حاجة.</li>
+      <li><b>الربح في الساعة / في الكيلومتر:</b> مقياس بيوريك هل شغلك فعلاً مربح ولا لأ.</li>
+      <li><b>توزيع الكيلومترات:</b> يوريك قد إيه مشيت وأنت راكب حد، وقد إيه مشيت فاضي بتدور على راكب.</li>
+    </ul>
+    <p>فوق الصفحة تقدر تختار الفترة (اليوم، الأسبوع، الشهر، كل الوقت)، ولو عندك أكتر من عربية تقدر تشوف أرقام كل عربية لوحدها أو الكل مع بعض.</p>
+  </section>
+
+  <section id="plan">
+    <h2><span class="num">11</span> خطط يومك</h2>
+    <p>الصفحة دي بتوريك — بناءً على شغلك اللي فات — إمتى أكتر وقت بتكسب فيه كويس، عشان تنظم ورديتك حواليه.</p>
+  </section>
+
+  <section id="multicar">
+    <h2><span class="num">12</span> لو عندك أكتر من عربية</h2>
+    <p>
+      تقدر تضيف أكتر من عربية وتتنقل بينهم من القايمة الجانبية. لما تبدأ وردية جديدة، مكاسب هيسألك تشتغل بأنهي عربية،
+      وهيفتكرها كعربية افتراضية لحد ما تغيّرها تاني.
+    </p>
+    <p>صفحة <b>السيارات</b> بتوريك جدول فيه كل عربياتك: قراءة العداد، الكيلومترات اللي مشوها، قيمتها الحالية، وصافي ربح كل واحدة لوحدها.</p>
+  </section>
+
+  <section id="settings">
+    <h2><span class="num">13</span> الإعدادات والأمان</h2>
+    <ul>
+      <li><b>اللغة:</b> غيّر بين العربي والإنجليزي في أي وقت.</li>
+      <li><b>كلمة المرور:</b> غيّرها من صفحة الإعدادات.</li>
+      <li><b>الاحتفاظ بالصور:</b> صور العداد والإيصالات بتتمسح أوتوماتيك بعد فترة تحددها — الأرقام اللي اتقرت منها بتفضل محفوظة.</li>
+      <li><b>فحص سلامة البيانات:</b> بيتأكد إن كل رحلة مربوطة بورديتها صح — بيشتغل لوحده في الخلفية، وتقدر كمان تشغّله يدوي في أي وقت.</li>
+    </ul>
+  </section>
+
+  <section id="tips">
+    <h2><span class="num">14</span> نصائح عشان البيانات تبقى مظبوطة</h2>
+    <ul>
+      <li>ابدأ الوردية دايمًا قبل ما تتحرك، وخلّصها لما ترجع.</li>
+      <li>صوّر شاشة الرحلات أول بأول، وميتراكمش عليك عدد كبير.</li>
+      <li>لو صوّرت حاجة والتطبيق مقدرش يقراها، راجع البيانات بإيدك بدل ما تسيبها.</li>
+      <li>سجّل كل تعبئة بنزين وكل صيانة — ده اللي بيخلي رقم "الربح الحقيقي" يبقى فعلاً حقيقي.</li>
+    </ul>
+  </section>
+
+  <footer>
+    مكاسب — اعرف ربحك الحقيقي، مش بس اللي بتكسبه.
+  </footer>
+
+</div>
+</body>
+</html>

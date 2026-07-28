@@ -2,13 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { ENTITIES, coerceBody } from "@/lib/crud";
-import { matchTripToShift } from "@/lib/analytics";
+import { matchTripToShift, reconcileShiftTrips } from "@/lib/analytics";
 
 type Ctx = { params: Promise<{ entity: string }> };
 
 function delegate(model: string) {
   return (prisma as unknown as Record<string, any>)[model];
 }
+
+const MAX_PAGE_SIZE = 50;
 
 export async function GET(req: NextRequest, ctx: Ctx) {
   try {
@@ -19,8 +21,29 @@ export async function GET(req: NextRequest, ctx: Ctx) {
 
     const vehicleId = req.nextUrl.searchParams.get("vehicleId");
     const where = vehicleId && entity !== "vehicles" ? { vehicleId } : {};
-    const rows = await delegate(config.model).findMany({ where, orderBy: config.orderBy });
-    return NextResponse.json(rows);
+
+    // vehicles is a small, bounded list (one per car) — always returned in
+    // full so the vehicle switcher/provider doesn't need pagination logic.
+    // `all=1` is the same escape hatch for callers that need a complete,
+    // unpaginated list for cross-referencing (e.g. the shifts page tallying
+    // every trip's km/revenue per shift) rather than rendering it as a table.
+    if (entity === "vehicles" || req.nextUrl.searchParams.get("all") === "1") {
+      const rows = await delegate(config.model).findMany({ where, orderBy: config.orderBy });
+      return NextResponse.json(rows);
+    }
+
+    const page = Math.max(1, Number(req.nextUrl.searchParams.get("page") ?? "1") || 1);
+    const pageSize = MAX_PAGE_SIZE;
+    const [rows, total] = await Promise.all([
+      delegate(config.model).findMany({
+        where,
+        orderBy: config.orderBy,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      delegate(config.model).count({ where }),
+    ]);
+    return NextResponse.json({ rows, total, page, pageSize });
   } catch (e) {
     if (e instanceof Response) return e;
     throw e;
@@ -43,6 +66,13 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     }
 
     const row = await delegate(config.model).create({ data });
+
+    // a new shift may cover trips logged earlier that had no shift to
+    // attach to yet (including trips orphaned by a previously deleted shift)
+    if (entity === "shifts") {
+      await reconcileShiftTrips(row.vehicleId, row.id);
+    }
+
     return NextResponse.json(row, { status: 201 });
   } catch (e) {
     if (e instanceof Response) return e;

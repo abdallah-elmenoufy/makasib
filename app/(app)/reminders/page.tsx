@@ -2,8 +2,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/components/I18nProvider";
-import { AddPanel, Btn, Card, Empty, Field, Input, PageTitle, Table, Textarea } from "@/components/ui";
-import { useCrud, useVehicle } from "@/components/useCrud";
+import { AddPanel, Btn, Card, Empty, Field, Input, PageTitle, Pagination, Table, Textarea } from "@/components/ui";
+import { useCrud } from "@/components/useCrud";
+import { useVehicle } from "@/components/VehicleProvider";
 import { fmtDate, fmtNum, toLocalInput } from "@/lib/format";
 
 const empty = () => ({
@@ -18,7 +19,10 @@ const empty = () => ({
 export default function RemindersPage() {
   const { t, locale } = useI18n();
   const { vehicle, loading: vLoading } = useVehicle();
-  const { rows, loading, create, update, remove } = useCrud<any>("reminders", vehicle?.id);
+  const { rows, loading, create, update, remove, page, setPage, totalPages } = useCrud<any>(
+    "reminders",
+    vehicle?.id
+  );
   const [form, setForm] = useState<any>(empty());
   const [open, setOpen] = useState(false);
   const [currentOdo, setCurrentOdo] = useState<number>(0);
@@ -35,7 +39,7 @@ export default function RemindersPage() {
   if (!vehicle) {
     return (
       <Empty>
-        <Link href="/vehicle" className="text-emerald-600 underline">
+        <Link href="/cars" className="text-emerald-600 underline">
           {t("veh.createFirst")}
         </Link>
       </Empty>
@@ -175,6 +179,14 @@ export default function RemindersPage() {
               })}
           </Table>
         )}
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          onPage={setPage}
+          labelPrev={t("c.prev")}
+          labelNext={t("c.next")}
+          labelPage={t("c.pageOf", { page, total: totalPages })}
+        />
       </Card>
     </div>
   );

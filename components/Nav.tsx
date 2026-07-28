@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useI18n } from "./I18nProvider";
+import { VehicleSwitcher } from "./VehicleSwitcher";
 
 // The things a driver does constantly through a shift (start/end it, score
 // incoming offers, import the day's screenshots) — always rendered as a
@@ -21,7 +22,7 @@ const LINKS: { href: string; key: string; icon: string }[] = [
   { href: "/maintenance", key: "nav.maintenance", icon: "🔧" },
   { href: "/expenses", key: "nav.expenses", icon: "💸" },
   { href: "/reminders", key: "nav.reminders", icon: "🔔" },
-  { href: "/vehicle", key: "nav.vehicle", icon: "🚘" },
+  { href: "/cars", key: "nav.cars", icon: "🚘" },
   { href: "/settings", key: "nav.settings", icon: "⚙️" },
 ];
 
@@ -53,6 +54,8 @@ export function Nav() {
       <div className="hidden md:block text-2xl font-black text-emerald-600 px-2 mb-4">
         {t("appName")}
       </div>
+
+      <VehicleSwitcher />
 
       {/* primary actions: fixed grid, not part of any scroll row — always
           fully visible the instant the app opens, on phone or desktop */}

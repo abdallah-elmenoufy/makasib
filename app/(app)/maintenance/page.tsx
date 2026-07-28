@@ -2,8 +2,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/components/I18nProvider";
-import { AddPanel, Btn, Card, Empty, Field, Input, PageTitle, Select, Table, Textarea } from "@/components/ui";
-import { useCrud, useVehicle } from "@/components/useCrud";
+import { AddPanel, Btn, Card, Empty, Field, Input, PageTitle, Pagination, Select, Table, Textarea } from "@/components/ui";
+import { useCrud } from "@/components/useCrud";
+import { useVehicle } from "@/components/VehicleProvider";
 import { PhotoInput } from "@/components/PhotoInput";
 import { fmtDate, fmtMoney, fmtNum, toLocalInput } from "@/lib/format";
 
@@ -37,7 +38,7 @@ const empty = () => ({
 export default function MaintenancePage() {
   const { t, locale } = useI18n();
   const { vehicle, loading: vLoading } = useVehicle();
-  const { rows, loading, create, remove } = useCrud<any>("maintenance", vehicle?.id);
+  const { rows, loading, create, remove, page, setPage, totalPages } = useCrud<any>("maintenance", vehicle?.id);
   const [form, setForm] = useState<any>(empty());
   const [open, setOpen] = useState(false);
 
@@ -45,7 +46,7 @@ export default function MaintenancePage() {
   if (!vehicle) {
     return (
       <Empty>
-        <Link href="/vehicle" className="text-emerald-600 underline">
+        <Link href="/cars" className="text-emerald-600 underline">
           {t("veh.createFirst")}
         </Link>
       </Empty>
@@ -125,6 +126,14 @@ export default function MaintenancePage() {
             ))}
           </Table>
         )}
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          onPage={setPage}
+          labelPrev={t("c.prev")}
+          labelNext={t("c.next")}
+          labelPage={t("c.pageOf", { page, total: totalPages })}
+        />
       </Card>
     </div>
   );

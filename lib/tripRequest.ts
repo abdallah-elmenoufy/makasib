@@ -11,8 +11,16 @@ const TRIP_RE = /(\d+)\s*mins?\s*[({[]?\s*([\d.]+)\s*km\s*[)}\]]?\s*trip/i;
 // for "EGP 397.50"); recovered in money() below
 const FARE_RE = new RegExp(`${CURRENCY}[A-Za-z]?\\s*([\\d,]+(?:\\.\\d{2})?)`, "i");
 const CASH_RE = /cash\s*payment/i;
-const CLOCK_RE = /(\d{1,2}):(\d{2})/;
-const NOISE_RE = /accept|exclusive|net of service|priority pickup|included|4g|5g|wi-?fi|^\W*$/i;
+// tesseract frequently drops or misreads the ":" in the tiny status-bar
+// clock ("11:20" → "11.20" or, worse, merges into an adjacent element like
+// a nav-banner distance and becomes unrecoverable, e.g. "1184100" —
+// confirmed against real trip-request screenshots). Tolerating "." keeps
+// the "misread as period" case; scoping the search to the first couple of
+// OCR'd lines (the status bar always comes first) keeps a stray decimal
+// elsewhere in the card (a fare, a distance) from being mistaken for a time.
+const CLOCK_RE = /\b(\d{1,2})[:.](\d{2})\b/;
+const NOISE_RE =
+  /accept|^match$|exclusive|net of service|priority pickup|included|toward your destination|wait-time earnings|^\d+\s*stops?$|4g|5g|wi-?fi|^\W*$/i;
 
 function money(s: string): number {
   const cleaned = s.replace(/,/g, "");
@@ -47,8 +55,11 @@ export function parseTripRequestText(text: string): TripRequest | null {
 
   const trip = text.match(TRIP_RE);
   const product = normalizeProduct(text.match(/^.*(?:Comfort|Uber|Saver|Priority|Scooter).*$/im)?.[0] ?? null);
-  // first clock-like token is the status-bar time
-  const clock = text.match(CLOCK_RE);
+  // the status bar clock is always among the first couple of OCR'd lines —
+  // searching the whole text risks mistaking a fare/distance decimal
+  // elsewhere in the card for a time (see CLOCK_RE's tolerant separator)
+  const firstLines = text.split("\n").map((l) => l.trim()).filter(Boolean).slice(0, 3).join("\n");
+  const clock = firstLines.match(CLOCK_RE);
 
   // addresses: the line(s) after "(x km) away" up to "(y km) trip" are the
   // pickup; after the trip line, until noise (Accept button etc.), the dropoff

@@ -1,10 +1,16 @@
 "use client";
 import { Fragment, useEffect, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useI18n } from "@/components/I18nProvider";
 import { Card, Empty, PageTitle } from "@/components/ui";
-import { useVehicle } from "@/components/useCrud";
+import { useVehicle } from "@/components/VehicleProvider";
 import { fmtMoney, fmtNum } from "@/lib/format";
+
+// leaflet needs the DOM — never render it on the server
+const GpsHeatmap = dynamic(() => import("@/components/GpsHeatmap").then((m) => m.GpsHeatmap), {
+  ssr: false,
+});
 
 // sequential blue ramp (validated reference palette) — light → dark = low → high
 const RAMP = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#1c5cab", "#0d366b"];
@@ -23,12 +29,16 @@ export default function PlanPage() {
   const { vehicle, loading } = useVehicle();
   const [plan, setPlan] = useState<any>(null);
   const [tip, setTip] = useState<{ x: number; y: number; cell: any } | null>(null);
+  const [heatmap, setHeatmap] = useState<{ points: [number, number][]; totalPoints: number } | null>(null);
 
   useEffect(() => {
     if (vehicle) {
       fetch(`/api/plan?vehicleId=${vehicle.id}`)
         .then((r) => (r.ok ? r.json() : null))
         .then(setPlan);
+      fetch(`/api/plan/heatmap?vehicleId=${vehicle.id}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then(setHeatmap);
     }
   }, [vehicle]);
 
@@ -36,7 +46,7 @@ export default function PlanPage() {
   if (!vehicle) {
     return (
       <Empty>
-        <Link href="/vehicle" className="text-emerald-600 underline">
+        <Link href="/cars" className="text-emerald-600 underline">
           {t("veh.createFirst")}
         </Link>
       </Empty>
@@ -193,6 +203,18 @@ export default function PlanPage() {
           )}
         </Card>
       </div>
+
+      {/* real GPS heatmap — where the driver actually spent driving time
+          during shifts, not a geocoded guess from address text */}
+      <Card>
+        <div className="text-sm font-semibold mb-1">🗺️ {t("pl.heatmapTitle")}</div>
+        <p className="text-xs text-slate-400 mb-3">{t("pl.heatmapSub")}</p>
+        {!heatmap || heatmap.points.length === 0 ? (
+          <Empty>{t("pl.heatmapEmpty")}</Empty>
+        ) : (
+          <GpsHeatmap points={heatmap.points} />
+        )}
+      </Card>
 
       {/* seasons */}
       <Card>

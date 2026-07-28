@@ -2,8 +2,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/components/I18nProvider";
-import { Card, Empty, PageTitle } from "@/components/ui";
-import { useVehicle } from "@/components/useCrud";
+import { Card, Empty, PageTitle, Table } from "@/components/ui";
+import { useVehicle } from "@/components/VehicleProvider";
 import { fmtMoney, fmtNum } from "@/lib/format";
 
 // chart chrome + series colors from the validated reference palette (light mode)
@@ -29,12 +29,21 @@ const PERIOD_KEY: Record<string, string> = {
 
 export default function DashboardPage() {
   const { t, locale } = useI18n();
-  const { vehicle, loading: vLoading } = useVehicle();
+  const { vehicle, activeVehicles, loading: vLoading } = useVehicle();
   const [period, setPeriod] = useState<(typeof PERIODS)[number]>("week");
+  const [viewAll, setViewAll] = useState(false);
   const [a, setA] = useState<any>(null);
   const [bench, setBench] = useState<any>(null);
+  const [carBench, setCarBench] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
+    if (viewAll) {
+      fetch(`/api/analytics/profile?period=${period}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then(setProfile);
+      return;
+    }
     if (vehicle) {
       fetch(`/api/analytics?vehicleId=${vehicle.id}&period=${period}`)
         .then((r) => (r.ok ? r.json() : null))
@@ -42,22 +51,101 @@ export default function DashboardPage() {
       fetch(`/api/benchmark?vehicleId=${vehicle.id}&period=${period}`)
         .then((r) => (r.ok ? r.json() : null))
         .then(setBench);
+      fetch(`/api/car-benchmark?vehicleId=${vehicle.id}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then(setCarBench);
     }
-  }, [vehicle, period]);
+  }, [vehicle, period, viewAll]);
 
   if (vLoading) return null;
   if (!vehicle) {
     return (
       <Empty>
-        <Link href="/vehicle" className="text-emerald-600 underline">
+        <Link href="/cars" className="text-emerald-600 underline">
           {t("db.noVehicle")}
         </Link>
       </Empty>
     );
   }
-  if (!a) return null;
 
   const money = (n: number) => fmtMoney(n, locale);
+
+  if (viewAll) {
+    if (!profile) return null;
+    const p = profile.totals;
+    const profitColor = p.trueProfit >= 0 ? C.goodText : C.critical;
+    return (
+      <div className="space-y-4">
+        <PageTitle
+          actions={
+            <div className="flex items-center gap-2">
+              <div className="flex gap-1 bg-white border border-slate-200 rounded-lg p-1">
+                {PERIODS.map((pr) => (
+                  <button
+                    key={pr}
+                    onClick={() => setPeriod(pr)}
+                    className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
+                      period === pr ? "bg-emerald-600 text-white" : "text-slate-500 hover:bg-slate-100"
+                    }`}
+                  >
+                    {t(PERIOD_KEY[pr])}
+                  </button>
+                ))}
+              </div>
+              <ViewToggle viewAll={viewAll} setViewAll={setViewAll} t={t} />
+            </div>
+          }
+        >
+          {t("db.title")}
+        </PageTitle>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Card className="col-span-2">
+            <div className="text-xs font-semibold text-slate-500">{t("db.trueProfit")}</div>
+            <div className="text-4xl font-black mt-1" style={{ color: profitColor }}>
+              {money(p.trueProfit)}
+            </div>
+            <div className="text-xs text-slate-400 mt-1">{t("cars.allCarsSub")}</div>
+          </Card>
+          <StatTile label={t("db.gross")} value={money(p.earnings.netRevenue)} sub={t("db.grossSub")} />
+          <div className="grid grid-rows-2 gap-3">
+            <MiniTile label={t("db.perHour")} value={p.perHour != null ? money(p.perHour) : "—"} />
+            <MiniTile label={t("db.perKm")} value={p.perKm != null ? money(p.perKm) : "—"} />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <MiniTile label={t("db.hoursWorked")} value={fmtNum(p.counts.hoursWorked, locale)} />
+          <MiniTile label={t("db.shiftCount")} value={fmtNum(p.counts.shifts, locale, 0)} />
+          <MiniTile label={t("db.tripCount")} value={fmtNum(p.counts.trips, locale, 0)} />
+          <MiniTile label={t("cars.carCount")} value={fmtNum(profile.perVehicle.length, locale, 0)} />
+        </div>
+
+        <Card>
+          <div className="text-sm font-semibold mb-3">{t("cars.breakdown")}</div>
+          <Table head={[t("veh.name"), t("db.trueProfit"), t("db.perHour"), t("db.perKm"), t("sh.trips")]}>
+            {profile.perVehicle.map((v: any) => (
+              <tr key={v.vehicle.id}>
+                <td className="py-2 px-2 font-semibold">{v.vehicle.name}</td>
+                <td
+                  className="py-2 px-2"
+                  style={{ color: v.trueProfit >= 0 ? C.goodText : C.critical, fontVariantNumeric: "tabular-nums" }}
+                >
+                  {money(v.trueProfit)}
+                </td>
+                <td className="py-2 px-2">{v.perHour != null ? money(v.perHour) : "—"}</td>
+                <td className="py-2 px-2">{v.perKm != null ? money(v.perKm) : "—"}</td>
+                <td className="py-2 px-2">{fmtNum(v.counts.shifts, locale, 0)}</td>
+              </tr>
+            ))}
+          </Table>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!a) return null;
+
   const profitColor = a.trueProfit >= 0 ? C.goodText : C.critical;
   const attention = a.reminders.filter((r: any) => r.state !== "ok");
 
@@ -77,18 +165,21 @@ export default function DashboardPage() {
     <div className="space-y-4">
       <PageTitle
         actions={
-          <div className="flex gap-1 bg-white border border-slate-200 rounded-lg p-1">
-            {PERIODS.map((p) => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
-                  period === p ? "bg-emerald-600 text-white" : "text-slate-500 hover:bg-slate-100"
-                }`}
-              >
-                {t(PERIOD_KEY[p])}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            <div className="flex gap-1 bg-white border border-slate-200 rounded-lg p-1">
+              {PERIODS.map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPeriod(p)}
+                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
+                    period === p ? "bg-emerald-600 text-white" : "text-slate-500 hover:bg-slate-100"
+                  }`}
+                >
+                  {t(PERIOD_KEY[p])}
+                </button>
+              ))}
+            </div>
+            {activeVehicles.length > 1 && <ViewToggle viewAll={viewAll} setViewAll={setViewAll} t={t} />}
           </div>
         }
       >
@@ -226,6 +317,7 @@ export default function DashboardPage() {
 
         <Card>
           <div className="text-sm font-semibold mb-3">{t("db.fuelEconomy")}</div>
+          <p className="text-xs text-slate-400 mb-3">{t("db.fuelEconomyHint")}</p>
           {a.fuelEconomy.length === 0 ? (
             <Empty>{t("fu.fullTankHint")}</Empty>
           ) : (
@@ -290,6 +382,54 @@ export default function DashboardPage() {
         </Card>
       )}
 
+      {/* your car vs. other drivers with the SAME catalog model — only for
+          vehicles picked from the car-model dropdown, never a fabricated
+          number (see lib/carBenchmark.ts) */}
+      {carBench && carBench.carModel && (
+        <Card>
+          <div className="text-sm font-semibold mb-1">
+            {t("cbm.title", { car: `${carBench.carModel.make} ${carBench.carModel.model}` })}
+          </div>
+          {carBench.others.driverCount === 0 ? (
+            <Empty>{t("bm.notEnough")}</Empty>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-4 mt-2">
+                <BenchMetric
+                  label={
+                    carBench.others.fuelUnit === "m3"
+                      ? `${t("cbm.fuelPer100")} (${t("c.m3")})`
+                      : `${t("cbm.fuelPer100")} (${t("c.liters")})`
+                  }
+                  you={carBench.you.fuelPer100}
+                  others={carBench.others.fuelPer100}
+                  fmt={(n) => fmtNum(n, locale)}
+                  youLabel={t("bm.you")}
+                  othersLabel={t("bm.others")}
+                  lowerIsBetter
+                />
+                <BenchMetric
+                  label={t("cbm.maintPerKm")}
+                  you={carBench.you.maintCostPerKm}
+                  others={carBench.others.maintCostPerKm}
+                  fmt={money}
+                  youLabel={t("bm.you")}
+                  othersLabel={t("bm.others")}
+                  lowerIsBetter
+                />
+              </div>
+              <div className="text-xs text-slate-400 mt-3 text-center">
+                {t("bm.driverCount", { n: fmtNum(carBench.others.driverCount, locale, 0) })}
+              </div>
+              {carModelTip(carBench, t) && (
+                <div className="text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2 mt-3">
+                  💡 {carModelTip(carBench, t)}
+                </div>
+              )}
+            </>
+          )}
+        </Card>
+      )}
 
       {/* reminders needing attention */}
       {attention.length > 0 && (
@@ -326,6 +466,37 @@ export default function DashboardPage() {
   );
 }
 
+function ViewToggle({
+  viewAll,
+  setViewAll,
+  t,
+}: {
+  viewAll: boolean;
+  setViewAll: (v: boolean) => void;
+  t: (k: string) => string;
+}) {
+  return (
+    <div className="flex gap-1 bg-white border border-slate-200 rounded-lg p-1">
+      <button
+        onClick={() => setViewAll(false)}
+        className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
+          !viewAll ? "bg-emerald-600 text-white" : "text-slate-500 hover:bg-slate-100"
+        }`}
+      >
+        {t("cars.thisCar")}
+      </button>
+      <button
+        onClick={() => setViewAll(true)}
+        className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
+          viewAll ? "bg-emerald-600 text-white" : "text-slate-500 hover:bg-slate-100"
+        }`}
+      >
+        {t("cars.allCars")}
+      </button>
+    </div>
+  );
+}
+
 function StatTile({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <Card>
@@ -345,6 +516,31 @@ function MiniTile({ label, value }: { label: string; value: string }) {
   );
 }
 
+/** One actionable tip when the driver's own car is meaningfully worse than
+ *  other drivers of the same model — never invented, only fires on a real
+ *  gap (≥10%) against a real average. Picks the larger of the two gaps
+ *  (fuel vs. maintenance) so the card shows one focused suggestion. */
+function carModelTip(carBench: any, t: (k: string, vars?: Record<string, string | number>) => string): string | null {
+  const { you, others } = carBench;
+  const fuelGap =
+    you.fuelPer100 != null && others.fuelPer100 != null && others.fuelPer100 > 0
+      ? (you.fuelPer100 - others.fuelPer100) / others.fuelPer100
+      : null;
+  const maintGap =
+    you.maintCostPerKm != null && others.maintCostPerKm != null && others.maintCostPerKm > 0
+      ? (you.maintCostPerKm - others.maintCostPerKm) / others.maintCostPerKm
+      : null;
+
+  const gaps = [
+    { key: "fuel" as const, gap: fuelGap },
+    { key: "maint" as const, gap: maintGap },
+  ].filter((g) => g.gap != null && g.gap >= 0.1);
+  if (gaps.length === 0) return null;
+  const worst = gaps.sort((a, b) => b.gap! - a.gap!)[0];
+  const pct = Math.round(worst.gap! * 100);
+  return worst.key === "fuel" ? t("cbm.tipFuel", { n: pct }) : t("cbm.tipMaint", { n: pct });
+}
+
 function BenchMetric({
   label,
   you,
@@ -352,6 +548,7 @@ function BenchMetric({
   fmt,
   youLabel,
   othersLabel,
+  lowerIsBetter,
 }: {
   label: string;
   you: number | null;
@@ -359,8 +556,10 @@ function BenchMetric({
   fmt: (n: number) => string;
   youLabel: string;
   othersLabel: string;
+  lowerIsBetter?: boolean;
 }) {
-  const youWins = you != null && others != null && you >= others;
+  const youWins =
+    you != null && others != null && (lowerIsBetter ? you <= others : you >= others);
   return (
     <div>
       <div className="text-xs text-slate-500 mb-1 text-center">{label}</div>

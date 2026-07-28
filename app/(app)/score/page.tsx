@@ -3,7 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/components/I18nProvider";
 import { Btn, Card, Checkbox, Empty, Field, Input, PageTitle } from "@/components/ui";
-import { useVehicle } from "@/components/useCrud";
+import { useVehicle } from "@/components/VehicleProvider";
+import { useTrackedTask } from "@/components/ActivityIndicator";
 import { looksLikeTripRequest, parseTripRequestText } from "@/lib/tripRequest";
 import { scoreOffer, OfferBaseline } from "@/lib/offerScore";
 import { fmtMoney, fmtNum } from "@/lib/format";
@@ -36,6 +37,7 @@ const VERDICT_ICON: Record<string, string> = { good: "🟢", ok: "🟡", bad: "�
 export default function ScorePage() {
   const { t, locale } = useI18n();
   const { vehicle, loading } = useVehicle();
+  const track = useTrackedTask();
   const [baseline, setBaseline] = useState<OfferBaseline | null>(null);
   const [form, setForm] = useState<OfferForm | null>(null);
   const [reading, setReading] = useState(false);
@@ -66,8 +68,14 @@ export default function ScorePage() {
     setNotRecognized(false);
     try {
       const { ocrScreenshot } = await import("@/lib/ocr");
-      const text = await ocrScreenshot(file);
-      const r = looksLikeTripRequest(text) ? parseTripRequestText(text) : null;
+      let text = await track(t("act.reading"), () => ocrScreenshot(file));
+      let r = looksLikeTripRequest(text) ? parseTripRequestText(text) : null;
+      // dark request cards over a lighter map can fool auto-invert detection
+      // — retry once, forcing inversion, before telling the driver it failed
+      if (!r) {
+        text = await track(t("act.reading"), () => ocrScreenshot(file, true));
+        r = looksLikeTripRequest(text) ? parseTripRequestText(text) : null;
+      }
       if (!r) {
         setNotRecognized(true);
         setForm(emptyForm());
@@ -101,7 +109,7 @@ export default function ScorePage() {
   if (!vehicle) {
     return (
       <Empty>
-        <Link href="/vehicle" className="text-emerald-600 underline">
+        <Link href="/cars" className="text-emerald-600 underline">
           {t("veh.createFirst")}
         </Link>
       </Empty>

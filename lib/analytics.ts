@@ -69,15 +69,47 @@ export type FuelEconomy = {
   costPerKm: number;
 };
 
+/** Merge completed shifts' [startOdometer, endOdometer] ranges so overlaps
+ *  aren't double-counted. */
+function mergedShiftRanges(shifts: Shift[]): [number, number][] {
+  const ranges = shifts
+    .filter((s) => s.endOdometer != null && s.endOdometer > s.startOdometer)
+    .map((s): [number, number] => [s.startOdometer, s.endOdometer!])
+    .sort((a, b) => a[0] - b[0]);
+  const merged: [number, number][] = [];
+  for (const [start, end] of ranges) {
+    const last = merged[merged.length - 1];
+    if (last && start <= last[1]) last[1] = Math.max(last[1], end);
+    else merged.push([start, end]);
+  }
+  return merged;
+}
+
+/** Km actually driven on a logged shift within [fromOdo, toOdo]. */
+function shiftKmInRange(ranges: [number, number][], fromOdo: number, toOdo: number): number {
+  let km = 0;
+  for (const [s, e] of ranges) {
+    const overlapStart = Math.max(s, fromOdo);
+    const overlapEnd = Math.min(e, toOdo);
+    if (overlapEnd > overlapStart) km += overlapEnd - overlapStart;
+  }
+  return km;
+}
+
 /**
- * Consumption from consecutive FULL-TANK fill-ups per fuel group.
+ * Consumption from consecutive FULL-TANK fill-ups per fuel group, counting
+ * only the shift-km portion of each fill-to-fill odometer window — Makasib
+ * tracks ride-hailing profitability, not personal driving, so a tank burned
+ * partly on personal trips must not make the car look more fuel-efficient
+ * (or cheaper per km) for work than it really is.
  * For dual-fuel cars this is an approximation since both fuels share km.
  */
-export function fuelEconomy(fuelUps: FuelUp[]): FuelEconomy[] {
+export function fuelEconomy(fuelUps: FuelUp[], shifts: Shift[]): FuelEconomy[] {
   const groups: { key: "PETROL" | "CNG"; unit: "L" | "m3" }[] = [
     { key: "PETROL", unit: "L" },
     { key: "CNG", unit: "m3" },
   ];
+  const shiftRanges = mergedShiftRanges(shifts);
   const out: FuelEconomy[] = [];
   for (const g of groups) {
     const ups = fuelUps
@@ -85,13 +117,29 @@ export function fuelEconomy(fuelUps: FuelUp[]): FuelEconomy[] {
       .sort((a, b) => a.odometer - b.odometer);
     let dist = 0;
     let qty = 0;
-    let spend = ups.reduce((s, f) => s + f.totalCost, 0);
-    for (let i = 1; i < ups.length; i++) {
-      // distance since previous fill is "paid for" by the current fill's quantity
-      if (ups[i].fullTank && ups[i - 1].fullTank && ups[i].odometer > ups[i - 1].odometer) {
-        dist += ups[i].odometer - ups[i - 1].odometer;
-        qty += ups[i].quantity;
+    let spend = 0;
+    // anchor windows on consecutive FULL tanks, but a partial fill-up
+    // sitting between two fulls still counts toward that window's fuel —
+    // skipping it (the old behavior) both broke the whole chain on a
+    // single partial fill and silently dropped that fuel from the total
+    let lastFullIdx = -1;
+    for (let i = 0; i < ups.length; i++) {
+      if (!ups[i].fullTank) continue;
+      if (lastFullIdx >= 0 && ups[i].odometer > ups[lastFullIdx].odometer) {
+        const windowShiftKm = shiftKmInRange(shiftRanges, ups[lastFullIdx].odometer, ups[i].odometer);
+        if (windowShiftKm > 0) {
+          let windowQty = 0;
+          let windowSpend = 0;
+          for (let j = lastFullIdx + 1; j <= i; j++) {
+            windowQty += ups[j].quantity;
+            windowSpend += ups[j].totalCost;
+          }
+          dist += windowShiftKm;
+          qty += windowQty;
+          spend += windowSpend;
+        }
       }
+      lastFullIdx = i;
     }
     if (dist > 0 && qty > 0) {
       out.push({
@@ -102,23 +150,11 @@ export function fuelEconomy(fuelUps: FuelUp[]): FuelEconomy[] {
         spend,
         per100: (qty / dist) * 100,
         kmPerUnit: dist / qty,
-        costPerKm:
-          // cost/km from the same full-to-full windows
-          qty > 0 ? (ups.filter((u) => u.fullTank).length > 1 ? spendOverWindows(ups) / dist : spend / dist) : 0,
+        costPerKm: spend / dist,
       });
     }
   }
   return out;
-}
-
-function spendOverWindows(ups: FuelUp[]): number {
-  let spend = 0;
-  for (let i = 1; i < ups.length; i++) {
-    if (ups[i].fullTank && ups[i - 1].fullTank && ups[i].odometer > ups[i - 1].odometer) {
-      spend += ups[i].totalCost;
-    }
-  }
-  return spend;
 }
 
 export type ReminderStatus = {
@@ -179,8 +215,9 @@ export async function getAnalytics(vehicleId: string, period: Period) {
     ]);
 
   // ---- All-time per-km cost rates (stable amortization basis) ----
+  const allShifts = await prisma.shift.findMany({ where: { vehicleId } });
   const odoReadings: number[] = [vehicle.initialOdometer];
-  for (const s of await prisma.shift.findMany({ where: { vehicleId } })) {
+  for (const s of allShifts) {
     odoReadings.push(s.startOdometer);
     if (s.endOdometer != null) odoReadings.push(s.endOdometer);
   }
@@ -318,24 +355,152 @@ export async function getAnalytics(vehicleId: string, period: Period) {
     perHour: hoursWorked > 0 ? trueProfit / hoursWorked : null,
     perKm: shiftKm > 0 ? trueProfit / shiftKm : null,
     kmSplit: { shiftKm, tripKm, deadKm, pickupKm, cruisingKm, personalKm, periodTotalKm },
-    fuelEconomy: fuelEconomy(fuelUpsAll),
+    fuelEconomy: fuelEconomy(fuelUpsAll, allShifts),
     reminders: reminderStatuses(reminders, currentOdo),
     trend: days,
   };
 }
 
-/** Attach a trip to the shift whose time window contains its start time. */
+export type ProfileAnalytics = Awaited<ReturnType<typeof getProfileAnalytics>>;
+
+/**
+ * Whole-driver-profile view: every active car's analytics for the period,
+ * aggregated into fleet totals plus the per-car breakdown that produced
+ * them. Weighted perHour/perKm (totals ÷ totals, not an average of ratios)
+ * so a car with a handful of hours doesn't skew the fleet rate.
+ */
+export async function getProfileAnalytics(period: Period) {
+  const vehicles = await prisma.vehicle.findMany({ where: { isActive: true } });
+  const perVehicle = await Promise.all(vehicles.map((v) => getAnalytics(v.id, period)));
+
+  const sum = (f: (a: Analytics) => number) => perVehicle.reduce((s, a) => s + f(a), 0);
+
+  const hoursWorked = sum((a) => a.counts.hoursWorked);
+  const shiftKm = sum((a) => a.kmSplit.shiftKm);
+  const trueProfit = sum((a) => a.trueProfit);
+
+  return {
+    period,
+    perVehicle,
+    totals: {
+      earnings: {
+        fares: sum((a) => a.earnings.fares),
+        commission: sum((a) => a.earnings.commission),
+        tips: sum((a) => a.earnings.tips),
+        gross: sum((a) => a.earnings.gross),
+        netRevenue: sum((a) => a.earnings.netRevenue),
+      },
+      costs: {
+        commission: sum((a) => a.costs.commission),
+        fuel: sum((a) => a.costs.fuel),
+        maintenance: sum((a) => a.costs.maintenance),
+        depreciation: sum((a) => a.costs.depreciation),
+        workExpenses: sum((a) => a.costs.workExpenses),
+        ownership: sum((a) => a.costs.ownership),
+        total: sum((a) => a.costs.total),
+      },
+      trueProfit,
+      perHour: hoursWorked > 0 ? trueProfit / hoursWorked : null,
+      perKm: shiftKm > 0 ? trueProfit / shiftKm : null,
+      counts: {
+        shifts: sum((a) => a.counts.shifts),
+        trips: sum((a) => a.counts.trips),
+        hoursWorked,
+        shiftDays: sum((a) => a.counts.shiftDays),
+      },
+      kmSplit: {
+        shiftKm,
+        tripKm: sum((a) => a.kmSplit.tripKm),
+        deadKm: sum((a) => a.kmSplit.deadKm),
+        pickupKm: sum((a) => a.kmSplit.pickupKm),
+        cruisingKm: sum((a) => a.kmSplit.cruisingKm),
+        personalKm: sum((a) => a.kmSplit.personalKm),
+      },
+    },
+  };
+}
+
+// A trip's timestamp (from an odometer-photo shift, OCR'd request card, or
+// earnings-activity screenshot) rarely lines up to the second with the
+// shift window it actually belongs to — the driver may start driving a
+// couple minutes before taking the start photo, or OCR misreads a clock
+// digit. A strict boundary match left real trips permanently orphaned even
+// though a shift genuinely covering them existed. Tolerating a few minutes
+// on either edge fixes that without meaningfully risking a wrong shift.
+const SHIFT_MATCH_TOLERANCE_MS = 15 * 60 * 1000;
+
+/** Attach a trip to the shift whose window contains its start time (within
+ *  tolerance) — the closest shift wins when more than one qualifies. */
 export async function matchTripToShift(
   vehicleId: string,
   startTime: Date
 ): Promise<string | null> {
-  const shift = await prisma.shift.findFirst({
+  const t = startTime.getTime();
+  const candidates = await prisma.shift.findMany({
     where: {
       vehicleId,
-      startTime: { lte: startTime },
-      OR: [{ endTime: null }, { endTime: { gte: startTime } }],
+      startTime: { lte: new Date(t + SHIFT_MATCH_TOLERANCE_MS) },
+      OR: [{ endTime: null }, { endTime: { gte: new Date(t - SHIFT_MATCH_TOLERANCE_MS) } }],
     },
-    orderBy: { startTime: "desc" },
   });
-  return shift?.id ?? null;
+  if (candidates.length === 0) return null;
+  const distance = (s: (typeof candidates)[number]) => {
+    const start = s.startTime.getTime();
+    const end = s.endTime ? s.endTime.getTime() : Infinity;
+    if (t >= start && t <= end) return 0; // inside the actual window — always wins
+    return t < start ? start - t : t - end;
+  };
+  return candidates.sort((a, b) => distance(a) - distance(b))[0].id;
+}
+
+/**
+ * Sweep orphaned trips (shiftId null — e.g. logged before their shift
+ * existed, or left behind when a shift was deleted and later re-created)
+ * into a shift whose time window now covers them (within tolerance). Runs
+ * after every shift create/update so the two sides of the app stay in sync
+ * without the driver having to manually re-link anything.
+ */
+export async function reconcileShiftTrips(vehicleId: string, shiftId: string): Promise<number> {
+  const shift = await prisma.shift.findUnique({ where: { id: shiftId } });
+  if (!shift) return 0;
+  const { count } = await prisma.trip.updateMany({
+    where: {
+      vehicleId,
+      shiftId: null,
+      startTime: {
+        gte: new Date(shift.startTime.getTime() - SHIFT_MATCH_TOLERANCE_MS),
+        ...(shift.endTime ? { lte: new Date(shift.endTime.getTime() + SHIFT_MATCH_TOLERANCE_MS) } : {}),
+      },
+    },
+    data: { shiftId },
+  });
+  return count;
+}
+
+/**
+ * Full data-health sweep for one vehicle: every orphaned trip (shiftId
+ * null) gets one more chance at matchTripToShift's tolerant window. Unlike
+ * reconcileShiftTrips (triggered by a specific shift changing), this is the
+ * "check everything, not just what just changed" pass — the periodic
+ * health check and the manual "run now" button both call this.
+ */
+export async function reconcileOrphanTrips(vehicleId: string): Promise<number> {
+  const orphans = await prisma.trip.findMany({ where: { vehicleId, shiftId: null } });
+  let fixed = 0;
+  for (const trip of orphans) {
+    const shiftId = await matchTripToShift(vehicleId, trip.startTime);
+    if (shiftId) {
+      await prisma.trip.update({ where: { id: trip.id }, data: { shiftId } });
+      fixed++;
+    }
+  }
+  return fixed;
+}
+
+/** Same sweep across every vehicle — used by the lazy periodic health check. */
+export async function reconcileAllVehicles(): Promise<number> {
+  const vehicles = await prisma.vehicle.findMany({ select: { id: true } });
+  let total = 0;
+  for (const v of vehicles) total += await reconcileOrphanTrips(v.id);
+  return total;
 }

@@ -14,13 +14,29 @@ model Setting {
   value String
 }
 
+// Curated catalog of common ride-hailing car makes/models (seeded, not
+// user-editable) — lets the vehicle form offer a real dropdown instead of
+// free text, and groups vehicles for cross-driver "same car" benchmarking.
+model CarModel {
+  id       String  @id @default(cuid())
+  make     String
+  model    String
+  category String? // SEDAN | HATCHBACK | SUV | MPV — light grouping hint only
+
+  vehicles Vehicle[]
+
+  @@unique([make, model])
+}
+
 model Vehicle {
-  id                 String   @id @default(cuid())
+  id                 String    @id @default(cuid())
   name               String
   make               String?
   model              String?
   year               Int?
   plate              String?
+  carModelId         String?
+  carModel           CarModel? @relation(fields: [carModelId], references: [id], onDelete: SetNull)
   // PETROL | CNG | DUAL — DUAL unlocks per-fuel tracking (common in Egypt)
   fuelSetup          String   @default("PETROL")
   // OWNED | INSTALLMENT | RENTED | TARGET — drives the cost model

@@ -1,10 +1,11 @@
 "use client";
 import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useI18n } from "@/components/I18nProvider";
 import { Btn, Card, Empty, Field, Input, PageTitle, Select, Textarea } from "@/components/ui";
-import { useVehicle } from "@/components/useCrud";
+import { useVehicle } from "@/components/VehicleProvider";
+import { useTrackedTask } from "@/components/ActivityIndicator";
 import { parseEarningsActivityText, ActivityTrip } from "@/lib/earningsActivity";
 import { looksLikeTripRequest, parseTripRequestText, TripRequest } from "@/lib/tripRequest";
 import { emptyTripForm, toTripData, TripFormState, PLATFORMS as TRIP_PLATFORMS } from "@/lib/tripForm";
@@ -36,7 +37,7 @@ function ImportInner() {
   if (!vehicle) {
     return (
       <Empty>
-        <Link href="/vehicle" className="text-emerald-600 underline">
+        <Link href="/cars" className="text-emerald-600 underline">
           {t("veh.createFirst")}
         </Link>
       </Empty>
@@ -183,6 +184,8 @@ type ShiftPhoto = {
 
 function ShiftPhotosImport({ vehicle }: { vehicle: any }) {
   const { t } = useI18n();
+  const track = useTrackedTask();
+  const router = useRouter();
   const [photos, setPhotos] = useState<ShiftPhoto[]>([]);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
@@ -201,7 +204,7 @@ function ShiftPhotosImport({ vehicle }: { vehicle: any }) {
       // 1) upload for record-keeping
       const form = new FormData();
       form.append("file", file);
-      const up = await fetch("/api/upload", { method: "POST", body: form });
+      const up = await track(t("act.uploading"), () => fetch("/api/upload", { method: "POST", body: form }));
       if (!up.ok) continue;
       const { filename } = await up.json();
 
@@ -225,12 +228,15 @@ function ShiftPhotosImport({ vehicle }: { vehicle: any }) {
       let odo = "";
       let fromOcr = false;
       try {
-        const { serverOdometerCandidates, ocrOdometerCandidates } = await import("@/lib/ocr");
-        let candidates = await serverOdometerCandidates(filename);
-        if (candidates == null || candidates.length === 0) {
-          const served = await fetch(`/api/files/${filename}`).then((r) => r.blob());
-          candidates = await ocrOdometerCandidates(served);
-        }
+        const candidates = await track(t("act.reading"), async () => {
+          const { serverOdometerCandidates, ocrOdometerCandidates } = await import("@/lib/ocr");
+          let c = await serverOdometerCandidates(filename);
+          if (c == null || c.length === 0) {
+            const served = await fetch(`/api/files/${filename}`).then((r) => r.blob());
+            c = await ocrOdometerCandidates(served);
+          }
+          return c;
+        });
         const min = vehicle.initialOdometer ?? 0;
         const plausible = candidates.filter((c) => c >= min && c < min + 500_000);
         if (plausible.length > 0) {
@@ -275,6 +281,9 @@ function ShiftPhotosImport({ vehicle }: { vehicle: any }) {
     if (res.ok) {
       setResult(`✓ ${t("im.shiftSaved")}${end ? "" : ` — ${t("sh.active")}`}`);
       setPhotos([]);
+      // the shift now exists — the shifts page is where the driver expects
+      // to see it, not back on this upload screen
+      setTimeout(() => router.push("/shifts"), 600);
     } else {
       setResult(t("c.error"));
     }
@@ -374,6 +383,7 @@ function ShiftPhotosImport({ vehicle }: { vehicle: any }) {
 
 function PdfImport({ vehicleId }: { vehicleId: string }) {
   const { t, locale } = useI18n();
+  const track = useTrackedTask();
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string>("");
 
@@ -383,7 +393,9 @@ function PdfImport({ vehicleId }: { vehicleId: string }) {
     const form = new FormData();
     form.append("vehicleId", vehicleId);
     form.append("file", file);
-    const res = await fetch("/api/import/statement", { method: "POST", body: form });
+    const res = await track(t("act.parsingPdf"), () =>
+      fetch("/api/import/statement", { method: "POST", body: form })
+    );
     setBusy(false);
     if (!res.ok) {
       setResult(t("c.error"));
@@ -423,6 +435,8 @@ function PdfImport({ vehicleId }: { vehicleId: string }) {
 
 function OcrImport({ vehicleId }: { vehicleId: string }) {
   const { t } = useI18n();
+  const track = useTrackedTask();
+  const router = useRouter();
   const [year, setYear] = useState(new Date().getFullYear());
   const [files, setFiles] = useState<File[]>([]);
   const [progress, setProgress] = useState("");
@@ -430,6 +444,7 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
   const [reqs, setReqs] = useState<TripRequest[]>([]);
   const [result, setResult] = useState("");
   const [busy, setBusy] = useState(false);
+  const [unread, setUnread] = useState<string[]>([]);
 
   const run = async (batch: File[]) => {
     if (batch.length === 0 || busy) return;
@@ -437,6 +452,7 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
     setRows([]);
     setReqs([]);
     setResult("");
+    setUnread([]);
     const { ocrScreenshot } = await import("@/lib/ocr");
     // each screenshot is OCR'd and parsed on its own — never concatenated
     // into one text blob first. Concatenating let an incomplete trailing
@@ -444,15 +460,24 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
     // times/amounts attaching to the wrong trip — a real UAT bug).
     let activityTrips: ActivityTrip[] = [];
     const requests: TripRequest[] = [];
+    const unreadable: string[] = [];
     for (let i = 0; i < batch.length; i++) {
       setProgress(t("im.ocrReading", { i: i + 1, n: batch.length }));
-      const text = await ocrScreenshot(batch[i]);
-      if (looksLikeTripRequest(text)) {
-        const r = parseTripRequestText(text);
-        if (r) requests.push(r);
-      } else {
-        activityTrips = activityTrips.concat(parseEarningsActivityText(text, year));
+      let text = await track(t("im.ocrReading", { i: i + 1, n: batch.length }), () => ocrScreenshot(batch[i]));
+      let request = looksLikeTripRequest(text) ? parseTripRequestText(text) : null;
+      let activity = request ? [] : parseEarningsActivityText(text, year);
+      // neither classifier found anything — the auto-detected light/dark
+      // polarity may have picked the wrong one (e.g. a dark trip-request
+      // card sitting over a lighter map); retry once, forcing inversion,
+      // before giving up on this screenshot
+      if (!request && activity.length === 0) {
+        text = await track(t("act.reading"), () => ocrScreenshot(batch[i], true));
+        request = looksLikeTripRequest(text) ? parseTripRequestText(text) : null;
+        activity = request ? [] : parseEarningsActivityText(text, year);
       }
+      if (request) requests.push(request);
+      else if (activity.length > 0) activityTrips = activityTrips.concat(activity);
+      else unreadable.push(batch[i].name);
     }
     setProgress("");
     // most screenshots in a batch are the same day, but only the topmost one
@@ -466,7 +491,8 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
         : activityTrips;
     setRows(trips);
     setReqs(requests);
-    if (trips.length === 0 && requests.length === 0) setResult(t("im.ocrNoTrips"));
+    setUnread(unreadable);
+    if (trips.length === 0 && requests.length === 0 && unreadable.length === 0) setResult(t("im.ocrNoTrips"));
     setBusy(false);
   };
 
@@ -535,6 +561,8 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
     setRows([]);
     setReqs([]);
     setFiles([]);
+    // trips were just created/enriched — that's the trips page's job to show
+    if (parts.length > 0) setTimeout(() => router.push("/trips"), 600);
   };
 
   const inputCls = "w-full rounded border border-slate-200 px-1.5 py-1 text-xs bg-white";
@@ -578,7 +606,13 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
           {t("im.dropZone")} {files.length > 0 ? `(${files.length})` : ""}
         </div>
       </label>
-      {progress && <p className="text-sm text-slate-400 animate-pulse">{progress}</p>}
+      {progress && <p className="text-sm text-slate-400 animate-pulse">🔎 {progress}</p>}
+
+      {unread.length > 0 && (
+        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          ⚠️ {t("im.unreadable", { n: unread.length })}: {unread.join(", ")}
+        </p>
+      )}
 
       {rows.length > 0 && (
         <>
