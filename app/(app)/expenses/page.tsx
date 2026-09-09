@@ -1,13 +1,43 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/components/I18nProvider";
-import { AddPanel, Btn, Card, Checkbox, Empty, Field, Input, PageTitle, Pagination, Select, Table, Textarea } from "@/components/ui";
+import {
+  AddPanel,
+  Btn,
+  Card,
+  CardHead,
+  Checkbox,
+  Empty,
+  Field,
+  Input,
+  Meter,
+  PageTitle,
+  Pagination,
+  Select,
+  StackedMeter,
+  Table,
+  Textarea,
+} from "@/components/ui";
+import { EXPENSE_ICON, QuickExpense } from "@/components/QuickExpense";
 import { useCrud } from "@/components/useCrud";
 import { useVehicle } from "@/components/VehicleProvider";
-import { fmtDate, fmtMoney, toLocalInput } from "@/lib/format";
+import { fmtDate, fmtMoney, fmtNum, toLocalInput } from "@/lib/format";
 
 const CATEGORIES = ["WASH", "FINE", "PARKING", "MOBILE_DATA", "RENTAL", "INSURANCE", "LICENSE", "TOLL", "OTHER"];
+
+/** One colour per category, shared by the split bar and its legend. */
+const CAT_COLOR: Record<string, string> = {
+  WASH: "#2a78d6",
+  FINE: "#e34948",
+  PARKING: "#7b61c9",
+  MOBILE_DATA: "#eda100",
+  RENTAL: "#d97706",
+  INSURANCE: "#0891b2",
+  LICENSE: "#6b7280",
+  TOLL: "#10b981",
+  OTHER: "#c3c2b7",
+};
 
 const empty = () => ({
   date: toLocalInput(),
@@ -21,9 +51,50 @@ const empty = () => ({
 export default function ExpensesPage() {
   const { t, locale } = useI18n();
   const { vehicle, loading: vLoading } = useVehicle();
-  const { rows, loading, create, remove, page, setPage, totalPages } = useCrud<any>("expenses", vehicle?.id);
+  const { rows, loading, create, remove, refresh, page, setPage, totalPages } = useCrud<any>(
+    "expenses",
+    vehicle?.id
+  );
   const [form, setForm] = useState<any>(empty());
   const [open, setOpen] = useState(false);
+  // the table is paginated; the totals and the "last amount" the quick chips
+  // remember both need every row
+  const [allRows, setAllRows] = useState<any[]>([]);
+  const [analytics, setAnalytics] = useState<any>(null);
+
+  useEffect(() => {
+    if (!vehicle) return;
+    fetch(`/api/expenses?vehicleId=${vehicle.id}&all=1`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => setAllRows(Array.isArray(d) ? d : []));
+    fetch(`/api/analytics?vehicleId=${vehicle.id}&period=all`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setAnalytics);
+  }, [vehicle, rows]);
+
+  const totals = useMemo(() => {
+    const byCat = new Map<string, { amount: number; count: number }>();
+    let work = 0;
+    let personal = 0;
+    for (const x of allRows) {
+      if (x.isWork) {
+        work += x.amount;
+        const e = byCat.get(x.category) ?? { amount: 0, count: 0 };
+        e.amount += x.amount;
+        e.count += 1;
+        byCat.set(x.category, e);
+      } else {
+        personal += x.amount;
+      }
+    }
+    return {
+      work,
+      personal,
+      byCat: CATEGORIES.filter((c) => byCat.has(c))
+        .map((c) => ({ key: c, ...byCat.get(c)! }))
+        .sort((a, b) => b.amount - a.amount),
+    };
+  }, [allRows]);
 
   if (vLoading || loading) return null;
   if (!vehicle) {
@@ -37,9 +108,103 @@ export default function ExpensesPage() {
   }
   const set = (k: string, v: unknown) => setForm({ ...form, [k]: v });
 
+  const money = (n: number) => fmtMoney(n, locale);
+  const netRevenue: number | null = analytics?.earnings?.netRevenue ?? null;
+  const shiftDays: number = analytics?.counts?.shiftDays ?? 0;
+  const share = netRevenue != null && netRevenue > 0 ? totals.work / netRevenue : null;
+
   return (
     <div>
       <PageTitle>{t("ex.title")}</PageTitle>
+
+      <Card className="mb-4">
+        <CardHead icon="💸" title={t("ex.summaryTitle")} sub={t("ex.summarySub")} />
+
+        {allRows.length === 0 ? (
+          <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
+            ⚠️ {t("ex.emptyWarning")}
+          </p>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <div>
+                <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">
+                  {t("ex.totalWork")}
+                </div>
+                <div className="text-3xl font-black tnum mt-0.5 leading-tight">{money(totals.work)}</div>
+                <div className="text-xs text-slate-400 mt-1">
+                  {t("ex.entries", { n: fmtNum(allRows.length, locale, 0) })}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">
+                  {t("ex.perShiftDay")}
+                </div>
+                <div className="text-3xl font-black tnum mt-0.5 leading-tight">
+                  {shiftDays > 0 ? money(totals.work / shiftDays) : "—"}
+                </div>
+                <div className="text-xs text-slate-400 mt-1">
+                  {t("ex.overDays", { n: fmtNum(shiftDays, locale, 0) })}
+                </div>
+              </div>
+              {totals.personal > 0 && (
+                <div>
+                  <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">
+                    {t("ex.personalTotal")}
+                  </div>
+                  <div className="text-2xl font-black tnum mt-0.5 leading-tight text-slate-400">
+                    {money(totals.personal)}
+                  </div>
+                  <div className="text-xs text-slate-400 mt-1">{t("ex.personalSub")}</div>
+                </div>
+              )}
+            </div>
+
+            {totals.byCat.length > 0 && (
+              <div className="mt-5 pt-4 border-t border-slate-100">
+                <div className="text-xs font-semibold text-slate-600 mb-2">{t("ex.byCategory")}</div>
+                <StackedMeter
+                  segments={totals.byCat.map((c) => ({
+                    key: c.key,
+                    value: c.amount,
+                    color: CAT_COLOR[c.key],
+                    label: t(`ex.cat.${c.key}`),
+                  }))}
+                />
+                <div className="mt-2 space-y-1">
+                  {totals.byCat.map((c) => (
+                    <div key={c.key} className="flex items-center gap-2 text-xs">
+                      <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: CAT_COLOR[c.key] }} />
+                      <span className="flex-1 text-slate-600">
+                        {EXPENSE_ICON[c.key]} {t(`ex.cat.${c.key}`)}
+                      </span>
+                      <span className="text-slate-400 tnum">{t("ex.entries", { n: c.count })}</span>
+                      <span className="font-semibold tnum w-24 text-end">{money(c.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {share != null && (
+              <div className="mt-5 pt-4 border-t border-slate-100">
+                <Meter
+                  ratio={share}
+                  tone={share <= 0.08 ? "good" : share <= 0.15 ? "warn" : "bad"}
+                  label={t("ex.shareOfEarnings")}
+                  value={`${fmtNum(share * 100, locale, 1)}%`}
+                  sub={t("ex.shareOfEarningsSub", { spend: money(totals.work), revenue: money(netRevenue!) })}
+                />
+              </div>
+            )}
+          </>
+        )}
+
+        <div className="mt-4 pt-4 border-t border-slate-100">
+          <div className="text-xs font-semibold text-slate-600 mb-2">{t("qx.title")}</div>
+          <QuickExpense vehicleId={vehicle.id} recent={allRows} onAdded={refresh} />
+        </div>
+      </Card>
 
       <AddPanel buttonLabel={t("ex.add")} open={open} setOpen={setOpen}>
         <form
@@ -92,7 +257,9 @@ export default function ExpensesPage() {
             {rows.map((x) => (
               <tr key={x.id}>
                 <td className="py-2 px-2 whitespace-nowrap">{fmtDate(x.date, locale)}</td>
-                <td className="py-2 px-2">{t(`ex.cat.${x.category}`)}</td>
+                <td className="py-2 px-2">
+                  {EXPENSE_ICON[x.category]} {t(`ex.cat.${x.category}`)}
+                </td>
                 <td className="py-2 px-2 font-semibold">{fmtMoney(x.amount, locale)}</td>
                 <td className="py-2 px-2">{x.isWork ? "✓" : "—"}</td>
                 <td className="py-2 px-2 text-slate-400 max-w-40 truncate">{x.notes ?? ""}</td>

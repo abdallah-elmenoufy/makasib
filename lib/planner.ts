@@ -55,13 +55,35 @@ export function seasonOf(d: Date): SeasonStat["season"] {
 export type Plan = Awaited<ReturnType<typeof getPlan>>;
 
 export async function getPlan(vehicleId: string) {
+  return getPlanForVehicles([vehicleId]);
+}
+
+const MIN_COMMUNITY_DRIVERS = 3;
+
+/**
+ * Same statistics, pooled across every OTHER active vehicle in the database
+ * — the "community" version of the when-to-drive heatmap. Same honesty rule
+ * as lib/benchmark.ts: a real aggregation, gated behind a minimum driver
+ * count so a thin sample doesn't masquerade as a confident community signal.
+ */
+export async function getCommunityPlan(excludeVehicleId?: string) {
+  const vehicles = await prisma.vehicle.findMany({ where: { isActive: true }, select: { id: true } });
+  const ids = vehicles.map((v) => v.id).filter((id) => id !== excludeVehicleId);
+  if (ids.length < MIN_COMMUNITY_DRIVERS) {
+    return { enoughDrivers: false as const, driverCount: ids.length };
+  }
+  const plan = await getPlanForVehicles(ids);
+  return { ...plan, enoughDrivers: true as const, driverCount: ids.length };
+}
+
+async function getPlanForVehicles(vehicleIds: string[]) {
   const [shifts, trips, tips] = await Promise.all([
     prisma.shift.findMany({
-      where: { vehicleId, endTime: { not: null } },
+      where: { vehicleId: { in: vehicleIds }, endTime: { not: null } },
       orderBy: { startTime: "asc" },
     }),
-    prisma.trip.findMany({ where: { vehicleId }, orderBy: { startTime: "asc" } }),
-    prisma.cashTip.findMany({ where: { vehicleId } }),
+    prisma.trip.findMany({ where: { vehicleId: { in: vehicleIds } }, orderBy: { startTime: "asc" } }),
+    prisma.cashTip.findMany({ where: { vehicleId: { in: vehicleIds } } }),
   ]);
 
   // ---- hours worked per weekday×hour bucket (shift time distributed) ----

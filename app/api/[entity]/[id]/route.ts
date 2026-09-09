@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { ENTITIES, coerceBody } from "@/lib/crud";
-import { reconcileShiftTrips } from "@/lib/analytics";
+import { reconcileVehicle } from "@/lib/tripIntegrity";
 
 type Ctx = { params: Promise<{ entity: string; id: string }> };
 
@@ -34,10 +34,12 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     const data = coerceBody(config, await req.json());
     const row = await delegate(config.model).update({ where: { id }, data });
 
-    // ending a shift (or otherwise changing its window) may newly cover
-    // trips that were orphaned or logged before the shift existed
-    if (entity === "shifts") {
-      await reconcileShiftTrips(row.vehicleId, row.id);
+    // Editing either side of the relationship can change which trips belong
+    // to which shift: moving a shift's window may newly cover an orphan, and
+    // correcting a trip's time may move it into a shift. Reconcile on both,
+    // awaited, so the response already reflects the corrected state.
+    if (entity === "shifts" || entity === "trips") {
+      await reconcileVehicle(row.vehicleId);
     }
 
     return NextResponse.json(row);
@@ -54,7 +56,13 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
     const { entity, id } = await ctx.params;
     const config = ENTITIES[entity];
     if (!config) return NextResponse.json({ error: "unknown entity" }, { status: 404 });
+    // capture the owning vehicle before the row is gone
+    const doomed = entity === "shifts" ? await delegate(config.model).findUnique({ where: { id } }) : null;
     await delegate(config.model).delete({ where: { id } });
+    // deleting a shift sets its trips' shiftId to null (schema onDelete:
+    // SetNull) — immediately try to re-home them onto another covering
+    // shift so they don't silently drop out of the km/cost maths
+    if (doomed?.vehicleId) await reconcileVehicle(doomed.vehicleId);
     return NextResponse.json({ ok: true });
   } catch (e) {
     if (e instanceof Response) return e;

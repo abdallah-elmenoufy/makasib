@@ -79,6 +79,7 @@ export default function CarsPage() {
               t("cars.currentValue"),
               t("cars.depSoFar"),
               t("cars.allTimeProfit"),
+              t("cars.health"),
               t("cars.default"),
               t("c.actions"),
             ]}
@@ -102,6 +103,22 @@ export default function CarsPage() {
                   </td>
                   <td className="py-2 px-2 font-semibold" style={{ color: s && s.trueProfit >= 0 ? "#006300" : "#d03b3b" }}>
                     {s ? money(s.trueProfit) : "—"}
+                  </td>
+                  <td className="py-2 px-2">
+                    {s?.healthScore != null ? (
+                      <span
+                        className="text-xs font-bold rounded-full px-2 py-0.5"
+                        style={{
+                          color: s.healthScore >= 70 ? "#006300" : s.healthScore >= 40 ? "#b45309" : "#d03b3b",
+                          background: s.healthScore >= 70 ? "#ecfdf5" : s.healthScore >= 40 ? "#fffbeb" : "#fef2f2",
+                        }}
+                        title={t("cars.healthHint")}
+                      >
+                        {s.healthScore}
+                      </span>
+                    ) : (
+                      "—"
+                    )}
                   </td>
                   <td className="py-2 px-2">
                     {isDefault ? (
@@ -345,6 +362,15 @@ function CarForm({
                 type="number"
                 value={form.estimatedValue ?? ""}
                 onChange={(e) => set("estimatedValue", e.target.value)}
+              />
+            </Field>
+            <Field label={t("veh.lifetimeKm")} hint={t("veh.lifetimeKmHint")}>
+              <Input
+                type="number"
+                step="1000"
+                value={form.lifetimeKm ?? ""}
+                onChange={(e) => set("lifetimeKm", e.target.value)}
+                placeholder="400000"
               />
             </Field>
             <Field label={t("veh.depreciationPerKm")} hint={t("veh.depHint")}>

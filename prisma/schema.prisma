@@ -47,10 +47,17 @@ model Vehicle {
   dailyRentalFee     Float?
   targetOwnerShare   Float? // % of revenue owed to the car owner (TARGET model)
   depreciationPerKm  Float? // manual EGP/km override; 0/null = ignore
+  // expected total service life in km; drives use-based depreciation.
+  // null = use DEFAULT_LIFETIME_KM (see lib/depreciation.ts)
+  lifetimeKm         Float?
   initialOdometer    Float    @default(0)
   notes              String?
   isActive           Boolean  @default(true)
   createdAt          DateTime @default(now())
+  // optional weekly targets for the Streaks & Goals dashboard card — null
+  // means no goal set, the card stays hidden rather than showing a fake 0%
+  weeklyHoursGoal    Float?
+  weeklyProfitGoal   Float?
 
   shifts       Shift[]
   trips        Trip[]
@@ -148,6 +155,12 @@ model Maintenance {
   category    String
   description String?
   cost        Float
+  // how many km this part/service is expected to last before replacement.
+  // Set → the cost is amortized per km over that interval instead of hitting
+  // one period's profit in full (a 4,000 EGP brake job good for 50,000 km is
+  // 0.08 EGP/km, not a 4,000 EGP hole in the week it was paid).
+  // null → falls back to all-time averaging across the car's odometer span.
+  lifetimeKm  Float?
   photo       String?
   notes       String?
   createdAt   DateTime @default(now())

@@ -1,11 +1,14 @@
 "use client";
-import { Fragment, Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useI18n } from "@/components/I18nProvider";
-import { AddPanel, Btn, Card, Empty, Field, Input, PageTitle, Pagination, Select, Table, Textarea } from "@/components/ui";
+import { AddPanel, Badge, Btn, Card, Empty, Field, GroupHeader, Input, PageTitle, Pagination, RecordCard, Select, StatCell, StatGrid, Table, Textarea } from "@/components/ui";
 import { useCrud } from "@/components/useCrud";
 import { useVehicle } from "@/components/VehicleProvider";
+import { RowEditor, type EditField } from "@/components/RowEditor";
+import { LoggingContext } from "@/components/LoggingContext";
+import { QuickAddTrip } from "@/components/QuickAddTrip";
 import { fmtDateTime, fmtMoney, fmtNum, hoursBetween, toLocalInput } from "@/lib/format";
 
 /** Inline-editable number cell — click to edit, blur/Enter to save. Used for
@@ -55,7 +58,35 @@ function EditableNum({
   );
 }
 
-const TRIP_COLS = 11;
+const PLATFORMS = ["UBER", "CAREEM", "INDRIVE", "BOLT", "OTHER"];
+
+type T = (k: string, vars?: Record<string, string | number>) => string;
+
+/** Every field a trip carries, so the editor is a true superset of what the
+ *  table shows and a driver never has to delete a row to correct one value. */
+const tripEditFields = (t: T): EditField[] => [
+  { key: "startTime", label: t("tr.startTime"), type: "datetime" },
+  { key: "endTime", label: t("tr.endTime"), type: "datetime" },
+  { key: "platform", label: t("tr.platform"), type: "select", options: PLATFORMS.map((p) => ({ value: p, label: t(`pf.${p}`) })) },
+  { key: "fare", label: t("tr.fare"), type: "number", step: "0.01" },
+  { key: "commission", label: t("tr.commission"), type: "number", step: "0.01", hint: t("tr.commissionHint") },
+  {
+    key: "paymentType",
+    label: t("tr.payment"),
+    type: "select",
+    options: [
+      { value: "CASH", label: t("tr.CASH") },
+      { value: "CARD", label: t("tr.CARD") },
+    ],
+  },
+  { key: "tip", label: t("tr.tip"), type: "number", step: "0.01" },
+  { key: "distanceKm", label: t("tr.distance"), type: "number", step: "0.1" },
+  { key: "pickupKm", label: t("tr.pickupKm"), type: "number", step: "0.1" },
+  { key: "pickupMin", label: t("tr.pickupMin"), type: "number", step: "1" },
+  { key: "pickupAddress", label: t("tr.pickupAddress"), type: "text" },
+  { key: "dropoffAddress", label: t("tr.dropoffAddress"), type: "text" },
+  { key: "notes", label: t("c.notes"), type: "textarea" },
+];
 
 export default function TripsPage() {
   return (
@@ -103,6 +134,7 @@ function TripsInner() {
 
   const trips = focusShiftId ? focusTrips ?? [] : pagedTrips;
 
+  const [editingRow, setEditingRow] = useState<any>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   useEffect(() => {
     if (focusShiftId) setExpanded((e) => ({ ...e, [focusShiftId]: true }));
@@ -201,6 +233,8 @@ function TripsInner() {
         {t("tr.title")}
       </PageTitle>
 
+      <LoggingContext vehicleId={vehicle.id} onChanged={() => tripsCrud.refresh()} />
+
       {focusShiftId && (
         <div className="mb-3 flex items-center gap-2 text-sm">
           <span className="text-slate-500">{t("tr.filteredByShift")}</span>
@@ -209,6 +243,14 @@ function TripsInner() {
           </Link>
         </div>
       )}
+
+      <div className="mb-3">
+        <QuickAddTrip
+          vehicleId={vehicle.id}
+          defaultPlatform={pagedTrips[0]?.platform ?? "UBER"}
+          onAdded={() => tripsCrud.refresh()}
+        />
+      </div>
 
       <div className="flex gap-2 flex-wrap">
         <AddPanel buttonLabel={t("tip.add")} open={tipOpen} setOpen={setTipOpen}>
@@ -265,86 +307,100 @@ function TripsInner() {
         {trips.length === 0 ? (
           <Empty>{t("c.noData")}</Empty>
         ) : (
-          <Table
-            head={[
-              t("tr.startTime"),
-              t("tr.platform"),
-              t("tr.earnings"),
-              t("tr.payment"),
-              t("tr.tip"),
-              t("tr.distance"),
-              t("tr.pickupKm"),
-              t("tr.shift"),
-              t("tr.source"),
-              t("c.notes"),
-              "",
-            ]}
-          >
+          <div className="space-y-3">
             {groups.map((g) => {
               const isOpen = !!expanded[g.key];
               const revenue = g.trips.reduce((s, tr) => s + (tr.fare - (tr.commission ?? 0) + (tr.tip ?? 0)), 0);
-              const label = g.shift
-                ? fmtDateTime(g.shift.startTime, locale)
-                : t("tr.noShiftGroup");
+              const label = g.shift ? fmtDateTime(g.shift.startTime, locale) : t("tr.noShiftGroup");
               const sub = g.shift?.endTime
                 ? `${fmtNum(hoursBetween(g.shift.startTime, g.shift.endTime), locale)} ${t("c.hours")}`
                 : g.shift
                 ? t("sh.active")
                 : null;
               return (
-                <Fragment key={g.key}>
-                  <tr
-                    id={`shift-group-${g.key}`}
-                    onClick={() => toggle(g.key)}
-                    className={`cursor-pointer select-none ${g.key === "__none__" ? "bg-amber-50 hover:bg-amber-100" : "bg-slate-50 hover:bg-slate-100"}`}
-                  >
-                    <td colSpan={TRIP_COLS} className="py-2 px-2">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-xs transition-transform ${isOpen ? "rotate-90" : ""}`}>▶</span>
-                        <span className="font-semibold text-sm">{label}</span>
-                        {sub && <span className="text-xs text-slate-400">· {sub}</span>}
-                        <span className="text-xs text-slate-500">
-                          · {t("tr.tripCount", { n: g.trips.length })}
-                        </span>
-                        <span className="ms-auto text-xs font-semibold" style={{ fontVariantNumeric: "tabular-nums" }}>
-                          {fmtMoney(revenue, locale)}
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                  {isOpen &&
-                    g.trips.map((tr) => (
-                      <tr key={tr.id}>
-                        <td className="py-2 px-2 whitespace-nowrap ps-6">{fmtDateTime(tr.startTime, locale)}</td>
-                        <td className="py-2 px-2">{t(`pf.${tr.platform}`)}</td>
-                        <td className="py-2 px-2 font-semibold">
-                          {fmtMoney(tr.fare - (tr.commission ?? 0), locale)}
-                        </td>
-                        <td className="py-2 px-2">{t(`tr.${tr.paymentType}`)}</td>
-                        <td className="py-2 px-2" title={t("c.clickToEdit")}>
-                          <EditableNum value={tr.tip} locale={locale} onSave={(n) => updateTrip(tr.id, { tip: n ?? 0 })} />
-                        </td>
-                        <td className="py-2 px-2">{tr.distanceKm ? fmtNum(tr.distanceKm, locale) : "—"}</td>
-                        <td className="py-2 px-2" title={t("tr.pickupKmHint")}>
-                          <EditableNum value={tr.pickupKm} locale={locale} onSave={(n) => updateTrip(tr.id, { pickupKm: n })} />
-                        </td>
-                        <td className="py-2 px-2">{tr.shiftId ? "✓" : t("tr.noShift")}</td>
-                        <td className="py-2 px-2 text-slate-400 text-xs">{tr.source}</td>
-                        <td className="py-2 px-2 text-slate-400 max-w-32 truncate">{tr.notes ?? ""}</td>
-                        <td className="py-2 px-2">
-                          <button
-                            onClick={() => confirm(t("c.confirmDelete")) && remove(tr.id)}
-                            className="text-red-400 text-xs"
-                          >
-                            ✕
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                </Fragment>
+                <div key={g.key} id={`shift-group-${g.key}`}>
+                  <GroupHeader
+                    open={isOpen}
+                    onToggle={() => toggle(g.key)}
+                    tone={g.key === "__none__" ? "warn" : "plain"}
+                    title={label}
+                    meta={`${sub ? sub + " · " : ""}${t("tr.tripCount", { n: g.trips.length })}`}
+                    right={<span className="text-xs font-bold tnum">{fmtMoney(revenue, locale)}</span>}
+                  />
+                  {isOpen && (
+                    <div className="space-y-2 mt-2 ps-2 sm:ps-4">
+                      {g.trips.map((tr) => (
+                        <RecordCard key={tr.id} tone={tr.shiftId ? "plain" : "warn"}>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-bold text-sm tnum">{fmtDateTime(tr.startTime, locale)}</span>
+                                <Badge tone="neutral">{t(`pf.${tr.platform}`)}</Badge>
+                                <Badge tone={tr.paymentType === "CASH" ? "warn" : "neutral"}>
+                                  {t(`tr.${tr.paymentType}`)}
+                                </Badge>
+                                {!tr.shiftId && <Badge tone="warn">{t("tr.noShift")}</Badge>}
+                              </div>
+                              {(tr.pickupAddress || tr.dropoffAddress) && (
+                                <p className="text-xs text-slate-500 mt-1 truncate">
+                                  {tr.pickupAddress ?? "—"} → {tr.dropoffAddress ?? "—"}
+                                </p>
+                              )}
+                            </div>
+                            <div className="text-end shrink-0">
+                              <div className="text-lg font-black text-emerald-700 tnum leading-none">
+                                {fmtMoney(tr.fare - (tr.commission ?? 0), locale)}
+                              </div>
+                              <div className="flex gap-2 justify-end mt-1.5">
+                                <button onClick={() => setEditingRow(tr)} className="text-xs text-slate-500 hover:text-slate-800">
+                                  {t("c.edit")}
+                                </button>
+                                <button
+                                  onClick={() => confirm(t("c.confirmDelete")) && remove(tr.id)}
+                                  className="text-xs text-red-400 hover:text-red-600"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                          <StatGrid cols={6}>
+                            <StatCell label={t("tr.endTime")} value={tr.endTime ? fmtDateTime(tr.endTime, locale) : "—"} />
+                            <StatCell
+                              label={t("tr.cashCollected")}
+                              value={tr.paymentType === "CASH" ? fmtMoney(tr.fare, locale) : "—"}
+                            />
+                            <StatCell label={t("tr.tip")} value={tr.tip ? fmtNum(tr.tip, locale) : "—"} />
+                            <StatCell label={t("tr.distance")} value={tr.distanceKm ? fmtNum(tr.distanceKm, locale) : "—"} />
+                            <StatCell label={t("tr.pickupKm")} value={tr.pickupKm ? fmtNum(tr.pickupKm, locale) : "—"} />
+                            <StatCell
+                              label={t("tr.pickupMin")}
+                              value={tr.pickupMin != null ? fmtNum(tr.pickupMin, locale, 0) : "—"}
+                            />
+                          </StatGrid>
+                          {(tr.notes || tr.source) && (
+                            <div className="flex items-center gap-2 mt-2.5 pt-2 border-t border-slate-100 text-xs text-slate-400">
+                              {tr.source && <span className="shrink-0">{tr.source}</span>}
+                              {tr.notes && <span className="truncate">· {tr.notes}</span>}
+                            </div>
+                          )}
+                        </RecordCard>
+                      ))}
+                    </div>
+                  )}
+                </div>
               );
             })}
-          </Table>
+          </div>
+        )}
+        {editingRow && (
+          <RowEditor
+            row={editingRow}
+            title={t("tr.editTrip")}
+            fields={tripEditFields(t)}
+            onCancel={() => setEditingRow(null)}
+            onSave={(patch) => updateTrip(editingRow.id, patch)}
+          />
         )}
         {!focusShiftId && (
           <Pagination

@@ -24,11 +24,91 @@ function dayName(dow: number, locale: string, style: "short" | "long" = "short")
   return new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { weekday: style }).format(d);
 }
 
+function WeekdayHeatGrid({ cells, locale, t }: { cells: any[]; locale: string; t: (k: string, vars?: Record<string, string | number>) => string }) {
+  const [tip, setTip] = useState<{ x: number; y: number; cell: any } | null>(null);
+  const rates = cells.filter((c: any) => c.ratePerHour != null).map((c: any) => c.ratePerHour);
+  if (rates.length === 0) return <Empty>{t("pl.noData")}</Empty>;
+  const maxRate = Math.max(...rates);
+  const minRate = Math.min(...rates);
+  const color = (c: any) => {
+    if (c.ratePerHour == null) return EMPTY_CELL;
+    if (maxRate === minRate) return RAMP[3];
+    const f = (c.ratePerHour - minRate) / (maxRate - minRate);
+    return RAMP[Math.min(RAMP.length - 1, Math.floor(f * RAMP.length))];
+  };
+  const cellAt = (dow: number, hour: number) => cells[dow * 24 + hour];
+
+  return (
+    <div className="relative overflow-x-auto" dir="ltr">
+      <div className="min-w-[640px]">
+        <div className="grid" style={{ gridTemplateColumns: "3rem repeat(24, 1fr)", gap: 2 }}>
+          <div />
+          {Array.from({ length: 24 }, (_, h) => (
+            <div key={h} className="text-[9px] text-slate-400 text-center" style={{ fontVariantNumeric: "tabular-nums" }}>
+              {h % 3 === 0 ? h : ""}
+            </div>
+          ))}
+          {DOW_ORDER.map((dow) => (
+            <Fragment key={dow}>
+              <div key={`d${dow}`} className="text-[10px] text-slate-500 font-semibold flex items-center">
+                {dayName(dow, locale)}
+              </div>
+              {Array.from({ length: 24 }, (_, h) => {
+                const c = cellAt(dow, h);
+                return (
+                  <div
+                    key={`${dow}-${h}`}
+                    className="h-5 rounded-sm cursor-default"
+                    style={{ background: color(c) }}
+                    onMouseEnter={(e) => {
+                      const r = (e.target as HTMLElement).closest(".relative")!.getBoundingClientRect();
+                      const b = (e.target as HTMLElement).getBoundingClientRect();
+                      setTip({ x: b.left - r.left + b.width / 2, y: b.top - r.top, cell: c });
+                    }}
+                    onMouseLeave={() => setTip(null)}
+                  />
+                );
+              })}
+            </Fragment>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 mt-3 text-[10px] text-slate-400">
+          <span>{fmtMoney(minRate, locale)}/{t("c.hours")}</span>
+          {RAMP.map((c) => (
+            <span key={c} className="inline-block w-6 h-2.5 rounded-sm" style={{ background: c }} />
+          ))}
+          <span>{fmtMoney(maxRate, locale)}/{t("c.hours")}</span>
+          <span className="ms-3 inline-block w-6 h-2.5 rounded-sm" style={{ background: EMPTY_CELL }} />
+          <span>{t("pl.noSample")}</span>
+        </div>
+      </div>
+      {tip && (
+        <div
+          className="absolute -translate-x-1/2 -translate-y-full bg-white border border-slate-200 shadow-md rounded-lg px-2.5 py-1.5 text-xs pointer-events-none z-10 whitespace-nowrap"
+          style={{ left: tip.x, top: tip.y - 4 }}
+        >
+          <div className="text-slate-400">
+            {dayName(tip.cell.dow, locale, "long")} {tip.cell.hour}:00–{tip.cell.hour + 1}:00
+          </div>
+          <div className="font-bold">
+            {tip.cell.ratePerHour != null
+              ? `${fmtMoney(tip.cell.ratePerHour, locale)}/${t("c.hours")}`
+              : t("pl.noSample")}
+          </div>
+          <div className="text-slate-500">
+            {t("pl.tripsN", { n: tip.cell.trips })} · {fmtNum(tip.cell.hours, locale)} {t("c.hours")}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function PlanPage() {
   const { t, locale } = useI18n();
   const { vehicle, loading } = useVehicle();
   const [plan, setPlan] = useState<any>(null);
-  const [tip, setTip] = useState<{ x: number; y: number; cell: any } | null>(null);
+  const [community, setCommunity] = useState<any>(null);
   const [heatmap, setHeatmap] = useState<{ points: [number, number][]; totalPoints: number } | null>(null);
 
   useEffect(() => {
@@ -39,6 +119,9 @@ export default function PlanPage() {
       fetch(`/api/plan/heatmap?vehicleId=${vehicle.id}`)
         .then((r) => (r.ok ? r.json() : null))
         .then(setHeatmap);
+      fetch(`/api/plan/community?vehicleId=${vehicle.id}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then(setCommunity);
     }
   }, [vehicle]);
 
@@ -54,16 +137,6 @@ export default function PlanPage() {
   }
   if (!plan) return null;
 
-  const rates = plan.cells.filter((c: any) => c.ratePerHour != null).map((c: any) => c.ratePerHour);
-  const maxRate = rates.length ? Math.max(...rates) : 0;
-  const minRate = rates.length ? Math.min(...rates) : 0;
-  const color = (c: any) => {
-    if (c.ratePerHour == null) return EMPTY_CELL;
-    if (maxRate === minRate) return RAMP[3];
-    const f = (c.ratePerHour - minRate) / (maxRate - minRate);
-    return RAMP[Math.min(RAMP.length - 1, Math.floor(f * RAMP.length))];
-  };
-  const cellAt = (dow: number, hour: number) => plan.cells[dow * 24 + hour];
   const gapRows = plan.gaps.filter((g: any) => g.medianGapMin != null && g.samples >= 3);
   const maxGap = Math.max(...gapRows.map((g: any) => g.medianGapMin), 1);
 
@@ -83,71 +156,23 @@ export default function PlanPage() {
       {/* weekday × hour heatmap of EGP/hour */}
       <Card>
         <div className="text-sm font-semibold mb-3">{t("pl.heatTitle")}</div>
-        {rates.length === 0 ? (
-          <Empty>{t("pl.noData")}</Empty>
+        <WeekdayHeatGrid cells={plan.cells} locale={locale} t={t} />
+      </Card>
+
+      {/* community version — pooled across every other active vehicle,
+          honestly hidden until there's a real sample to show */}
+      <Card>
+        <div className="text-sm font-semibold mb-1">👥 {t("pl.communityTitle")}</div>
+        <p className="text-xs text-slate-400 mb-3">{t("pl.communitySub")}</p>
+        {!community || !community.enoughDrivers ? (
+          <Empty>{t("pl.communityNotEnough")}</Empty>
         ) : (
-          <div className="relative overflow-x-auto" dir="ltr">
-            <div className="min-w-[640px]">
-              <div className="grid" style={{ gridTemplateColumns: "3rem repeat(24, 1fr)", gap: 2 }}>
-                <div />
-                {Array.from({ length: 24 }, (_, h) => (
-                  <div key={h} className="text-[9px] text-slate-400 text-center" style={{ fontVariantNumeric: "tabular-nums" }}>
-                    {h % 3 === 0 ? h : ""}
-                  </div>
-                ))}
-                {DOW_ORDER.map((dow) => (
-                  <Fragment key={dow}>
-                    <div key={`d${dow}`} className="text-[10px] text-slate-500 font-semibold flex items-center">
-                      {dayName(dow, locale)}
-                    </div>
-                    {Array.from({ length: 24 }, (_, h) => {
-                      const c = cellAt(dow, h);
-                      return (
-                        <div
-                          key={`${dow}-${h}`}
-                          className="h-5 rounded-sm cursor-default"
-                          style={{ background: color(c) }}
-                          onMouseEnter={(e) => {
-                            const r = (e.target as HTMLElement).closest(".relative")!.getBoundingClientRect();
-                            const b = (e.target as HTMLElement).getBoundingClientRect();
-                            setTip({ x: b.left - r.left + b.width / 2, y: b.top - r.top, cell: c });
-                          }}
-                          onMouseLeave={() => setTip(null)}
-                        />
-                      );
-                    })}
-                  </Fragment>
-                ))}
-              </div>
-              <div className="flex items-center gap-2 mt-3 text-[10px] text-slate-400">
-                <span>{fmtMoney(minRate, locale)}/{t("c.hours")}</span>
-                {RAMP.map((c) => (
-                  <span key={c} className="inline-block w-6 h-2.5 rounded-sm" style={{ background: c }} />
-                ))}
-                <span>{fmtMoney(maxRate, locale)}/{t("c.hours")}</span>
-                <span className="ms-3 inline-block w-6 h-2.5 rounded-sm" style={{ background: EMPTY_CELL }} />
-                <span>{t("pl.noSample")}</span>
-              </div>
+          <>
+            <WeekdayHeatGrid cells={community.cells} locale={locale} t={t} />
+            <div className="text-xs text-slate-400 mt-3 text-center">
+              {t("bm.driverCount", { n: fmtNum(community.driverCount, locale, 0) })}
             </div>
-            {tip && (
-              <div
-                className="absolute -translate-x-1/2 -translate-y-full bg-white border border-slate-200 shadow-md rounded-lg px-2.5 py-1.5 text-xs pointer-events-none z-10 whitespace-nowrap"
-                style={{ left: tip.x, top: tip.y - 4 }}
-              >
-                <div className="text-slate-400">
-                  {dayName(tip.cell.dow, locale, "long")} {tip.cell.hour}:00–{tip.cell.hour + 1}:00
-                </div>
-                <div className="font-bold">
-                  {tip.cell.ratePerHour != null
-                    ? `${fmtMoney(tip.cell.ratePerHour, locale)}/${t("c.hours")}`
-                    : t("pl.noSample")}
-                </div>
-                <div className="text-slate-500">
-                  {t("pl.tripsN", { n: tip.cell.trips })} · {fmtNum(tip.cell.hours, locale)} {t("c.hours")}
-                </div>
-              </div>
-            )}
-          </div>
+          </>
         )}
       </Card>
 

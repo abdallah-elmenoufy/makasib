@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { reconcileAllVehicles } from "@/lib/analytics";
+import { reconcileAll } from "@/lib/tripIntegrity";
 
 /** Manual trigger for the same sweep the lazy periodic health check runs —
  * lets a driver ask "is everything tied together right now?" instead of
@@ -8,7 +8,7 @@ import { reconcileAllVehicles } from "@/lib/analytics";
 export async function POST() {
   try {
     await requireAuth();
-    const fixed = await reconcileAllVehicles();
+    const fixed = await reconcileAll();
     return NextResponse.json({ fixed });
   } catch (e) {
     if (e instanceof Response) return e;

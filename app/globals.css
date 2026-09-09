@@ -1,8 +1,42 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------------
+   Makasib design tokens.
+   Built for the actual use context: a driver checking this on a phone, often
+   at night, often tired, often one-handed. That drives three choices —
+   high contrast text, generous tap targets, and a single unmistakable accent
+   so the "what do I tap" answer is never ambiguous.
+--------------------------------------------------------------------------- */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+
+  --background: #f6f8f7;
+  --foreground: #0b1220;
+
+  /* brand — deep emerald, the "money/go" colour */
+  --brand-50: #ecfdf5;
+  --brand-100: #d1fae5;
+  --brand-200: #a7f3d0;
+  --brand-500: #10b981;
+  --brand-600: #059669;
+  --brand-700: #047857;
+  --brand-900: #064e3b;
+
+  --surface: #ffffff;
+  --surface-sunken: #f1f5f4;
+  --border: #e3e9e7;
+  --muted: #64748b;
+
+  --good: #047857;
+  --warn: #b45309;
+  --warn-bg: #fffbeb;
+  --bad: #dc2626;
+  --bad-bg: #fef2f2;
+
+  --radius: 16px;
+  --shadow-sm: 0 1px 2px rgba(11, 18, 32, 0.04), 0 1px 3px rgba(11, 18, 32, 0.06);
+  --shadow-md: 0 2px 4px rgba(11, 18, 32, 0.04), 0 8px 20px -6px rgba(11, 18, 32, 0.12);
+  --shadow-lg: 0 12px 40px -8px rgba(11, 18, 32, 0.22);
 }
 
 @theme inline {
@@ -12,20 +46,72 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* The app ships light-only for now: pin the color scheme so macOS/iOS dark
-   mode can't repaint form controls with light-gray text on white fields. */
-:root {
-  color-scheme: light;
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
+/* explicit, never inherited from a UA dark theme */
 input,
 select,
 textarea {
-  color: #0f172a; /* slate-900 — explicit, never inherited from UA dark theme */
+  color: #0f172a;
+}
+
+/* Numbers that sit in columns should line up — applied broadly rather than
+   remembered per-component. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tables scroll horizontally when they're genuinely wide, but the scrollbar
+   should not look like a mistake. */
+.scroll-x {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+.scroll-x::-webkit-scrollbar {
+  height: 8px;
+}
+.scroll-x::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+.scroll-x::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.animate-sheet-in {
+  animation: sheet-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.animate-fade-in {
+  animation: fade-in 0.15s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-sheet-in,
+  .animate-fade-in {
+    animation: none;
+  }
 }

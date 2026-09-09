@@ -2,7 +2,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/components/I18nProvider";
-import { Card, Empty, PageTitle, Table } from "@/components/ui";
+import { Btn, Card, CardHead, Empty, Gauge, Meter, PageTitle, Table } from "@/components/ui";
+import { QuickExpense } from "@/components/QuickExpense";
 import { useVehicle } from "@/components/VehicleProvider";
 import { fmtMoney, fmtNum } from "@/lib/format";
 
@@ -36,6 +37,16 @@ export default function DashboardPage() {
   const [bench, setBench] = useState<any>(null);
   const [carBench, setCarBench] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
+  const [platformStats, setPlatformStats] = useState<any>(null);
+  const [leaderboard, setLeaderboard] = useState<any>(null);
+  const [streak, setStreak] = useState<any>(null);
+  const [weekRecap, setWeekRecap] = useState<any>(null);
+  const [target, setTarget] = useState<any>(null);
+  const [plannedHours, setPlannedHours] = useState<number | null>(null);
+  const [expenses, setExpenses] = useState<any[]>([]);
+  // bumped after a one-tap expense so every figure it moves is refetched
+  const [reloadKey, setReloadKey] = useState(0);
+  const reload = () => setReloadKey((k) => k + 1);
 
   useEffect(() => {
     if (viewAll) {
@@ -54,8 +65,35 @@ export default function DashboardPage() {
       fetch(`/api/car-benchmark?vehicleId=${vehicle.id}`)
         .then((r) => (r.ok ? r.json() : null))
         .then(setCarBench);
+      fetch(`/api/platform-breakdown?vehicleId=${vehicle.id}&period=${period}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then(setPlatformStats);
+      fetch(`/api/leaderboard?vehicleId=${vehicle.id}&period=${period}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then(setLeaderboard);
     }
-  }, [vehicle, period, viewAll]);
+  }, [vehicle, period, viewAll, reloadKey]);
+
+  useEffect(() => {
+    if (!vehicle) return;
+    fetch(`/api/streak?vehicleId=${vehicle.id}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setStreak);
+    fetch(`/api/analytics?vehicleId=${vehicle.id}&period=week`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setWeekRecap);
+    fetch(`/api/expenses?vehicleId=${vehicle.id}&all=1`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => setExpenses(Array.isArray(d) ? d : []));
+  }, [vehicle, reloadKey]);
+
+  useEffect(() => {
+    if (!vehicle) return;
+    const hours = plannedHours != null ? `&hours=${plannedHours}` : "";
+    fetch(`/api/target?vehicleId=${vehicle.id}${hours}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setTarget);
+  }, [vehicle, plannedHours, reloadKey]);
 
   if (vLoading) return null;
   if (!vehicle) {
@@ -149,17 +187,24 @@ export default function DashboardPage() {
   const profitColor = a.trueProfit >= 0 ? C.goodText : C.critical;
   const attention = a.reminders.filter((r: any) => r.state !== "ok");
 
+  // each per-km cost shows the rate it came from, so a driver can check the
+  // arithmetic instead of taking the total on faith
+  const rateNote = (perKm: number) => `${money(perKm)}/${t("c.km")} × ${fmtNum(a.kmSplit.shiftKm, locale, 0)} ${t("c.km")}`;
   const costRows = [
-    { key: "db.fuelCost", v: a.costs.fuel },
-    { key: "db.maintCost", v: a.costs.maintenance },
-    { key: "db.expenses", v: a.costs.workExpenses },
-    { key: "db.depreciation", v: a.costs.depreciation },
-    { key: "db.rental", v: a.costs.ownership },
+    { key: "db.fuelCost", v: a.costs.fuel, note: rateNote(a.rates.fuelCostPerKm) },
+    { key: "db.maintCost", v: a.costs.maintenance, note: rateNote(a.rates.maintCostPerKm) },
+    { key: "db.expenses", v: a.costs.workExpenses, note: null },
+    { key: "db.depreciation", v: a.costs.depreciation, note: rateNote(a.rates.depPerKm) },
+    { key: "db.rental", v: a.costs.ownership, note: null },
   ].filter((r) => r.v > 0.005);
   const maxCost = Math.max(...costRows.map((r) => r.v), 1);
 
   const km = a.kmSplit;
   const kmTotal = Math.max(km.tripKm + km.deadKm + km.personalKm, 0.001);
+  // what a km costs this driver, so unpaid km can be priced in EGP rather
+  // than left as an abstract share of a bar
+  const costPerKm = a.rates.fuelCostPerKm + a.rates.maintCostPerKm + a.rates.depPerKm;
+  const deadShare = km.shiftKm > 0 ? km.deadKm / km.shiftKm : 0;
 
   return (
     <div className="space-y-4">
@@ -211,6 +256,27 @@ export default function DashboardPage() {
         </Link>
       </div>
 
+      {/* the only forward-looking number in the app: what today has to earn */}
+      {target && (
+        <DailyTargetCard
+          target={target}
+          onHours={setPlannedHours}
+          t={t}
+          locale={locale}
+        />
+      )}
+
+      {/* running costs, logged in one tap — the category with the biggest
+          gap between "really happens" and "gets recorded" */}
+      <Card>
+        <CardHead icon="💸" title={t("qx.title")} sub={t("qx.sub")} />
+        <QuickExpense vehicleId={vehicle.id} recent={expenses} onAdded={reload} />
+      </Card>
+
+      {/* streaks & goals — only shown once the driver sets a goal (edited
+          from the vehicle's Cars-page form), never a hollow 0% otherwise */}
+      {streak && vehicle && <StreakCard streak={streak} vehicleId={vehicle.id} t={t} locale={locale} />}
+
       {/* hero + stat tiles */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card className="col-span-2">
@@ -219,6 +285,15 @@ export default function DashboardPage() {
             {money(a.trueProfit)}
           </div>
           <div className="text-xs text-slate-400 mt-1">{t("db.profitSub")}</div>
+          {/* depreciation is a real cost but not cash leaving your pocket —
+              showing both stops the accrual from hiding what you actually made */}
+          <div className="mt-3 pt-3 border-t border-slate-100 flex items-baseline gap-2">
+            <span className="text-xs text-slate-500">{t("db.cashProfit")}</span>
+            <span className="text-lg font-bold" style={{ color: a.cashProfit >= 0 ? C.goodText : C.critical }}>
+              {money(a.cashProfit)}
+            </span>
+            <span className="text-xs text-slate-400">{t("db.cashProfitSub")}</span>
+          </div>
         </Card>
         <StatTile label={t("db.gross")} value={money(a.earnings.netRevenue)} sub={t("db.grossSub")} />
         <div className="grid grid-rows-2 gap-3">
@@ -249,9 +324,12 @@ export default function DashboardPage() {
             <div className="space-y-2">
               {costRows.map((r) => (
                 <div key={r.key}>
-                  <div className="flex justify-between text-xs mb-0.5">
-                    <span className="text-slate-500">{t(r.key)}</span>
-                    <span className="font-semibold" style={{ fontVariantNumeric: "tabular-nums" }}>
+                  <div className="flex justify-between text-xs mb-0.5 gap-2">
+                    <span className="text-slate-500">
+                      {t(r.key)}
+                      {r.note && <span className="text-slate-300 ms-1.5">{r.note}</span>}
+                    </span>
+                    <span className="font-semibold whitespace-nowrap" style={{ fontVariantNumeric: "tabular-nums" }}>
                       {money(r.v)}
                     </span>
                   </div>
@@ -272,10 +350,32 @@ export default function DashboardPage() {
         </Card>
       </div>
 
+      {/* weekly recap + platform breakdown */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {weekRecap && <WeeklyRecapCard recap={weekRecap} t={t} locale={locale} />}
+        {platformStats && platformStats.length > 0 && (
+          <Card>
+            <div className="text-sm font-semibold mb-1">{t("db.platformTitle")}</div>
+            <p className="text-xs text-slate-400 mb-3">{t("db.platformSub")}</p>
+            <div className="space-y-2">
+              {platformStats.map((p: any) => (
+                <div key={p.platform} className="flex items-center gap-3 text-sm">
+                  <span className="flex-1 font-semibold">{t(`pf.${p.platform}`)}</span>
+                  <span className="text-xs text-slate-400">{t("pl.tripsN", { n: p.trips })}</span>
+                  <span className="font-bold w-24 text-end" style={{ fontVariantNumeric: "tabular-nums" }}>
+                    {money(p.netRevenue)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+      </div>
+
       {/* km split + fuel economy */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <Card>
-          <div className="text-sm font-semibold mb-3">{t("db.kmSplit")}</div>
+          <CardHead icon="🛣" title={t("db.kmSplit")} sub={t("db.kmSplitSub")} />
           <div className="flex h-6 rounded-lg overflow-hidden" style={{ gap: 2 }}>
             {[
               { v: km.tripKm, c: C.pos },
@@ -289,22 +389,29 @@ export default function DashboardPage() {
             )}
           </div>
           <div className="mt-3 space-y-1 text-xs">
-            <LegendRow color={C.pos} label={t("db.tripKm")} value={`${fmtNum(km.tripKm, locale)} ${t("c.km")}`} />
-            <LegendRow color={C.dead} label={t("db.deadKm")} value={`${fmtNum(km.deadKm, locale)} ${t("c.km")}`} />
+            <LegendRow
+              color={C.pos}
+              label={t("db.tripKm")}
+              value={`${fmtNum(km.tripKm, locale)} ${t("c.km")}`}
+            />
+            <LegendRow
+              color={C.dead}
+              label={t("db.deadKm")}
+              value={`${fmtNum(km.deadKm, locale)} ${t("c.km")}`}
+              cost={money(km.deadKm * costPerKm)}
+            />
             {km.pickupKm > 0 && (
               <>
-                <div className="ps-5 flex items-center gap-2 text-slate-400">
-                  <span className="flex-1">{t("db.pickupSplit")}</span>
-                  <span style={{ fontVariantNumeric: "tabular-nums" }}>
-                    {fmtNum(km.pickupKm, locale)} {t("c.km")}
-                  </span>
-                </div>
-                <div className="ps-5 flex items-center gap-2 text-slate-400">
-                  <span className="flex-1">{t("db.cruisingSplit")}</span>
-                  <span style={{ fontVariantNumeric: "tabular-nums" }}>
-                    {fmtNum(km.cruisingKm, locale)} {t("c.km")}
-                  </span>
-                </div>
+                <SubRow
+                  label={t("db.pickupSplit")}
+                  value={`${fmtNum(km.pickupKm, locale)} ${t("c.km")}`}
+                  cost={money(km.pickupKm * costPerKm)}
+                />
+                <SubRow
+                  label={t("db.cruisingSplit")}
+                  value={`${fmtNum(km.cruisingKm, locale)} ${t("c.km")}`}
+                  cost={money(km.cruisingKm * costPerKm)}
+                />
               </>
             )}
             <LegendRow
@@ -313,6 +420,33 @@ export default function DashboardPage() {
               value={`${fmtNum(km.personalKm, locale)} ${t("c.km")}`}
             />
           </div>
+
+          {/* dead km is the one cost a driver can cut tonight, so it gets a
+              number in EGP rather than only a share of a bar */}
+          {km.shiftKm > 0 && km.deadKm > 0 && (
+            <div className="mt-4 pt-3 border-t border-slate-100">
+              <Meter
+                ratio={km.deadKm / km.shiftKm}
+                tone={deadShare <= 0.15 ? "good" : deadShare <= 0.25 ? "warn" : "bad"}
+                label={t("db.deadShare")}
+                value={`${fmtNum(deadShare * 100, locale, 0)}%`}
+                sub={t("db.deadShareSub", {
+                  km: fmtNum(km.deadKm, locale, 0),
+                  cost: money(km.deadKm * costPerKm),
+                  rate: money(costPerKm),
+                })}
+              />
+              {km.cruisingKm > 0 && (
+                <p className="text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2 mt-3">
+                  💡{" "}
+                  {t("db.deadKmTip", {
+                    km: fmtNum(km.cruisingKm, locale, 0),
+                    cost: money(km.cruisingKm * costPerKm),
+                  })}
+                </p>
+              )}
+            </div>
+          )}
         </Card>
 
         <Card>
@@ -338,6 +472,12 @@ export default function DashboardPage() {
                     </div>
                     <div className="text-xs text-slate-500">
                       {money(f.costPerKm)} / {t("c.km")}
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-1">
+                      {t("db.fuelMeasuredOver", {
+                        km: fmtNum(f.distanceKm, locale, 0),
+                        pct: fmtNum(f.workSharePct, locale, 0),
+                      })}
                     </div>
                   </div>
                 );
@@ -431,15 +571,49 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      {/* reminders needing attention */}
+      {/* community leaderboard — anonymized ranking, honest min-driver gate */}
+      {leaderboard && (
+        <Card>
+          <div className="text-sm font-semibold mb-1">🏁 {t("db.leaderboardTitle")}</div>
+          {leaderboard.entries.length === 0 ? (
+            <Empty>{t("bm.notEnough")}</Empty>
+          ) : (
+            <>
+              <div className="space-y-1.5 mt-2">
+                {leaderboard.entries.map((e: any, i: number) => (
+                  <div
+                    key={e.vehicleId}
+                    className={`flex items-center gap-3 text-sm rounded-lg px-2 py-1.5 ${e.isYou ? "bg-emerald-50 font-bold" : ""}`}
+                  >
+                    <span className="w-6 text-center text-slate-400">{i + 1}</span>
+                    <span className="flex-1">{e.isYou ? t("db.leaderboardYou") : e.label}</span>
+                    <span style={{ fontVariantNumeric: "tabular-nums" }}>{money(e.profitPerHour)}/{t("c.hours")}</span>
+                  </div>
+                ))}
+              </div>
+              {leaderboard.yourRank && leaderboard.yourRank > leaderboard.entries.length && (
+                <div className="text-xs text-slate-400 mt-2 text-center">
+                  {t("db.leaderboardYourRank", { rank: leaderboard.yourRank, total: leaderboard.driverCount })}
+                </div>
+              )}
+              <div className="text-xs text-slate-400 mt-3 text-center">
+                {t("bm.driverCount", { n: fmtNum(leaderboard.driverCount, locale, 0) })}
+              </div>
+            </>
+          )}
+        </Card>
+      )}
+
+      {/* reminders needing attention — manual ones and the ones the app
+          worked out from the service log read exactly the same here */}
       {attention.length > 0 && (
         <Card className="border-amber-200">
           <div className="text-sm font-semibold mb-2">🔔 {t("db.remindersDue")}</div>
           <div className="space-y-1">
             {attention.map((r: any) => (
               <Link
-                key={r.reminder.id}
-                href="/reminders"
+                key={r.id}
+                href={r.source === "service" ? "/maintenance" : "/reminders"}
                 className="flex items-center gap-2 text-sm hover:bg-slate-50 rounded px-2 py-1"
               >
                 <span
@@ -449,7 +623,14 @@ export default function DashboardPage() {
                 >
                   {r.state === "overdue" ? t("rm.overdue") : t("rm.dueSoon")}
                 </span>
-                <span className="font-semibold">{r.reminder.title}</span>
+                <span className="font-semibold">
+                  {r.source === "service" ? t(`mn.cat.${r.category}`) : r.title}
+                </span>
+                {r.source === "service" && (
+                  <span className="text-[10px] text-slate-400 border border-slate-200 rounded-full px-1.5 py-0.5">
+                    {t("rm.autoBadge")}
+                  </span>
+                )}
                 {r.kmRemaining != null && (
                   <span className="text-xs text-slate-400">
                     {r.kmRemaining >= 0
@@ -512,6 +693,202 @@ function MiniTile({ label, value }: { label: string; value: string }) {
     <Card className="!p-3">
       <div className="text-xs font-semibold text-slate-500">{label}</div>
       <div className="text-lg font-bold mt-0.5">{value}</div>
+    </Card>
+  );
+}
+
+function StreakCard({
+  streak,
+  vehicleId,
+  t,
+  locale,
+}: {
+  streak: any;
+  vehicleId: string;
+  t: (k: string, vars?: Record<string, string | number>) => string;
+  locale: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [hoursGoal, setHoursGoal] = useState(streak.weeklyHoursGoal ?? "");
+  const [profitGoal, setProfitGoal] = useState(streak.weeklyProfitGoal ?? "");
+  const [saving, setSaving] = useState(false);
+  const money = (n: number) => fmtMoney(n, locale);
+
+  const hasGoal = streak.weeklyHoursGoal != null || streak.weeklyProfitGoal != null;
+
+  const save = async () => {
+    setSaving(true);
+    await fetch(`/api/vehicles/${vehicleId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ weeklyHoursGoal: hoursGoal, weeklyProfitGoal: profitGoal }),
+    });
+    setSaving(false);
+    setEditing(false);
+    location.reload(); // simplest way to refresh the streak calc with the new goal
+  };
+
+  if (!hasGoal && !editing) {
+    return (
+      <Card className="border-emerald-200">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <div className="text-sm font-semibold">🔥 {t("db.streakTitle")}</div>
+            <p className="text-xs text-slate-400 mt-1">{t("db.streakSetHint")}</p>
+          </div>
+          <button
+            onClick={() => setEditing(true)}
+            className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg px-3 py-2"
+          >
+            {t("db.streakSetGoal")}
+          </button>
+        </div>
+      </Card>
+    );
+  }
+
+  if (editing) {
+    return (
+      <Card className="border-emerald-300">
+        <div className="text-sm font-semibold mb-3">🔥 {t("db.streakSetGoal")}</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <label className="block">
+            <span className="block text-xs font-semibold text-slate-600 mb-1">{t("db.streakHoursGoal")}</span>
+            <input
+              type="number"
+              value={hoursGoal}
+              onChange={(e) => setHoursGoal(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              placeholder={t("c.optional")}
+            />
+          </label>
+          <label className="block">
+            <span className="block text-xs font-semibold text-slate-600 mb-1">{t("db.streakProfitGoal")}</span>
+            <input
+              type="number"
+              value={profitGoal}
+              onChange={(e) => setProfitGoal(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              placeholder={t("c.optional")}
+            />
+          </label>
+        </div>
+        <div className="flex gap-2 mt-3">
+          <button
+            onClick={save}
+            disabled={saving}
+            className="rounded-lg font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 text-sm disabled:opacity-50"
+          >
+            {t("c.save")}
+          </button>
+          <button
+            onClick={() => setEditing(false)}
+            className="rounded-lg font-semibold bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-4 py-2 text-sm"
+          >
+            {t("c.cancel")}
+          </button>
+        </div>
+      </Card>
+    );
+  }
+
+  const hoursPct = streak.weeklyHoursGoal ? Math.min(100, (streak.thisWeek.hours / streak.weeklyHoursGoal) * 100) : null;
+  const profitPct = streak.weeklyProfitGoal ? Math.min(100, (streak.thisWeek.profit / streak.weeklyProfitGoal) * 100) : null;
+
+  return (
+    <Card className="border-emerald-200">
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <div className="text-sm font-semibold">🔥 {t("db.streakTitle")}</div>
+        <button onClick={() => setEditing(true)} className="text-xs text-slate-400 underline">
+          {t("db.streakEditGoal")}
+        </button>
+      </div>
+      <div className="flex items-end gap-4 mb-3">
+        <div className="text-3xl font-black text-emerald-700">{streak.currentStreak}</div>
+        <div className="text-xs text-slate-500 mb-1">
+          {t("db.streakWeeks", { n: streak.currentStreak })}
+          {streak.longestStreak > streak.currentStreak && (
+            <div className="text-slate-400">{t("db.streakBest", { n: streak.longestStreak })}</div>
+          )}
+        </div>
+      </div>
+      <div className="space-y-2">
+        {hoursPct != null && (
+          <div>
+            <div className="flex justify-between text-xs mb-0.5">
+              <span className="text-slate-500">{t("db.streakHoursGoal")}</span>
+              <span className="font-semibold">
+                {fmtNum(streak.thisWeek.hours, locale)} / {fmtNum(streak.weeklyHoursGoal, locale)} {t("c.hours")}
+              </span>
+            </div>
+            <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+              <div className="h-full rounded-full bg-emerald-500" style={{ width: `${hoursPct}%` }} />
+            </div>
+          </div>
+        )}
+        {profitPct != null && (
+          <div>
+            <div className="flex justify-between text-xs mb-0.5">
+              <span className="text-slate-500">{t("db.streakProfitGoal")}</span>
+              <span className="font-semibold">
+                {money(streak.thisWeek.profit)} / {money(streak.weeklyProfitGoal)}
+              </span>
+            </div>
+            <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+              <div className="h-full rounded-full bg-emerald-500" style={{ width: `${profitPct}%` }} />
+            </div>
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function WeeklyRecapCard({
+  recap,
+  t,
+  locale,
+}: {
+  recap: any;
+  t: (k: string, vars?: Record<string, string | number>) => string;
+  locale: string;
+}) {
+  const [copied, setCopied] = useState(false);
+  const money = (n: number) => fmtMoney(n, locale);
+
+  const shareText = t("db.recapShareText", {
+    profit: money(recap.trueProfit),
+    hours: fmtNum(recap.counts.hoursWorked, locale),
+    trips: fmtNum(recap.counts.trips, locale, 0),
+    perHour: recap.perHour != null ? money(recap.perHour) : "—",
+  });
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(shareText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // clipboard access denied — the text is still visible to copy manually
+    }
+  };
+
+  return (
+    <Card>
+      <div className="text-sm font-semibold mb-1">📋 {t("db.recapTitle")}</div>
+      <p className="text-xs text-slate-400 mb-3">{t("db.recapSub")}</p>
+      <div className="text-2xl font-black" style={{ color: recap.trueProfit >= 0 ? "#006300" : "#d03b3b" }}>
+        {money(recap.trueProfit)}
+      </div>
+      <div className="text-xs text-slate-500 mt-1 mb-3">
+        {fmtNum(recap.counts.hoursWorked, locale)} {t("c.hours")} · {t("pl.tripsN", { n: recap.counts.trips })}
+      </div>
+      <button
+        onClick={copy}
+        className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg px-3 py-2"
+      >
+        {copied ? `✓ ${t("db.recapCopied")}` : `📋 ${t("db.recapCopy")}`}
+      </button>
     </Card>
   );
 }
@@ -584,14 +961,190 @@ function BenchMetric({
   );
 }
 
-function LegendRow({ color, label, value }: { color: string; label: string; value: string }) {
+function LegendRow({
+  color,
+  label,
+  value,
+  cost,
+}: {
+  color: string;
+  label: string;
+  value: string;
+  /** What this slice of driving cost, when it is a cost worth naming. */
+  cost?: string;
+}) {
   return (
     <div className="flex items-center gap-2">
       <span className="inline-block w-3 h-3 rounded-sm shrink-0" style={{ background: color }} />
       <span className="text-slate-500 flex-1">{label}</span>
-      <span className="font-semibold" style={{ fontVariantNumeric: "tabular-nums" }}>
+      {cost && <span className="text-slate-400 tnum">{cost}</span>}
+      <span className="font-semibold tnum">{value}</span>
+    </div>
+  );
+}
+
+/** An indented breakdown line under a LegendRow. */
+function SubRow({ label, value, cost }: { label: string; value: string; cost?: string }) {
+  return (
+    <div className="ps-5 flex items-center gap-2 text-slate-400">
+      <span className="flex-1">{label}</span>
+      {cost && <span className="tnum">{cost}</span>}
+      <span className="tnum">{value}</span>
+    </div>
+  );
+}
+
+/**
+ * Today's target — the one screen in the app that looks forward.
+ *
+ * Break-even is the line that must be cleared before an hour of driving has
+ * paid for itself; the bar's end is the driver's own typical day (or their
+ * weekly goal split across the days they actually work). Both come from
+ * lib/target.ts, which builds them from this driver's history and nothing else.
+ */
+function DailyTargetCard({
+  target,
+  onHours,
+  t,
+  locale,
+}: {
+  target: any;
+  onHours: (h: number) => void;
+  t: (k: string, vars?: Record<string, string | number>) => string;
+  locale: string;
+}) {
+  const money = (n: number) => fmtMoney(n, locale);
+  if (!target.hasBasis) {
+    return (
+      <Card>
+        <CardHead icon="🎯" title={t("tg.title")} sub={t("tg.needMoreData")} />
+      </Card>
+    );
+  }
+
+  const { today, breakEvenRevenue } = target;
+  // a zero target would divide the bar and the gauge by nothing
+  const targetRevenue = Math.max(target.targetRevenue, 1);
+  const scale = Math.max(targetRevenue, today.netRevenue, 1);
+  const clearedBreakEven = today.netRevenue >= breakEvenRevenue;
+  const hitTarget = today.netRevenue >= targetRevenue;
+  const remaining = Math.max(0, targetRevenue - today.netRevenue);
+
+  return (
+    <Card>
+      <CardHead
+        icon="🎯"
+        title={t("tg.title")}
+        sub={t(`tg.sub.${target.targetSource}`)}
+        actions={
+          <div className="flex items-center gap-1">
+            <Btn
+              variant="secondary"
+              className="!px-2.5 !py-1 !text-sm"
+              onClick={() => onHours(Math.max(1, target.plannedHours - 1))}
+            >
+              −
+            </Btn>
+            <span className="text-xs font-bold tnum w-14 text-center">
+              {fmtNum(target.plannedHours, locale)} {t("c.hours")}
+            </span>
+            <Btn
+              variant="secondary"
+              className="!px-2.5 !py-1 !text-sm"
+              onClick={() => onHours(target.plannedHours + 1)}
+            >
+              +
+            </Btn>
+          </div>
+        }
+      />
+
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 items-center">
+        <div>
+          <div className="flex items-baseline gap-2 mb-2">
+            <span className="text-3xl font-black tnum" style={{ color: hitTarget ? C.goodText : undefined }}>
+              {money(today.netRevenue)}
+            </span>
+            <span className="text-xs text-slate-400">{t("tg.soFar")}</span>
+          </div>
+
+          <Meter
+            ratio={today.netRevenue / scale}
+            tone={hitTarget ? "good" : clearedBreakEven ? "brand" : "warn"}
+            marker={{
+              ratio: breakEvenRevenue / scale,
+              label: t("tg.breakEvenMark", { v: money(breakEvenRevenue) }),
+            }}
+            value={t("tg.ofTarget", { v: money(targetRevenue) })}
+          />
+
+          <div className="grid grid-cols-3 gap-3 mt-4">
+            <TargetStat
+              label={t("tg.toBreakEven")}
+              value={clearedBreakEven ? t("tg.cleared") : money(breakEvenRevenue - today.netRevenue)}
+              tone={clearedBreakEven ? "good" : "warn"}
+            />
+            <TargetStat
+              label={t("tg.toTarget")}
+              value={hitTarget ? t("tg.hit") : money(remaining)}
+              tone={hitTarget ? "good" : "default"}
+            />
+            <TargetStat
+              label={t("tg.perHourNeeded")}
+              value={
+                target.perHourNeeded != null && remaining > 0
+                  ? `${money(target.perHourNeeded)}/${t("c.hours")}`
+                  : "—"
+              }
+              tone="default"
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-center sm:justify-end">
+          <Gauge
+            ratio={today.netRevenue / targetRevenue}
+            tone={hitTarget ? "good" : clearedBreakEven ? "brand" : "warn"}
+            value={`${fmtNum(Math.min(999, (today.netRevenue / targetRevenue) * 100), locale, 0)}%`}
+            unit={t("tg.ofDay")}
+            minLabel="0"
+            maxLabel="100%"
+            caption={t("tg.costCaption", {
+              perHour: money(target.costPerHour ?? 0),
+              perKm: money(target.costPerKm),
+            })}
+          />
+        </div>
+      </div>
+
+      <p className="text-[11px] text-slate-400 mt-3">
+        {t("tg.footnote", {
+          hours: fmtNum(target.plannedHours, locale),
+          kmh: fmtNum(target.kmPerHour ?? 0, locale, 0),
+          hourly: money(target.typicalHourly ?? 0),
+          fixed: money(target.fixedDailyCost),
+        })}
+      </p>
+    </Card>
+  );
+}
+
+function TargetStat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: "default" | "good" | "warn";
+}) {
+  const color = tone === "good" ? C.goodText : tone === "warn" ? C.critical : undefined;
+  return (
+    <div className="min-w-0">
+      <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold truncate">{label}</div>
+      <div className="text-sm font-bold tnum truncate" style={{ color }}>
         {value}
-      </span>
+      </div>
     </div>
   );
 }

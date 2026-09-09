@@ -2,10 +2,23 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/components/I18nProvider";
-import { AddPanel, Btn, Card, Empty, Field, Input, PageTitle, Pagination, Table, Textarea } from "@/components/ui";
+import {
+  AddPanel,
+  Btn,
+  Card,
+  CardHead,
+  Empty,
+  Field,
+  Input,
+  Meter,
+  PageTitle,
+  Pagination,
+  Table,
+  Textarea,
+} from "@/components/ui";
 import { useCrud } from "@/components/useCrud";
 import { useVehicle } from "@/components/VehicleProvider";
-import { fmtDate, fmtNum, toLocalInput } from "@/lib/format";
+import { fmtDate, fmtNum } from "@/lib/format";
 
 const empty = () => ({
   title: "",
@@ -15,6 +28,8 @@ const empty = () => ({
   repeatMonths: "",
   notes: "",
 });
+
+const STATE_TONE = { ok: "good", dueSoon: "warn", overdue: "bad" } as const;
 
 export default function RemindersPage() {
   const { t, locale } = useI18n();
@@ -26,12 +41,18 @@ export default function RemindersPage() {
   const [form, setForm] = useState<any>(empty());
   const [open, setOpen] = useState(false);
   const [currentOdo, setCurrentOdo] = useState<number>(0);
+  // reminders the app worked out from the service log — see lib/maintenance.ts
+  const [serviceDue, setServiceDue] = useState<any[]>([]);
 
   useEffect(() => {
     if (vehicle) {
       fetch(`/api/analytics?vehicleId=${vehicle.id}&period=today`)
         .then((r) => (r.ok ? r.json() : null))
-        .then((a) => a && setCurrentOdo(a.currentOdo));
+        .then((a) => {
+          if (!a) return;
+          setCurrentOdo(a.currentOdo);
+          setServiceDue((a.reminders ?? []).filter((r: any) => r.source === "service"));
+        });
     }
   }, [vehicle]);
 
@@ -84,6 +105,46 @@ export default function RemindersPage() {
         {t("veh.currentOdo")}: <b>{fmtNum(currentOdo, locale)}</b> {t("c.km")}
       </p>
 
+      {serviceDue.length > 0 && (
+        <Card className="mb-4">
+          <CardHead
+            icon="🔧"
+            title={t("rm.fromServiceTitle")}
+            sub={t("rm.fromServiceSub")}
+            actions={
+              <Link href="/maintenance" className="text-xs font-semibold text-emerald-700 whitespace-nowrap">
+                {t("nav.maintenance")} →
+              </Link>
+            }
+          />
+          <div className="space-y-3.5">
+            {serviceDue.map((r) => (
+              <Meter
+                key={r.id}
+                ratio={r.ratio ?? 0}
+                tone={STATE_TONE[r.state as keyof typeof STATE_TONE] ?? "neutral"}
+                label={
+                  <>
+                    {t(`mn.cat.${r.category}`)}
+                    <span className="font-normal text-slate-400">
+                      {" "}
+                      · {t("rm.dueAt", { km: fmtNum(r.dueOdometer, locale, 0) })}
+                    </span>
+                  </>
+                }
+                value={
+                  r.kmRemaining >= 0
+                    ? t("rm.inKm", { n: fmtNum(r.kmRemaining, locale, 0) })
+                    : t("rm.kmOverdue", { n: fmtNum(-r.kmRemaining, locale, 0) })
+                }
+                sub={t("rm.everyKm", { km: fmtNum(r.intervalKm, locale, 0) })}
+              />
+            ))}
+          </div>
+          <p className="text-[11px] text-slate-400 mt-3">{t("rm.fromServiceHint")}</p>
+        </Card>
+      )}
+
       <AddPanel buttonLabel={t("rm.add")} open={open} setOpen={setOpen}>
         <form
           onSubmit={async (e) => {
@@ -130,7 +191,7 @@ export default function RemindersPage() {
 
       <Card>
         {rows.filter((r) => r.active).length === 0 ? (
-          <Empty>{t("c.noData")}</Empty>
+          <Empty>{serviceDue.length > 0 ? t("rm.noManual") : t("c.noData")}</Empty>
         ) : (
           <Table head={["", t("rm.reminderTitle"), t("rm.dueDate"), t("rm.dueOdometer"), t("c.notes"), "", ""]}>
             {rows

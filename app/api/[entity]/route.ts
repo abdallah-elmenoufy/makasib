@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { ENTITIES, coerceBody } from "@/lib/crud";
-import { matchTripToShift, reconcileShiftTrips } from "@/lib/analytics";
+import { matchTripToShift } from "@/lib/analytics";
+import { reconcileVehicle } from "@/lib/tripIntegrity";
 
 type Ctx = { params: Promise<{ entity: string }> };
 
@@ -70,7 +71,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     // a new shift may cover trips logged earlier that had no shift to
     // attach to yet (including trips orphaned by a previously deleted shift)
     if (entity === "shifts") {
-      await reconcileShiftTrips(row.vehicleId, row.id);
+      await reconcileVehicle(row.vehicleId);
     }
 
     return NextResponse.json(row, { status: 201 });

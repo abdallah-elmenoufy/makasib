@@ -1,6 +1,7 @@
 import { prisma } from "./db";
 import type { Vehicle, Shift, Trip, FuelUp, Reminder } from "@prisma/client";
-import { estimateDepPerKm, annualizedKm } from "./depreciation";
+import { estimateDepPerKm, depreciationBasis } from "./depreciation";
+import { maintenanceRatePerKm, serviceReminders, type ServiceItem } from "./maintenance";
 
 export type Period = "today" | "week" | "month" | "all";
 
@@ -61,12 +62,14 @@ export async function getLatestOdometer(vehicleId: string): Promise<number> {
 export type FuelEconomy = {
   fuelGroup: "PETROL" | "CNG";
   unit: "L" | "m3";
-  distanceKm: number;
+  distanceKm: number; // ALL km in the measured tank windows — the honest denominator
+  workKm: number; // the shift-driven portion of distanceKm
   quantity: number;
   spend: number;
-  per100: number; // units per 100 km
+  per100: number; // units per 100 km — true consumption
   kmPerUnit: number;
-  costPerKm: number;
+  costPerKm: number; // fuel cost per km actually driven
+  workSharePct: number; // what fraction of measured driving was on shift
 };
 
 /** Merge completed shifts' [startOdometer, endOdometer] ranges so overlaps
@@ -97,11 +100,20 @@ function shiftKmInRange(ranges: [number, number][], fromOdo: number, toOdo: numb
 }
 
 /**
- * Consumption from consecutive FULL-TANK fill-ups per fuel group, counting
- * only the shift-km portion of each fill-to-fill odometer window — Makasib
- * tracks ride-hailing profitability, not personal driving, so a tank burned
- * partly on personal trips must not make the car look more fuel-efficient
- * (or cheaper per km) for work than it really is.
+ * Consumption from consecutive FULL-TANK fill-ups per fuel group.
+ *
+ * The denominator is EVERY km driven in the tank window, not just the
+ * shift-driven portion. This is not a scope choice, it's arithmetic: the
+ * tank was burned by all the driving between the two fill-ups, so dividing
+ * all of that fuel by only the shift km inflates apparent consumption by
+ * exactly 1/workShare (a driver whose driving is ~56% shifts sees ~8 L/100km
+ * reported as ~14.5 — a real bug this replaces). Fuel economy is a physical
+ * property of the car; the engine doesn't know which km were paid.
+ *
+ * Attributing fuel COST to work is a separate step and still uses shift km:
+ * `costPerKm` here is per km actually driven, and getAnalytics multiplies it
+ * by shift km so personal driving is never charged to the business.
+ *
  * For dual-fuel cars this is an approximation since both fuels share km.
  */
 export function fuelEconomy(fuelUps: FuelUp[], shifts: Shift[]): FuelEconomy[] {
@@ -116,6 +128,7 @@ export function fuelEconomy(fuelUps: FuelUp[], shifts: Shift[]): FuelEconomy[] {
       .filter((f) => (g.key === "CNG" ? f.fuelType === "CNG" : f.fuelType.startsWith("PETROL")))
       .sort((a, b) => a.odometer - b.odometer);
     let dist = 0;
+    let workDist = 0;
     let qty = 0;
     let spend = 0;
     // anchor windows on consecutive FULL tanks, but a partial fill-up
@@ -126,18 +139,17 @@ export function fuelEconomy(fuelUps: FuelUp[], shifts: Shift[]): FuelEconomy[] {
     for (let i = 0; i < ups.length; i++) {
       if (!ups[i].fullTank) continue;
       if (lastFullIdx >= 0 && ups[i].odometer > ups[lastFullIdx].odometer) {
-        const windowShiftKm = shiftKmInRange(shiftRanges, ups[lastFullIdx].odometer, ups[i].odometer);
-        if (windowShiftKm > 0) {
-          let windowQty = 0;
-          let windowSpend = 0;
-          for (let j = lastFullIdx + 1; j <= i; j++) {
-            windowQty += ups[j].quantity;
-            windowSpend += ups[j].totalCost;
-          }
-          dist += windowShiftKm;
-          qty += windowQty;
-          spend += windowSpend;
+        const windowKm = ups[i].odometer - ups[lastFullIdx].odometer;
+        let windowQty = 0;
+        let windowSpend = 0;
+        for (let j = lastFullIdx + 1; j <= i; j++) {
+          windowQty += ups[j].quantity;
+          windowSpend += ups[j].totalCost;
         }
+        dist += windowKm;
+        workDist += shiftKmInRange(shiftRanges, ups[lastFullIdx].odometer, ups[i].odometer);
+        qty += windowQty;
+        spend += windowSpend;
       }
       lastFullIdx = i;
     }
@@ -146,27 +158,53 @@ export function fuelEconomy(fuelUps: FuelUp[], shifts: Shift[]): FuelEconomy[] {
         fuelGroup: g.key,
         unit: g.unit,
         distanceKm: dist,
+        workKm: workDist,
         quantity: qty,
         spend,
         per100: (qty / dist) * 100,
         kmPerUnit: dist / qty,
         costPerKm: spend / dist,
+        workSharePct: dist > 0 ? (workDist / dist) * 100 : 0,
       });
     }
   }
   return out;
 }
 
+/**
+ * One row in the "what needs attention" list, flattened so a reminder the
+ * driver typed and one derived from their service log render identically —
+ * the driver does not care which of the two it came from, only when it is due.
+ */
 export type ReminderStatus = {
-  reminder: Reminder;
+  id: string;
+  /** Manual reminders carry their own title; service ones carry a category. */
+  title: string | null;
+  category: string | null;
+  source: "manual" | "service";
   state: "overdue" | "dueSoon" | "ok";
   kmRemaining: number | null;
   daysRemaining: number | null;
+  dueOdometer: number | null;
+  /** Service reminders only: the interval and how much of it is used up. */
+  intervalKm: number | null;
+  ratio: number | null;
+  maintenanceId: string | null;
 };
 
-export function reminderStatuses(reminders: Reminder[], currentOdo: number): ReminderStatus[] {
+const bySeverity = (a: ReminderStatus, b: ReminderStatus) => {
+  const rank = { overdue: 0, dueSoon: 1, ok: 2 } as const;
+  if (rank[a.state] !== rank[b.state]) return rank[a.state] - rank[b.state];
+  return (a.kmRemaining ?? Infinity) - (b.kmRemaining ?? Infinity);
+};
+
+export function reminderStatuses(
+  reminders: Reminder[],
+  currentOdo: number,
+  maintenance: ServiceItem[] = []
+): ReminderStatus[] {
   const now = Date.now();
-  return reminders
+  const manual: ReminderStatus[] = reminders
     .filter((r) => r.active)
     .map((r) => {
       const kmRemaining = r.dueOdometer != null ? r.dueOdometer - currentOdo : null;
@@ -181,9 +219,38 @@ export function reminderStatuses(reminders: Reminder[], currentOdo: number): Rem
       ) {
         state = "dueSoon";
       }
-      return { reminder: r, state, kmRemaining, daysRemaining };
-    })
-    .sort((a, b) => (a.state === "overdue" ? -1 : a.state === "dueSoon" && b.state === "ok" ? -1 : 1));
+      return {
+        id: r.id,
+        title: r.title,
+        category: null,
+        source: "manual" as const,
+        state,
+        kmRemaining,
+        daysRemaining,
+        dueOdometer: r.dueOdometer,
+        intervalKm: r.repeatKm,
+        ratio: null,
+        maintenanceId: null,
+      };
+    });
+
+  // free reminders: every serviced part with an interval already knows when
+  // it is next due, so nothing here was typed twice (see lib/maintenance.ts)
+  const derived: ReminderStatus[] = serviceReminders(maintenance, currentOdo).map((s) => ({
+    id: s.id,
+    title: null,
+    category: s.category,
+    source: "service" as const,
+    state: s.state,
+    kmRemaining: s.kmRemaining,
+    daysRemaining: null,
+    dueOdometer: s.dueOdometer,
+    intervalKm: s.intervalKm,
+    ratio: s.ratio,
+    maintenanceId: s.maintenanceId,
+  }));
+
+  return [...manual, ...derived].sort(bySeverity);
 }
 
 export type Analytics = Awaited<ReturnType<typeof getAnalytics>>;
@@ -229,12 +296,28 @@ export async function getAnalytics(vehicleId: string, period: Period) {
 
   const fuelSpendAllTime = fuelUpsAll.reduce((s, f) => s + f.totalCost, 0);
   const maintSpendAllTime = maintAll.reduce((s, m) => s + m.cost, 0);
-  const fuelCostPerKm = totalKmAllTime > 0 ? fuelSpendAllTime / totalKmAllTime : 0;
-  const maintCostPerKm = totalKmAllTime > 0 ? maintSpendAllTime / totalKmAllTime : 0;
-  const depPerKm = estimateDepPerKm(
-    vehicle,
-    annualizedKm(totalKmAllTime, vehicle.createdAt)
-  );
+
+  // Fuel: prefer the rate measured across complete full-to-full tank windows
+  // (see fuelEconomy) — it's per km actually driven and ignores the partial
+  // trailing tank. Falls back to all-time spend ÷ all-time km before there
+  // are two full tanks to measure between.
+  const economy = fuelEconomy(fuelUpsAll, allShifts);
+  const measuredFuelCostPerKm =
+    economy.length > 0
+      ? economy.reduce((s, e) => s + e.spend, 0) / economy.reduce((s, e) => s + e.distanceKm, 0)
+      : null;
+  const fuelCostPerKm =
+    measuredFuelCostPerKm ?? (totalKmAllTime > 0 ? fuelSpendAllTime / totalKmAllTime : 0);
+
+  // Maintenance: each item with a service interval (lifetimeKm) is amortized
+  // over that interval — a 4,000 EGP brake job good for 50,000 km costs
+  // 0.08 EGP/km, it does not blow a hole in whichever week it was paid.
+  // Only the newest record per category is charged: an interval is paid for
+  // once, not stacked on every earlier one (see lib/maintenance.ts).
+  // Items without an interval keep the all-time averaging.
+  const maintCostPerKm = maintenanceRatePerKm(maintAll, totalKmAllTime).perKm;
+
+  const depPerKm = estimateDepPerKm(vehicle);
 
   // ---- Period shift stats ----
   const completed = shifts.filter((s) => s.endOdometer != null && s.endTime != null);
@@ -244,6 +327,13 @@ export async function getAnalytics(vehicleId: string, period: Period) {
     0
   );
   const shiftDays = new Set(completed.map((s) => new Date(s.startTime).toDateString())).size;
+  // calendar span the driving is spread over, so a rate can be expressed per
+  // week without pretending every day in the period was a working day
+  const shiftTimes = completed.map((s) => new Date(s.startTime).getTime());
+  const daysActive =
+    shiftTimes.length >= 2
+      ? Math.max(1, (Math.max(...shiftTimes) - Math.min(...shiftTimes)) / 86_400_000)
+      : shiftTimes.length;
 
   // ---- Earnings ----
   const fares = trips.reduce((s, t) => s + t.fare, 0);
@@ -268,6 +358,10 @@ export async function getAnalytics(vehicleId: string, period: Period) {
   }
 
   const trueProfit = netRevenue - allocFuel - allocMaint - allocDep - workExpenses - ownershipCost;
+  // Money actually in hand this period. Depreciation is a real cost but not a
+  // cash outflow — a driver deciding whether tonight was worth driving needs
+  // to see both, not have the cash number silently reduced by an accrual.
+  const cashProfit = netRevenue - allocFuel - allocMaint - workExpenses - ownershipCost;
 
   // ---- Km split ----
   const tripKm = trips.reduce((s, t) => s + (t.distanceKm ?? 0), 0);
@@ -339,7 +433,7 @@ export async function getAnalytics(vehicleId: string, period: Period) {
     currentOdo,
     totalKmAllTime,
     rates: { fuelCostPerKm, maintCostPerKm, depPerKm },
-    counts: { shifts: completed.length, trips: trips.length, hoursWorked, shiftDays },
+    counts: { shifts: completed.length, trips: trips.length, hoursWorked, shiftDays, daysActive },
     earnings: { fares, commission, tips, gross, netRevenue },
     costs: {
       // commission kept for the cash panel; NOT a cost row — earnings are net
@@ -352,11 +446,13 @@ export async function getAnalytics(vehicleId: string, period: Period) {
       total: allocFuel + allocMaint + allocDep + workExpenses + ownershipCost,
     },
     trueProfit,
+    cashProfit,
     perHour: hoursWorked > 0 ? trueProfit / hoursWorked : null,
     perKm: shiftKm > 0 ? trueProfit / shiftKm : null,
     kmSplit: { shiftKm, tripKm, deadKm, pickupKm, cruisingKm, personalKm, periodTotalKm },
-    fuelEconomy: fuelEconomy(fuelUpsAll, allShifts),
-    reminders: reminderStatuses(reminders, currentOdo),
+    fuelEconomy: economy,
+    depreciationBasis: depreciationBasis(vehicle),
+    reminders: reminderStatuses(reminders, currentOdo, maintAll),
     trend: days,
   };
 }
@@ -453,54 +549,171 @@ export async function matchTripToShift(
   return candidates.sort((a, b) => distance(a) - distance(b))[0].id;
 }
 
-/**
- * Sweep orphaned trips (shiftId null — e.g. logged before their shift
- * existed, or left behind when a shift was deleted and later re-created)
- * into a shift whose time window now covers them (within tolerance). Runs
- * after every shift create/update so the two sides of the app stay in sync
- * without the driver having to manually re-link anything.
- */
-export async function reconcileShiftTrips(vehicleId: string, shiftId: string): Promise<number> {
-  const shift = await prisma.shift.findUnique({ where: { id: shiftId } });
-  if (!shift) return 0;
-  const { count } = await prisma.trip.updateMany({
-    where: {
-      vehicleId,
-      shiftId: null,
-      startTime: {
-        gte: new Date(shift.startTime.getTime() - SHIFT_MATCH_TOLERANCE_MS),
-        ...(shift.endTime ? { lte: new Date(shift.endTime.getTime() + SHIFT_MATCH_TOLERANCE_MS) } : {}),
-      },
-    },
-    data: { shiftId },
-  });
-  return count;
-}
+export type WeekStat = { weekStart: string; hours: number; profit: number; metGoal: boolean };
+export type StreakResult = {
+  weeklyHoursGoal: number | null;
+  weeklyProfitGoal: number | null;
+  thisWeek: { hours: number; profit: number };
+  currentStreak: number;
+  longestStreak: number;
+  weeks: WeekStat[]; // oldest first, most recent (in-progress) week last
+};
 
 /**
- * Full data-health sweep for one vehicle: every orphaned trip (shiftId
- * null) gets one more chance at matchTripToShift's tolerant window. Unlike
- * reconcileShiftTrips (triggered by a specific shift changing), this is the
- * "check everything, not just what just changed" pass — the periodic
- * health check and the manual "run now" button both call this.
+ * Weekly streak vs. the driver's own goal (Vehicle.weeklyHoursGoal /
+ * weeklyProfitGoal) — no goal set means nothing to compare against, so the
+ * card stays hidden rather than showing a hollow 0%. Weeks start Saturday,
+ * matching lib/planner.ts's Egypt-week convention. The in-progress current
+ * week is shown live but excluded from the streak count itself — it can
+ * still be met before the week ends.
  */
-export async function reconcileOrphanTrips(vehicleId: string): Promise<number> {
-  const orphans = await prisma.trip.findMany({ where: { vehicleId, shiftId: null } });
-  let fixed = 0;
-  for (const trip of orphans) {
-    const shiftId = await matchTripToShift(vehicleId, trip.startTime);
-    if (shiftId) {
-      await prisma.trip.update({ where: { id: trip.id }, data: { shiftId } });
-      fixed++;
+export async function getStreak(vehicleId: string, weeksBack = 12): Promise<StreakResult | null> {
+  const vehicle = await prisma.vehicle.findUnique({ where: { id: vehicleId } });
+  if (!vehicle) return null;
+  if (vehicle.weeklyHoursGoal == null && vehicle.weeklyProfitGoal == null) {
+    return {
+      weeklyHoursGoal: null,
+      weeklyProfitGoal: null,
+      thisWeek: { hours: 0, profit: 0 },
+      currentStreak: 0,
+      longestStreak: 0,
+      weeks: [],
+    };
+  }
+
+  const all = await getAnalytics(vehicleId, "all");
+  const { fuelCostPerKm, maintCostPerKm, depPerKm } = all.rates;
+
+  const now = new Date();
+  const dow = now.getDay(); // 0=Sun..6=Sat
+  const daysSinceSat = (dow + 1) % 7;
+  const thisWeekStart = new Date(now);
+  thisWeekStart.setHours(0, 0, 0, 0);
+  thisWeekStart.setDate(thisWeekStart.getDate() - daysSinceSat);
+
+  const weeks: WeekStat[] = [];
+  for (let i = weeksBack - 1; i >= 0; i--) {
+    const start = new Date(thisWeekStart.getTime() - i * 7 * 86_400_000);
+    const end = new Date(start.getTime() + 7 * 86_400_000);
+    const [shifts, trips, tips, expenses] = await Promise.all([
+      prisma.shift.findMany({
+        where: { vehicleId, startTime: { gte: start, lt: end }, endOdometer: { not: null }, endTime: { not: null } },
+      }),
+      prisma.trip.findMany({ where: { vehicleId, startTime: { gte: start, lt: end } } }),
+      prisma.cashTip.findMany({ where: { vehicleId, date: { gte: start, lt: end } } }),
+      prisma.expense.findMany({ where: { vehicleId, date: { gte: start, lt: end }, isWork: true } }),
+    ]);
+    const hours = shifts.reduce(
+      (s, x) => s + (new Date(x.endTime!).getTime() - new Date(x.startTime).getTime()) / 3_600_000,
+      0
+    );
+    const km = shifts.reduce((s, x) => s + (x.endOdometer! - x.startOdometer), 0);
+    const fares = trips.reduce((s, t) => s + t.fare, 0);
+    const commission = trips.reduce((s, t) => s + (t.commission ?? 0), 0);
+    const tripTips = trips.reduce((s, t) => s + t.tip, 0);
+    const standaloneTips = tips.reduce((s, t) => s + t.amount, 0);
+    const workExp = expenses.reduce((s, e) => s + e.amount, 0);
+    let ownershipCost = 0;
+    if (vehicle.ownership === "RENTED" && vehicle.dailyRentalFee) {
+      const days = new Set(shifts.map((s) => new Date(s.startTime).toDateString())).size;
+      ownershipCost = vehicle.dailyRentalFee * days;
+    } else if (vehicle.ownership === "TARGET" && vehicle.targetOwnerShare) {
+      ownershipCost = (fares * vehicle.targetOwnerShare) / 100;
+    }
+    const profit =
+      fares - commission + tripTips + standaloneTips - (fuelCostPerKm + maintCostPerKm + depPerKm) * km - workExp - ownershipCost;
+
+    const metHours = vehicle.weeklyHoursGoal == null || hours >= vehicle.weeklyHoursGoal;
+    const metProfit = vehicle.weeklyProfitGoal == null || profit >= vehicle.weeklyProfitGoal;
+    weeks.push({
+      weekStart: start.toISOString().slice(0, 10),
+      hours: Math.round(hours * 10) / 10,
+      profit: Math.round(profit * 100) / 100,
+      metGoal: metHours && metProfit,
+    });
+  }
+
+  const completedWeeks = weeks.slice(0, -1);
+  let currentStreak = 0;
+  for (let i = completedWeeks.length - 1; i >= 0; i--) {
+    if (completedWeeks[i].metGoal) currentStreak++;
+    else break;
+  }
+  let longestStreak = 0;
+  let run = 0;
+  for (const w of completedWeeks) {
+    if (w.metGoal) {
+      run++;
+      longestStreak = Math.max(longestStreak, run);
+    } else run = 0;
+  }
+
+  const thisWeek = weeks[weeks.length - 1];
+  return {
+    weeklyHoursGoal: vehicle.weeklyHoursGoal,
+    weeklyProfitGoal: vehicle.weeklyProfitGoal,
+    thisWeek: { hours: thisWeek.hours, profit: thisWeek.profit },
+    currentStreak,
+    longestStreak,
+    weeks,
+  };
+}
+
+export type PlatformStat = {
+  platform: string;
+  trips: number;
+  netRevenue: number; // fare - commission + tip, i.e. what actually landed in hand
+  avgNet: number;
+  hours: number; // shift hours weighted by this platform's share of trip revenue in that shift
+};
+
+/**
+ * Revenue-side breakdown by platform (Trip.platform — UBER/CAREEM/INDRIVE/
+ * BOLT/OTHER), for drivers who run more than one app at once. Costs
+ * (fuel/maintenance/depreciation) aren't split by platform since a shift's
+ * driving isn't attributable to one app — only the earnings side is honest
+ * to report per platform; "hours" here is an approximation (each shift's
+ * hours split across platforms by revenue share), shown as a rough busyness
+ * signal, not a profit-per-platform claim.
+ */
+export async function getPlatformBreakdown(vehicleId: string, period: Period): Promise<PlatformStat[]> {
+  const from = periodStart(period);
+  const dateFilter = from ? { gte: from } : undefined;
+  const [trips, shifts] = await Promise.all([
+    prisma.trip.findMany({ where: { vehicleId, ...(dateFilter ? { startTime: dateFilter } : {}) } }),
+    prisma.shift.findMany({
+      where: { vehicleId, ...(dateFilter ? { startTime: dateFilter } : {}), endTime: { not: null } },
+    }),
+  ]);
+
+  const hoursByShift: Record<string, number> = {};
+  for (const s of shifts) {
+    hoursByShift[s.id] = (new Date(s.endTime!).getTime() - new Date(s.startTime).getTime()) / 3_600_000;
+  }
+  const revenueByShift: Record<string, number> = {};
+  for (const t of trips) {
+    if (!t.shiftId) continue;
+    revenueByShift[t.shiftId] = (revenueByShift[t.shiftId] ?? 0) + (t.fare - (t.commission ?? 0) + t.tip);
+  }
+
+  const byPlatform: Record<string, { trips: number; netRevenue: number; hours: number }> = {};
+  for (const t of trips) {
+    const net = t.fare - (t.commission ?? 0) + t.tip;
+    byPlatform[t.platform] ??= { trips: 0, netRevenue: 0, hours: 0 };
+    byPlatform[t.platform].trips++;
+    byPlatform[t.platform].netRevenue += net;
+    if (t.shiftId && hoursByShift[t.shiftId] && revenueByShift[t.shiftId] > 0) {
+      byPlatform[t.platform].hours += hoursByShift[t.shiftId] * (net / revenueByShift[t.shiftId]);
     }
   }
-  return fixed;
-}
 
-/** Same sweep across every vehicle — used by the lazy periodic health check. */
-export async function reconcileAllVehicles(): Promise<number> {
-  const vehicles = await prisma.vehicle.findMany({ select: { id: true } });
-  let total = 0;
-  for (const v of vehicles) total += await reconcileOrphanTrips(v.id);
-  return total;
+  return Object.entries(byPlatform)
+    .map(([platform, v]) => ({
+      platform,
+      trips: v.trips,
+      netRevenue: Math.round(v.netRevenue * 100) / 100,
+      avgNet: v.trips > 0 ? Math.round((v.netRevenue / v.trips) * 100) / 100 : 0,
+      hours: Math.round(v.hours * 10) / 10,
+    }))
+    .sort((a, b) => b.netRevenue - a.netRevenue);
 }
