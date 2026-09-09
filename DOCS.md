@@ -304,10 +304,19 @@ covering shift.
   number, confusing drivers rather than helping them. `Trip.commission`
   itself is untouched (see §5's net-first note) — only the summary panel
   is gone. See §16 for the fuller reasoning.
-- **Cost amortization**: fuel and maintenance cost-per-km are computed from
-  **all-time** totals ÷ **all-time** km (not the selected period), so a
-  single expensive week doesn't distort that week's apparent profitability —
-  costs are smoothed, only earnings are period-scoped.
+- **Cost amortization**: fuel and maintenance cost-per-km are computed
+  **all-time**, not per selected period, so a single expensive week doesn't
+  distort that week's apparent profitability — costs are smoothed, only
+  earnings are period-scoped. Fuel uses the rate measured across complete
+  full-to-full tank windows (falling back to all-time spend ÷ all-time km
+  before two full tanks exist). Maintenance charges each item with a service
+  interval (`Maintenance.lifetimeKm`) over that interval — but **only the
+  newest record per category**, so replacing a part supersedes the one it
+  replaced instead of stacking on top of it (`lib/maintenance.ts`,
+  `maintenanceRatePerKm`). Items with no interval keep all-time averaging.
+  Without the supersede rule the rate grows without bound as history
+  accumulates: five 8,000 km oil changes would read 5 × 0.19 = 0.94 EGP/km
+  instead of 0.19, shrinking every profit figure in the app with it.
 - **14-day trend**: independent of the period selector, always the trailing
   14 days, used for the dashboard's daily profit chart.
 

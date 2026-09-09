@@ -22,17 +22,45 @@ quick-start.
   tells ride-hailing km apart from personal km.
 - **Trips** — manual net-earnings entry, or imported automatically from a
   weekly statement PDF and/or Earnings Activity screenshots.
-- **Fuel, maintenance, expenses, reminders** — all odometer-taggable, all
-  with a notes field.
-- **Dashboard** — true profit (not gross), fuel economy, cash-owed-to-
-  platform reconciliation, on-trip vs. dead vs. personal km, and (once other
-  drivers' data exists) a you-vs-others benchmark.
+- **Fuel** — every fill-up, plus an all-time summary: total litres/m³, total
+  spent, a consumption gauge measured full-to-full, spend split by fuel type,
+  and fuel as a share of net earnings. A **price-hike scenario** card answers
+  "if petrol goes up 2 EGP, what does that cost me per km, per week, per
+  hour?" from this car's own measured consumption.
+- **Maintenance with service life** — each item takes a service interval
+  ("lasts for X km"), so a 4,100 EGP brake job good for 50,000 km is charged
+  at 0.08 EGP/km instead of blowing a hole in one week's profit. Progress
+  bars show how much of each part's interval is used up, green → amber →
+  red, and a superseded item retires automatically so an interval is never
+  charged twice.
+- **Reminders, mostly free** — any service logged with an odometer reading
+  and an interval generates its own reminder (brakes fitted at 246,170 with
+  a 50,000 km interval ⇒ due at 296,170). Derived, not stored: edit the
+  service entry and the due point moves with it. Manual reminders (licence,
+  insurance) still work alongside them.
+- **Expenses in one tap** — chips for wash / mobile data / parking / toll /
+  fine, pre-filled with the last amount actually paid for that item, from
+  the dashboard or the Expenses page. Plus a summary of what running costs
+  take out of earnings.
+- **Today's target** — the one forward-looking screen: what today has to
+  earn to clear break-even (cost/hour × planned hours + fixed daily cost),
+  and what those hours normally earn you, with an hours stepper that moves
+  every figure. Built from this driver's own history, median not mean.
+- **Dashboard** — true profit (not gross) and cash profit side by side, fuel
+  economy, on-trip vs. dead vs. personal km **priced in EGP at your own
+  cost/km** (dead km is the one cost a driver can cut tonight), and (once
+  other drivers' data exists) a you-vs-others benchmark.
 - **Plan your day!** (خطّط يومك) — a heatmap of your best times to drive,
   built from your own logged history.
 - **Score this offer!** (قيّم العرض) — screenshot an incoming trip request
   and get an instant profit/km and profit/hour estimate against your own
   average, before you accept.
 - **Full English/Arabic UI**, switchable any time, RTL-correct.
+
+The driver-facing user manual (Egyptian Arabic, printable) lives at
+[`public/manual-ar.html`](./public/manual-ar.html) — served at
+`/manual-ar.html` when the app is running. Keep it in step with the UI: it
+is the only documentation an actual driver ever reads.
 
 ## Requirements
 
