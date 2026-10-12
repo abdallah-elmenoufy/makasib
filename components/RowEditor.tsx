@@ -112,7 +112,7 @@ export function RowEditor({
           <Btn variant="secondary" onClick={onCancel}>
             {t("c.cancel")}
           </Btn>
-          {error && <span className="text-sm text-red-600">{error}</span>}
+          {error && <span className="text-sm text-loss">{error}</span>}
         </div>
       </form>
     </Modal>

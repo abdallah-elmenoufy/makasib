@@ -27,10 +27,10 @@ const emptyForm = (): OfferForm => ({
 });
 
 const VERDICT_BG: Record<string, string> = {
-  good: "bg-emerald-600",
-  ok: "bg-amber-500",
-  bad: "bg-red-600",
-  unknown: "bg-slate-400",
+  good: "bg-ink",
+  ok: "bg-warn-soft0",
+  bad: "bg-loss",
+  unknown: "bg-muted-2",
 };
 const VERDICT_ICON: Record<string, string> = { good: "🟢", ok: "🟡", bad: "🔴", unknown: "⚪️" };
 
@@ -109,7 +109,7 @@ export default function ScorePage() {
   if (!vehicle) {
     return (
       <Empty>
-        <Link href="/cars" className="text-emerald-600 underline">
+        <Link href="/cars" className="text-ink underline">
           {t("veh.createFirst")}
         </Link>
       </Empty>
@@ -125,16 +125,15 @@ export default function ScorePage() {
 
   return (
     <div className="space-y-4">
-      <PageTitle>⚡ {t("score.title")}</PageTitle>
-      <p className="text-sm text-slate-500 -mt-2">{t("score.subtitle")}</p>
-      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+      <PageTitle sub={t("score.subtitle")}>{t("score.title")}</PageTitle>
+      <p className="text-xs text-warn-ink bg-warn-soft border border-warn/60 rounded-lg px-3 py-2">
         ⏱ {t("score.hurryNote")}
       </p>
 
       {!form && (
         <label
           className={`block border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
-            reading ? "border-slate-200 text-slate-300" : "border-emerald-300 text-slate-500 hover:bg-emerald-50"
+            reading ? "border-line text-muted-2" : "border-line text-muted hover:bg-surface-2"
           }`}
         >
           <input
@@ -150,7 +149,7 @@ export default function ScorePage() {
       )}
 
       {notRecognized && (
-        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+        <p className="text-xs text-warn-ink bg-warn-soft border border-warn/60 rounded-lg px-3 py-2">
           {t("score.notRecognized")}
         </p>
       )}
@@ -186,7 +185,7 @@ export default function ScorePage() {
               </div>
             </Card>
           )}
-          {!baseline && <p className="text-xs text-slate-400">{t("score.noBaseline")}</p>}
+          {!baseline && <p className="text-xs text-muted">{t("score.noBaseline")}</p>}
 
           <Card className="space-y-3">
             <div className="grid grid-cols-2 gap-3">

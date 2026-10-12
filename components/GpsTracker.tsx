@@ -87,20 +87,20 @@ export function GpsTracker({ shiftId, initialKm }: { shiftId: string; initialKm:
         onClick={on ? stop : start}
         className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
           on
-            ? "bg-emerald-600 text-white border-emerald-600"
-            : "bg-white text-slate-600 border-slate-300 hover:bg-slate-50"
+            ? "bg-ink text-white border-line"
+            : "bg-white text-ink-500 border-line hover:bg-surface"
         }`}
       >
         🛰 {on ? t("sh.gpsOn") : t("sh.gpsStart")}
       </button>
       {km != null && (
-        <span className="text-xs text-slate-600">
+        <span className="text-xs text-ink-500">
           {t("sh.gpsKm")}: <b style={{ fontVariantNumeric: "tabular-nums" }}>{km}</b> {t("c.km")}
         </span>
       )}
-      {on && <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />}
-      {error && <span className="text-xs text-red-600">{error}</span>}
-      {on && <span className="text-xs text-slate-400">{t("sh.gpsKeepOpen")}</span>}
+      {on && <span className="inline-block w-2 h-2 rounded-full bg-money animate-pulse" />}
+      {error && <span className="text-xs text-loss">{error}</span>}
+      {on && <span className="text-xs text-muted">{t("sh.gpsKeepOpen")}</span>}
     </div>
   );
 }

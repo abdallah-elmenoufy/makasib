@@ -2,15 +2,51 @@ import { prisma } from "./db";
 import type { Vehicle, Shift, Trip, FuelUp, Reminder } from "@prisma/client";
 import { estimateDepPerKm, depreciationBasis } from "./depreciation";
 import { maintenanceRatePerKm, serviceReminders, type ServiceItem } from "./maintenance";
+import { weekRange, weekKey, WEEK_START_HOUR } from "./week";
 
-export type Period = "today" | "week" | "month" | "all";
+export type Period = "today" | "week" | "lastWeek" | "month" | "all";
+
+/**
+ * Period boundaries. "today" and "week" follow Uber's clock (lib/week.ts): a
+ * pay day runs 04:00 → 04:00 and the pay week opens Monday 04:00, so what the
+ * dashboard calls "this week" is exactly the week Uber will pay out.
+ */
+export function periodRange(p: Period, now = new Date()): { from: Date; to: Date } | null {
+  if (p === "today") {
+    const from = new Date(now.getFullYear(), now.getMonth(), now.getDate(), WEEK_START_HOUR);
+    if (now.getTime() < from.getTime()) from.setDate(from.getDate() - 1);
+    const to = new Date(from);
+    to.setDate(to.getDate() + 1);
+    return { from, to };
+  }
+  if (p === "week") {
+    const w = weekRange(0, now);
+    return { from: w.start, to: w.end };
+  }
+  if (p === "lastWeek") {
+    const w = weekRange(-1, now);
+    return { from: w.start, to: w.end };
+  }
+  if (p === "month") return { from: new Date(now.getTime() - 30 * 86_400_000), to: new Date(now.getTime() + WEEK_MS_SAFETY) };
+  return null;
+}
+
+const WEEK_MS_SAFETY = 7 * 86_400_000;
 
 export function periodStart(p: Period): Date | null {
-  const now = new Date();
-  if (p === "today") return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  if (p === "week") return new Date(now.getTime() - 7 * 86_400_000);
-  if (p === "month") return new Date(now.getTime() - 30 * 86_400_000);
-  return null;
+  return periodRange(p)?.from ?? null;
+}
+
+/** Net money a trip put in the driver's hand: earnings + cash tip. */
+export function tripNet(t: Pick<Trip, "fare" | "commission" | "tip">): number {
+  return t.fare - (t.commission ?? 0) + t.tip;
+}
+
+/** Minutes the rider was on board — the logged duration, else start→end. */
+export function tripMinutes(t: Pick<Trip, "durationMin" | "startTime" | "endTime">): number {
+  if (t.durationMin != null && t.durationMin > 0) return t.durationMin;
+  if (t.endTime) return Math.max(0, (new Date(t.endTime).getTime() - new Date(t.startTime).getTime()) / 60_000);
+  return 0;
 }
 
 // Net-first: entries store the driver's net earnings, so no fee is ever
@@ -256,8 +292,9 @@ export function reminderStatuses(
 export type Analytics = Awaited<ReturnType<typeof getAnalytics>>;
 
 export async function getAnalytics(vehicleId: string, period: Period) {
-  const from = periodStart(period);
-  const dateFilter = from ? { gte: from } : undefined;
+  const range = periodRange(period);
+  const from = range?.from ?? null;
+  const dateFilter = range ? { gte: range.from, lt: range.to } : undefined;
 
   const [vehicle, shifts, trips, cashTips, fuelUpsAll, maintAll, expenses, reminders, pcts] =
     await Promise.all([
@@ -327,6 +364,11 @@ export async function getAnalytics(vehicleId: string, period: Period) {
     0
   );
   const shiftDays = new Set(completed.map((s) => new Date(s.startTime).toDateString())).size;
+  // ---- Time split: online (shift) minutes → with a rider / driving to one / idle ----
+  const onlineMin = hoursWorked * 60;
+  const tripMin = trips.reduce((s, t) => s + tripMinutes(t), 0);
+  const pickupMinTotal = trips.reduce((s, t) => s + (t.pickupMin ?? 0), 0);
+  const idleMin = Math.max(0, onlineMin - tripMin - pickupMinTotal);
   // calendar span the driving is spread over, so a rate can be expressed per
   // week without pretending every day in the period was a working day
   const shiftTimes = completed.map((s) => new Date(s.startTime).getTime());
@@ -434,6 +476,15 @@ export async function getAnalytics(vehicleId: string, period: Period) {
     totalKmAllTime,
     rates: { fuelCostPerKm, maintCostPerKm, depPerKm },
     counts: { shifts: completed.length, trips: trips.length, hoursWorked, shiftDays, daysActive },
+    time: {
+      onlineMin,
+      tripMin,
+      pickupMin: pickupMinTotal,
+      idleMin,
+      // share of online time spent with a rider on board
+      utilizationPct: onlineMin > 0 ? (tripMin / onlineMin) * 100 : null,
+      perTripMin: trips.length > 0 && tripMin > 0 ? tripMin / trips.length : null,
+    },
     earnings: { fares, commission, tips, gross, netRevenue },
     costs: {
       // commission kept for the cash panel; NOT a cost row — earnings are net
@@ -562,10 +613,10 @@ export type StreakResult = {
 /**
  * Weekly streak vs. the driver's own goal (Vehicle.weeklyHoursGoal /
  * weeklyProfitGoal) — no goal set means nothing to compare against, so the
- * card stays hidden rather than showing a hollow 0%. Weeks start Saturday,
- * matching lib/planner.ts's Egypt-week convention. The in-progress current
- * week is shown live but excluded from the streak count itself — it can
- * still be met before the week ends.
+ * card stays hidden rather than showing a hollow 0%. Weeks are Uber pay weeks
+ * (Monday 04:00 → Monday 04:00, lib/week.ts). The in-progress current week is
+ * shown live but excluded from the streak count itself — it can still be met
+ * before the week ends.
  */
 export async function getStreak(vehicleId: string, weeksBack = 12): Promise<StreakResult | null> {
   const vehicle = await prisma.vehicle.findUnique({ where: { id: vehicleId } });
@@ -584,17 +635,9 @@ export async function getStreak(vehicleId: string, weeksBack = 12): Promise<Stre
   const all = await getAnalytics(vehicleId, "all");
   const { fuelCostPerKm, maintCostPerKm, depPerKm } = all.rates;
 
-  const now = new Date();
-  const dow = now.getDay(); // 0=Sun..6=Sat
-  const daysSinceSat = (dow + 1) % 7;
-  const thisWeekStart = new Date(now);
-  thisWeekStart.setHours(0, 0, 0, 0);
-  thisWeekStart.setDate(thisWeekStart.getDate() - daysSinceSat);
-
   const weeks: WeekStat[] = [];
   for (let i = weeksBack - 1; i >= 0; i--) {
-    const start = new Date(thisWeekStart.getTime() - i * 7 * 86_400_000);
-    const end = new Date(start.getTime() + 7 * 86_400_000);
+    const { start, end } = weekRange(-i);
     const [shifts, trips, tips, expenses] = await Promise.all([
       prisma.shift.findMany({
         where: { vehicleId, startTime: { gte: start, lt: end }, endOdometer: { not: null }, endTime: { not: null } },
@@ -626,7 +669,7 @@ export async function getStreak(vehicleId: string, weeksBack = 12): Promise<Stre
     const metHours = vehicle.weeklyHoursGoal == null || hours >= vehicle.weeklyHoursGoal;
     const metProfit = vehicle.weeklyProfitGoal == null || profit >= vehicle.weeklyProfitGoal;
     weeks.push({
-      weekStart: start.toISOString().slice(0, 10),
+      weekStart: weekKey(start),
       hours: Math.round(hours * 10) / 10,
       profit: Math.round(profit * 100) / 100,
       metGoal: metHours && metProfit,
@@ -677,8 +720,8 @@ export type PlatformStat = {
  * signal, not a profit-per-platform claim.
  */
 export async function getPlatformBreakdown(vehicleId: string, period: Period): Promise<PlatformStat[]> {
-  const from = periodStart(period);
-  const dateFilter = from ? { gte: from } : undefined;
+  const range = periodRange(period);
+  const dateFilter = range ? { gte: range.from, lt: range.to } : undefined;
   const [trips, shifts] = await Promise.all([
     prisma.trip.findMany({ where: { vehicleId, ...(dateFilter ? { startTime: dateFilter } : {}) } }),
     prisma.shift.findMany({

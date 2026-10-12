@@ -2,11 +2,10 @@
 import { useI18n } from "./I18nProvider";
 import { useVehicle } from "./VehicleProvider";
 import Link from "next/link";
+import { Icon } from "./icons";
 
-/** Shows the driver's current default car and, once they own more than one
- * active car, a dropdown to switch it — the switch applies everywhere
- * (shifts, trips, dashboard, …) until changed again. */
-export function VehicleSwitcher() {
+/** The driver's current default car; a dropdown once they have more than one. */
+export function VehicleSwitcher({ compact = false }: { compact?: boolean }) {
   const { t } = useI18n();
   const { vehicle, activeVehicles, loading, setDefaultVehicle } = useVehicle();
 
@@ -16,22 +15,22 @@ export function VehicleSwitcher() {
     return (
       <Link
         href="/cars"
-        className="flex items-center gap-1.5 px-2 py-2 mb-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100"
+        className={`flex items-center gap-2 rounded-full bg-surface-2 text-sm font-bold text-ink hover:bg-line ${compact ? "px-3 h-9" : "px-3 h-10 mb-2"}`}
       >
-        <span>🚘</span>
+        <Icon name="car" size={18} />
         <span className="truncate">{vehicle.name}</span>
       </Link>
     );
   }
 
   return (
-    <div className="mb-2">
-      <label className="flex items-center gap-1.5 px-2">
-        <span className="text-base">🚘</span>
+    <div className={compact ? "" : "mb-2"}>
+      <label className="relative flex items-center">
+        <Icon name="car" size={18} className="absolute start-3 text-ink pointer-events-none" />
         <select
           value={vehicle.id}
           onChange={(e) => setDefaultVehicle(e.target.value)}
-          className="flex-1 min-w-0 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          className={`w-full appearance-none rounded-full bg-surface-2 ps-9 pe-8 text-sm font-bold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 ${compact ? "h-9" : "h-10"}`}
         >
           {activeVehicles.map((v: any) => (
             <option key={v.id} value={v.id}>
@@ -39,10 +38,13 @@ export function VehicleSwitcher() {
             </option>
           ))}
         </select>
+        <Icon name="chevron" size={16} className="absolute end-3 rotate-90 text-muted pointer-events-none" />
       </label>
-      <Link href="/cars" className="block px-2 pt-1 text-xs text-emerald-600 hover:underline">
-        {t("nav.cars")} →
-      </Link>
+      {!compact && (
+        <Link href="/cars" className="block px-3 pt-1 text-xs text-muted hover:text-ink">
+          {t("nav.cars")} →
+        </Link>
+      )}
     </div>
   );
 }

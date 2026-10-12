@@ -14,6 +14,7 @@ export async function POST(req: NextRequest) {
         earnings: number;
         cashCollected: number | null;
         distanceKm: number | null;
+        durationMin?: number | null;
         product: string | null;
         pickupAddress?: string | null;
         dropoffAddress?: string | null;
@@ -31,6 +32,7 @@ export async function POST(req: NextRequest) {
         cashCollected: t.cashCollected,
         isCash: t.cashCollected != null,
         distanceKm: t.distanceKm,
+        durationMin: t.durationMin ?? null,
         product: t.product,
         pickupAddress: t.pickupAddress ?? null,
         dropoffAddress: t.dropoffAddress ?? null,

@@ -16,6 +16,7 @@ export async function POST(req: NextRequest) {
         pickupKm: number;
         pickupMin: number | null;
         tripKm: number | null;
+        tripMin?: number | null;
         clock: string | null;
         pickupAddress?: string | null;
         dropoffAddress?: string | null;
@@ -66,6 +67,10 @@ export async function POST(req: NextRequest) {
       used.add(best.id);
       const data: Record<string, unknown> = { pickupKm: r.pickupKm, pickupMin: r.pickupMin };
       if (best.distanceKm == null && r.tripKm != null) data.distanceKm = r.tripKm;
+      if (best.durationMin == null && r.tripMin != null && r.tripMin > 0) {
+        data.durationMin = r.tripMin;
+        if (best.endTime == null) data.endTime = new Date(new Date(best.startTime).getTime() + r.tripMin * 60_000);
+      }
       if (!best.pickupAddress && r.pickupAddress) data.pickupAddress = r.pickupAddress;
       if (!best.dropoffAddress && r.dropoffAddress) data.dropoffAddress = r.dropoffAddress;
       await prisma.trip.update({ where: { id: best.id }, data });

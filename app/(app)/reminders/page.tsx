@@ -60,7 +60,7 @@ export default function RemindersPage() {
   if (!vehicle) {
     return (
       <Empty>
-        <Link href="/cars" className="text-emerald-600 underline">
+        <Link href="/cars" className="text-ink underline">
           {t("veh.createFirst")}
         </Link>
       </Empty>
@@ -92,16 +92,16 @@ export default function RemindersPage() {
   };
 
   const badge = {
-    overdue: "bg-red-100 text-red-700",
-    dueSoon: "bg-amber-100 text-amber-700",
-    ok: "bg-emerald-50 text-emerald-700",
+    overdue: "bg-loss-soft text-loss",
+    dueSoon: "bg-warn/40 text-warn-ink",
+    ok: "bg-surface-2 text-ink",
   } as const;
   const badgeText = { overdue: t("rm.overdue"), dueSoon: t("rm.dueSoon"), ok: t("rm.ok") } as const;
 
   return (
     <div>
       <PageTitle>{t("rm.title")}</PageTitle>
-      <p className="text-xs text-slate-400 mb-3">
+      <p className="text-xs text-muted mb-3">
         {t("veh.currentOdo")}: <b>{fmtNum(currentOdo, locale)}</b> {t("c.km")}
       </p>
 
@@ -112,7 +112,7 @@ export default function RemindersPage() {
             title={t("rm.fromServiceTitle")}
             sub={t("rm.fromServiceSub")}
             actions={
-              <Link href="/maintenance" className="text-xs font-semibold text-emerald-700 whitespace-nowrap">
+              <Link href="/maintenance" className="text-xs font-semibold text-ink whitespace-nowrap">
                 {t("nav.maintenance")} →
               </Link>
             }
@@ -126,7 +126,7 @@ export default function RemindersPage() {
                 label={
                   <>
                     {t(`mn.cat.${r.category}`)}
-                    <span className="font-normal text-slate-400">
+                    <span className="font-normal text-muted">
                       {" "}
                       · {t("rm.dueAt", { km: fmtNum(r.dueOdometer, locale, 0) })}
                     </span>
@@ -141,7 +141,7 @@ export default function RemindersPage() {
               />
             ))}
           </div>
-          <p className="text-[11px] text-slate-400 mt-3">{t("rm.fromServiceHint")}</p>
+          <p className="text-[11px] text-muted mt-3">{t("rm.fromServiceHint")}</p>
         </Card>
       )}
 
@@ -212,7 +212,7 @@ export default function RemindersPage() {
                       {r.dueOdometer != null ? (
                         <>
                           {fmtNum(r.dueOdometer, locale)}{" "}
-                          <span className="text-xs text-slate-400">
+                          <span className="text-xs text-muted">
                             (
                             {kmLeft! >= 0
                               ? t("rm.inKm", { n: fmtNum(kmLeft!, locale) })
@@ -224,14 +224,14 @@ export default function RemindersPage() {
                         "—"
                       )}
                     </td>
-                    <td className="py-2 px-2 text-slate-400 max-w-32 truncate">{r.notes ?? ""}</td>
+                    <td className="py-2 px-2 text-muted max-w-32 truncate">{r.notes ?? ""}</td>
                     <td className="py-2 px-2">
                       <Btn variant="secondary" onClick={() => markDone(r)} className="!px-2 !py-1 !text-xs">
                         ✓ {t("rm.markDone")}
                       </Btn>
                     </td>
                     <td className="py-2 px-2">
-                      <button onClick={() => confirm(t("c.confirmDelete")) && remove(r.id)} className="text-red-400 text-xs">
+                      <button onClick={() => confirm(t("c.confirmDelete")) && remove(r.id)} className="text-loss text-xs">
                         ✕
                       </button>
                     </td>

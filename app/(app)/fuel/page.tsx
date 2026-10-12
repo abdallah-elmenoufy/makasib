@@ -32,7 +32,7 @@ const FUEL_COLOR: Record<string, string> = {
   PETROL_80: "#c3c2b7",
   PETROL_92: "#eda100",
   PETROL_95: "#2a78d6",
-  CNG: "#10b981",
+  CNG: "#05a357",
 };
 
 /** Dial ceiling for the consumption gauge — a working range for a
@@ -116,7 +116,7 @@ export default function FuelPage() {
   if (!vehicle) {
     return (
       <Empty>
-        <Link href="/cars" className="text-emerald-600 underline">
+        <Link href="/cars" className="text-ink underline">
           {t("veh.createFirst")}
         </Link>
       </Empty>
@@ -156,13 +156,13 @@ export default function FuelPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
             <div>
-              <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">
+              <div className="text-[10px] uppercase tracking-wide text-muted font-semibold">
                 {t("fu.totalFilled")}
               </div>
               <div className="text-3xl font-black tnum mt-0.5 leading-tight">
                 {filledParts.join(" + ") || "—"}
               </div>
-              <div className="text-xs text-slate-400 mt-1">
+              <div className="text-xs text-muted mt-1">
                 {t("fu.fillUps", { n: fmtNum(totals.count, locale, 0) })}
                 {totals.petrolCount > 0 &&
                   ` · ${t("fu.avgPerFill", {
@@ -172,13 +172,13 @@ export default function FuelPage() {
             </div>
 
             <div>
-              <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">
+              <div className="text-[10px] uppercase tracking-wide text-muted font-semibold">
                 {t("fu.totalPaid")}
               </div>
-              <div className="text-3xl font-black tnum mt-0.5 leading-tight text-emerald-700">
+              <div className="text-3xl font-black tnum mt-0.5 leading-tight text-ink">
                 {money(totals.spend)}
               </div>
-              <div className="text-xs text-slate-400 mt-1">
+              <div className="text-xs text-muted mt-1">
                 {totals.petrolQty > 0 &&
                   t("fu.avgPrice", {
                     p: money(totals.petrolSpend / totals.petrolQty),
@@ -200,14 +200,14 @@ export default function FuelPage() {
                   caption={t("fu.consumptionCaption", { km: fmtNum(economy[0].distanceKm, locale, 0) })}
                 />
               ) : (
-                <p className="text-xs text-slate-400 text-center">{t("fu.fullTankHint")}</p>
+                <p className="text-xs text-muted text-center">{t("fu.fullTankHint")}</p>
               )}
             </div>
           </div>
 
           {totals.byType.length > 1 && (
-            <div className="mt-5 pt-4 border-t border-slate-100">
-              <div className="text-xs font-semibold text-slate-600 mb-2">{t("fu.byType")}</div>
+            <div className="mt-5 pt-4 border-t border-line">
+              <div className="text-xs font-semibold text-ink-500 mb-2">{t("fu.byType")}</div>
               <StackedMeter
                 segments={totals.byType.map((b) => ({
                   key: b.key,
@@ -220,8 +220,8 @@ export default function FuelPage() {
                 {totals.byType.map((b) => (
                   <div key={b.key} className="flex items-center gap-2 text-xs">
                     <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: FUEL_COLOR[b.key] }} />
-                    <span className="flex-1 text-slate-600">{t(`fu.${b.key}`)}</span>
-                    <span className="text-slate-400 tnum">
+                    <span className="flex-1 text-ink-500">{t(`fu.${b.key}`)}</span>
+                    <span className="text-muted tnum">
                       {fmtNum(b.qty, locale)} {b.key === "CNG" ? t("c.m3") : t("c.liters")}
                     </span>
                     <span className="font-semibold tnum w-24 text-end">{money(b.spend)}</span>
@@ -232,7 +232,7 @@ export default function FuelPage() {
           )}
 
           {fuelShare != null && (
-            <div className="mt-5 pt-4 border-t border-slate-100">
+            <div className="mt-5 pt-4 border-t border-line">
               <Meter
                 ratio={fuelShare}
                 tone={fuelShare <= 0.25 ? "good" : fuelShare <= 0.4 ? "warn" : "bad"}
@@ -352,9 +352,9 @@ export default function FuelPage() {
                 <td className="py-2 px-2">{fmtMoney(f.pricePerUnit, locale)}</td>
                 <td className="py-2 px-2 font-semibold">{fmtMoney(f.totalCost, locale)}</td>
                 <td className="py-2 px-2">{f.fullTank ? "✓" : "—"}</td>
-                <td className="py-2 px-2 text-slate-400 max-w-32 truncate">{f.notes ?? ""}</td>
+                <td className="py-2 px-2 text-muted max-w-32 truncate">{f.notes ?? ""}</td>
                 <td className="py-2 px-2">
-                  <button onClick={() => confirm(t("c.confirmDelete")) && remove(f.id)} className="text-red-400 text-xs">
+                  <button onClick={() => confirm(t("c.confirmDelete")) && remove(f.id)} className="text-loss text-xs">
                     ✕
                   </button>
                 </td>
@@ -429,7 +429,7 @@ function FuelShockCard({
         </Btn>
         <div className="text-center min-w-28">
           <div className="text-2xl font-black tnum leading-none">{money(price)}</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">{t("fs.perUnit", { unit: unitLabel })}</div>
+          <div className="text-[10px] text-muted mt-0.5">{t("fs.perUnit", { unit: unitLabel })}</div>
         </div>
         <Btn
           variant="secondary"
@@ -445,8 +445,8 @@ function FuelShockCard({
               onClick={() => setPrice(Math.round((latestPrice + step) * 100) / 100)}
               className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors ${
                 Math.abs(price - (latestPrice + step)) < 0.001
-                  ? "bg-emerald-600 border-emerald-600 text-white"
-                  : "bg-white border-[var(--border)] text-slate-600 hover:bg-slate-50"
+                  ? "bg-ink border-line text-white"
+                  : "bg-white border-[var(--border)] text-ink-500 hover:bg-surface"
               }`}
             >
               +{step}
@@ -470,7 +470,7 @@ function FuelShockCard({
         />
       </div>
 
-      <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-100">
+      <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-line">
         <ShockStat label={t("fs.perKm")} value={`${sign(deltaPerKm)}${money(Math.abs(deltaPerKm))}`} />
         <ShockStat
           label={t("fs.perWeek")}
@@ -484,7 +484,7 @@ function FuelShockCard({
         />
       </div>
 
-      <p className="text-[11px] text-slate-400 mt-3">
+      <p className="text-[11px] text-muted mt-3">
         {t("fs.footnote", { l: fmtNum(litresPerKm * 100, locale), unit: unitLabel })}
       </p>
     </Card>
@@ -494,9 +494,9 @@ function FuelShockCard({
 function ShockStat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="min-w-0">
-      <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold truncate">{label}</div>
+      <div className="text-[10px] uppercase tracking-wide text-muted font-semibold truncate">{label}</div>
       <div className="text-lg font-bold tnum truncate">{value}</div>
-      {sub && <div className="text-[10px] text-slate-400 truncate">{sub}</div>}
+      {sub && <div className="text-[10px] text-muted truncate">{sub}</div>}
     </div>
   );
 }

@@ -62,12 +62,12 @@ export function PhotoInput({
         onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])}
         className="text-xs"
       />
-      {(busy || reading) && <span className="text-xs text-slate-400 animate-pulse">…</span>}
+      {(busy || reading) && <span className="text-xs text-muted animate-pulse">…</span>}
       {value && (
         <span className="flex items-center gap-1">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={`/api/files/${value}`} alt={t("c.photo")} className="h-10 w-10 object-cover rounded" />
-          <button type="button" onClick={() => onChange(null)} className="text-red-400 text-xs">
+          <button type="button" onClick={() => onChange(null)} className="text-loss text-xs">
             ✕
           </button>
         </span>

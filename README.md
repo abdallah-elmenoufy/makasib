@@ -16,12 +16,33 @@ quick-start.
 ## What it does
 
 - **Vehicle profile** — fuel setup (petrol/CNG/dual), ownership model
-  (owned/installment/rented/target-share), auto-computed depreciation.
+  (owned/installment/rented/target-share), and depreciation you control: a
+  **resale-per-km** model by default (only the extra resale loss your km
+  cause, not the age loss you'd carry anyway), the old use-up-the-car model,
+  or your own figure — with an **On/Off switch** that removes depreciation
+  from every profit number when you don't want it counted.
+- **Uber pay weeks** — everything weekly runs Monday 04:00 → Monday 03:59,
+  exactly like your Uber statement, for every platform and for trips typed by
+  hand. The dashboard shows the week's progress and when it closes; a
+  "your week closed" recap appears on Monday.
+- **Weeks** — one screen per pay week: true/cash profit, earnings, time
+  split (with a rider / to pickup / waiting), km split (paid / pickup /
+  cruising / personal), day-by-day, earnings by hour, best trip, best day,
+  best hour, which trip lengths pay, top pickup and drop-off areas, cash vs
+  card, costs — and comparisons against last week, your best week, and the
+  same point last week, with 12/26/52-week history.
 - **Shifts** — odometer start/end (manually, from photos with automatic
   time+reading extraction, or with live GPS tracking) — this is how the app
   tells ride-hailing km apart from personal km.
-- **Trips** — manual net-earnings entry, or imported automatically from a
-  weekly statement PDF and/or Earnings Activity screenshots.
+- **Trips** — a batch entry built for the end of a shift (earnings first,
+  then tip, trip km, km to the rider, minutes, cash/card, time — each row
+  pre-filled from the last), a one-field quick-add while driving that also
+  saves where you are as the drop-off, or automatic import from a weekly
+  statement PDF and/or Earnings Activity screenshots. Pickup and drop-off
+  coordinates are read back from the shift's GPS track.
+- **End of shift in three steps** — close the shift (with the app's best
+  guess at the end odometer), log the night's trips or jump to the screenshot
+  import, see the recap.
 - **Fuel** — every fill-up, plus an all-time summary: total litres/m³, total
   spent, a consumption gauge measured full-to-full, spend split by fuel type,
   and fuel as a share of net earnings. A **price-hike scenario** card answers
@@ -55,6 +76,7 @@ quick-start.
 - **Score this offer!** (قيّم العرض) — screenshot an incoming trip request
   and get an instant profit/km and profit/hour estimate against your own
   average, before you accept.
+- **Uber-style UI** — black/white, big numbers, bottom tab bar on the phone.
 - **Full English/Arabic UI**, switchable any time, RTL-correct.
 
 The driver-facing user manual (Egyptian Arabic, printable) lives at

@@ -1,37 +1,58 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/components/I18nProvider";
-import { Btn, Card, CardHead, Empty, Gauge, Meter, PageTitle, Table } from "@/components/ui";
+import { Badge, Btn, Card, CardHead, Delta, Empty, Gauge, Hero, Meter, PageTitle, Segmented, StackedMeter, Table, Tile } from "@/components/ui";
+import { Icon } from "@/components/icons";
 import { QuickExpense } from "@/components/QuickExpense";
 import { useVehicle } from "@/components/VehicleProvider";
-import { fmtMoney, fmtNum } from "@/lib/format";
+import { fmtMoney, fmtNum, fmtDate } from "@/lib/format";
 
-// chart chrome + series colors from the validated reference palette (light mode)
+// chart chrome + series colours from the validated reference palette
 const C = {
   pos: "#2a78d6", // series-1 blue
   neg: "#e34948", // diverging red pole
-  dead: "#eda100", // series-3 yellow (labeled — relief rule)
+  dead: "#eda100", // series-4 yellow (labelled — relief rule)
+  pickup: "#eb6834", // series-2 orange
   personal: "#c3c2b7", // neutral
+  idle: "#c3c2b7",
+  trip: "#2a78d6",
   grid: "#e1e0d9",
   axis: "#c3c2b7",
   muted: "#898781",
-  goodText: "#006300",
-  critical: "#d03b3b",
+  goodText: "#05a357",
+  critical: "#e11900",
 };
 
-const PERIODS = ["today", "week", "month", "all"] as const;
-const PERIOD_KEY: Record<string, string> = {
+const PERIODS = ["today", "week", "lastWeek", "month", "all"] as const;
+type PeriodKey = (typeof PERIODS)[number];
+const PERIOD_KEY: Record<PeriodKey, string> = {
   today: "c.today",
   week: "c.thisWeek",
+  lastWeek: "c.lastWeek",
   month: "c.thisMonth",
   all: "c.allTime",
 };
 
+function fmtDuration(min: number, t: (k: string) => string): string {
+  const h = Math.floor(min / 60);
+  const m = Math.round(min % 60);
+  if (h <= 0) return `${m}${t("c.minShort")}`;
+  return `${h}${t("c.hours")} ${m.toString().padStart(2, "0")}${t("c.minShort")}`;
+}
+
+function fmtCountdown(ms: number, t: (k: string, v?: Record<string, string | number>) => string): string {
+  const days = Math.floor(ms / 86_400_000);
+  const hours = Math.floor((ms % 86_400_000) / 3_600_000);
+  if (days > 0) return t("wk.closesInDays", { d: days, h: hours });
+  const mins = Math.floor((ms % 3_600_000) / 60_000);
+  return t("wk.closesInHours", { h: hours, m: mins });
+}
+
 export default function DashboardPage() {
   const { t, locale } = useI18n();
   const { vehicle, activeVehicles, loading: vLoading } = useVehicle();
-  const [period, setPeriod] = useState<(typeof PERIODS)[number]>("week");
+  const [period, setPeriod] = useState<PeriodKey>("week");
   const [viewAll, setViewAll] = useState(false);
   const [a, setA] = useState<any>(null);
   const [bench, setBench] = useState<any>(null);
@@ -40,48 +61,33 @@ export default function DashboardPage() {
   const [platformStats, setPlatformStats] = useState<any>(null);
   const [leaderboard, setLeaderboard] = useState<any>(null);
   const [streak, setStreak] = useState<any>(null);
-  const [weekRecap, setWeekRecap] = useState<any>(null);
+  const [weeks, setWeeks] = useState<any>(null);
+  const [integrity, setIntegrity] = useState<any>(null);
   const [target, setTarget] = useState<any>(null);
   const [plannedHours, setPlannedHours] = useState<number | null>(null);
   const [expenses, setExpenses] = useState<any[]>([]);
-  // bumped after a one-tap expense so every figure it moves is refetched
   const [reloadKey, setReloadKey] = useState(0);
   const reload = () => setReloadKey((k) => k + 1);
 
   useEffect(() => {
     if (viewAll) {
-      fetch(`/api/analytics/profile?period=${period}`)
-        .then((r) => (r.ok ? r.json() : null))
-        .then(setProfile);
+      fetch(`/api/analytics/profile?period=${period}`).then((r) => (r.ok ? r.json() : null)).then(setProfile);
       return;
     }
     if (vehicle) {
-      fetch(`/api/analytics?vehicleId=${vehicle.id}&period=${period}`)
-        .then((r) => (r.ok ? r.json() : null))
-        .then(setA);
-      fetch(`/api/benchmark?vehicleId=${vehicle.id}&period=${period}`)
-        .then((r) => (r.ok ? r.json() : null))
-        .then(setBench);
-      fetch(`/api/car-benchmark?vehicleId=${vehicle.id}`)
-        .then((r) => (r.ok ? r.json() : null))
-        .then(setCarBench);
-      fetch(`/api/platform-breakdown?vehicleId=${vehicle.id}&period=${period}`)
-        .then((r) => (r.ok ? r.json() : null))
-        .then(setPlatformStats);
-      fetch(`/api/leaderboard?vehicleId=${vehicle.id}&period=${period}`)
-        .then((r) => (r.ok ? r.json() : null))
-        .then(setLeaderboard);
+      fetch(`/api/analytics?vehicleId=${vehicle.id}&period=${period}`).then((r) => (r.ok ? r.json() : null)).then(setA);
+      fetch(`/api/benchmark?vehicleId=${vehicle.id}&period=${period}`).then((r) => (r.ok ? r.json() : null)).then(setBench);
+      fetch(`/api/car-benchmark?vehicleId=${vehicle.id}`).then((r) => (r.ok ? r.json() : null)).then(setCarBench);
+      fetch(`/api/platform-breakdown?vehicleId=${vehicle.id}&period=${period}`).then((r) => (r.ok ? r.json() : null)).then(setPlatformStats);
+      fetch(`/api/leaderboard?vehicleId=${vehicle.id}&period=${period}`).then((r) => (r.ok ? r.json() : null)).then(setLeaderboard);
     }
   }, [vehicle, period, viewAll, reloadKey]);
 
   useEffect(() => {
     if (!vehicle) return;
-    fetch(`/api/streak?vehicleId=${vehicle.id}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then(setStreak);
-    fetch(`/api/analytics?vehicleId=${vehicle.id}&period=week`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then(setWeekRecap);
+    fetch(`/api/streak?vehicleId=${vehicle.id}`).then((r) => (r.ok ? r.json() : null)).then(setStreak);
+    fetch(`/api/weeks?vehicleId=${vehicle.id}&weeks=3`).then((r) => (r.ok ? r.json() : null)).then(setWeeks);
+    fetch(`/api/integrity?vehicleId=${vehicle.id}`).then((r) => (r.ok ? r.json() : null)).then(setIntegrity);
     fetch(`/api/expenses?vehicleId=${vehicle.id}&all=1`)
       .then((r) => (r.ok ? r.json() : []))
       .then((d) => setExpenses(Array.isArray(d) ? d : []));
@@ -90,16 +96,14 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!vehicle) return;
     const hours = plannedHours != null ? `&hours=${plannedHours}` : "";
-    fetch(`/api/target?vehicleId=${vehicle.id}${hours}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then(setTarget);
+    fetch(`/api/target?vehicleId=${vehicle.id}${hours}`).then((r) => (r.ok ? r.json() : null)).then(setTarget);
   }, [vehicle, plannedHours, reloadKey]);
 
   if (vLoading) return null;
   if (!vehicle) {
     return (
       <Empty>
-        <Link href="/cars" className="text-emerald-600 underline">
+        <Link href="/cars" className="text-ink underline font-bold">
           {t("db.noVehicle")}
         </Link>
       </Empty>
@@ -107,73 +111,43 @@ export default function DashboardPage() {
   }
 
   const money = (n: number) => fmtMoney(n, locale);
+  const periodPicker = (
+    <Segmented value={period} onChange={setPeriod} size="sm" options={PERIODS.map((p) => ({ value: p, label: t(PERIOD_KEY[p]) }))} />
+  );
 
   if (viewAll) {
     if (!profile) return null;
     const p = profile.totals;
-    const profitColor = p.trueProfit >= 0 ? C.goodText : C.critical;
     return (
       <div className="space-y-4">
-        <PageTitle
-          actions={
-            <div className="flex items-center gap-2">
-              <div className="flex gap-1 bg-white border border-slate-200 rounded-lg p-1">
-                {PERIODS.map((pr) => (
-                  <button
-                    key={pr}
-                    onClick={() => setPeriod(pr)}
-                    className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
-                      period === pr ? "bg-emerald-600 text-white" : "text-slate-500 hover:bg-slate-100"
-                    }`}
-                  >
-                    {t(PERIOD_KEY[pr])}
-                  </button>
-                ))}
-              </div>
-              <ViewToggle viewAll={viewAll} setViewAll={setViewAll} t={t} />
-            </div>
-          }
-        >
-          {t("db.title")}
-        </PageTitle>
-
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Card className="col-span-2">
-            <div className="text-xs font-semibold text-slate-500">{t("db.trueProfit")}</div>
-            <div className="text-4xl font-black mt-1" style={{ color: profitColor }}>
-              {money(p.trueProfit)}
-            </div>
-            <div className="text-xs text-slate-400 mt-1">{t("cars.allCarsSub")}</div>
-          </Card>
-          <StatTile label={t("db.gross")} value={money(p.earnings.netRevenue)} sub={t("db.grossSub")} />
-          <div className="grid grid-rows-2 gap-3">
-            <MiniTile label={t("db.perHour")} value={p.perHour != null ? money(p.perHour) : "—"} />
-            <MiniTile label={t("db.perKm")} value={p.perKm != null ? money(p.perKm) : "—"} />
+        <PageTitle actions={activeVehicles.length > 1 && <ViewToggle viewAll={viewAll} setViewAll={setViewAll} t={t} />}>{t("db.title")}</PageTitle>
+        {periodPicker}
+        <Card tone="ink">
+          <Hero label={t("db.trueProfit")} value={money(p.trueProfit)} tone={p.trueProfit >= 0 ? "ink" : "loss"} sub={<span className="text-white/60">{t("cars.allCarsSub")}</span>} />
+          <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t border-white/15">
+            <InkStat label={t("db.gross")} value={money(p.earnings.netRevenue)} />
+            <InkStat label={t("db.perHour")} value={p.perHour != null ? money(p.perHour) : "—"} />
+            <InkStat label={t("db.perKm")} value={p.perKm != null ? money(p.perKm) : "—"} />
           </div>
-        </div>
-
+        </Card>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <MiniTile label={t("db.hoursWorked")} value={fmtNum(p.counts.hoursWorked, locale)} />
-          <MiniTile label={t("db.shiftCount")} value={fmtNum(p.counts.shifts, locale, 0)} />
-          <MiniTile label={t("db.tripCount")} value={fmtNum(p.counts.trips, locale, 0)} />
-          <MiniTile label={t("cars.carCount")} value={fmtNum(profile.perVehicle.length, locale, 0)} />
+          <Tile label={t("db.hoursWorked")} value={fmtNum(p.counts.hoursWorked, locale)} />
+          <Tile label={t("db.shiftCount")} value={fmtNum(p.counts.shifts, locale, 0)} />
+          <Tile label={t("db.tripCount")} value={fmtNum(p.counts.trips, locale, 0)} />
+          <Tile label={t("cars.carCount")} value={fmtNum(profile.perVehicle.length, locale, 0)} />
         </div>
-
         <Card>
-          <div className="text-sm font-semibold mb-3">{t("cars.breakdown")}</div>
+          <CardHead title={t("cars.breakdown")} />
           <Table head={[t("veh.name"), t("db.trueProfit"), t("db.perHour"), t("db.perKm"), t("sh.trips")]}>
             {profile.perVehicle.map((v: any) => (
               <tr key={v.vehicle.id}>
-                <td className="py-2 px-2 font-semibold">{v.vehicle.name}</td>
-                <td
-                  className="py-2 px-2"
-                  style={{ color: v.trueProfit >= 0 ? C.goodText : C.critical, fontVariantNumeric: "tabular-nums" }}
-                >
+                <td className="py-2 px-2 font-bold">{v.vehicle.name}</td>
+                <td className="py-2 px-2 tnum font-bold" style={{ color: v.trueProfit >= 0 ? C.goodText : C.critical }}>
                   {money(v.trueProfit)}
                 </td>
-                <td className="py-2 px-2">{v.perHour != null ? money(v.perHour) : "—"}</td>
-                <td className="py-2 px-2">{v.perKm != null ? money(v.perKm) : "—"}</td>
-                <td className="py-2 px-2">{fmtNum(v.counts.shifts, locale, 0)}</td>
+                <td className="py-2 px-2 tnum">{v.perHour != null ? money(v.perHour) : "—"}</td>
+                <td className="py-2 px-2 tnum">{v.perKm != null ? money(v.perKm) : "—"}</td>
+                <td className="py-2 px-2 tnum">{fmtNum(v.counts.shifts, locale, 0)}</td>
               </tr>
             ))}
           </Table>
@@ -184,11 +158,8 @@ export default function DashboardPage() {
 
   if (!a) return null;
 
-  const profitColor = a.trueProfit >= 0 ? C.goodText : C.critical;
   const attention = a.reminders.filter((r: any) => r.state !== "ok");
-
-  // each per-km cost shows the rate it came from, so a driver can check the
-  // arithmetic instead of taking the total on faith
+  const dep = a.depreciationBasis;
   const rateNote = (perKm: number) => `${money(perKm)}/${t("c.km")} × ${fmtNum(a.kmSplit.shiftKm, locale, 0)} ${t("c.km")}`;
   const costRows = [
     { key: "db.fuelCost", v: a.costs.fuel, note: rateNote(a.rates.fuelCostPerKm) },
@@ -201,257 +172,249 @@ export default function DashboardPage() {
 
   const km = a.kmSplit;
   const kmTotal = Math.max(km.tripKm + km.deadKm + km.personalKm, 0.001);
-  // what a km costs this driver, so unpaid km can be priced in EGP rather
-  // than left as an abstract share of a bar
   const costPerKm = a.rates.fuelCostPerKm + a.rates.maintCostPerKm + a.rates.depPerKm;
   const deadShare = km.shiftKm > 0 ? km.deadKm / km.shiftKm : 0;
+  const time = a.time;
+
+  const cur = weeks?.current;
+  const openShift = integrity?.openShifts?.[0] ?? null;
+  const showWeekClose = weeks?.lastClosed && cur && cur.progress < 2 / 7; // first two days of the new week
 
   return (
     <div className="space-y-4">
-      <PageTitle
-        actions={
-          <div className="flex items-center gap-2">
-            <div className="flex gap-1 bg-white border border-slate-200 rounded-lg p-1">
-              {PERIODS.map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setPeriod(p)}
-                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
-                    period === p ? "bg-emerald-600 text-white" : "text-slate-500 hover:bg-slate-100"
-                  }`}
-                >
-                  {t(PERIOD_KEY[p])}
-                </button>
-              ))}
-            </div>
-            {activeVehicles.length > 1 && <ViewToggle viewAll={viewAll} setViewAll={setViewAll} t={t} />}
-          </div>
-        }
-      >
+      <PageTitle sub={fmtDate(new Date(), locale)} actions={activeVehicles.length > 1 && <ViewToggle viewAll={viewAll} setViewAll={setViewAll} t={t} />}>
         {t("db.title")}
       </PageTitle>
 
-      {/* quick actions: what a driver does constantly through a shift */}
+      {/* quick actions — what a driver does constantly through a shift */}
       <div className="grid grid-cols-3 gap-2 md:gap-3">
-        <Link
-          href="/shifts"
-          className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 rounded-xl px-2 py-3 md:py-4 text-sm md:text-base font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
-        >
-          <span className="text-lg md:text-xl">🕐</span>
-          <span>{t("nav.shifts")}</span>
-        </Link>
-        <Link
-          href="/score"
-          className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 rounded-xl px-2 py-3 md:py-4 text-sm md:text-base font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
-        >
-          <span className="text-lg md:text-xl">⚡</span>
-          <span>{t("nav.score")}</span>
-        </Link>
-        <Link
-          href="/import"
-          className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 rounded-xl px-2 py-3 md:py-4 text-sm md:text-base font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
-        >
-          <span className="text-lg md:text-xl">📥</span>
-          <span>{t("nav.import")}</span>
-        </Link>
+        <QuickAction href="/shifts" icon={openShift ? "stop" : "play"} label={openShift ? t("sh.end") : t("sh.start")} tone={openShift ? "warn" : "ink"} />
+        <QuickAction href="/trips?add=1" icon="plus" label={t("tr.add")} />
+        <QuickAction href="/import?tab=ocr" icon="camera" label={t("nav.import")} />
       </div>
 
-      {/* the only forward-looking number in the app: what today has to earn */}
-      {target && (
-        <DailyTargetCard
-          target={target}
-          onHours={setPlannedHours}
-          t={t}
-          locale={locale}
-        />
-      )}
+      {/* week closed recap — the first days after Monday 04:00 */}
+      {showWeekClose && <WeekClosedCard week={weeks.lastClosed} previous={weeks.weeks[weeks.weeks.length - 3] ?? null} t={t} locale={locale} />}
 
-      {/* running costs, logged in one tap — the category with the biggest
-          gap between "really happens" and "gets recorded" */}
+      {periodPicker}
+
+      {/* hero: Uber earnings-screen style */}
+      <Card tone="ink">
+        <Hero
+          label={t("db.trueProfit")}
+          value={money(a.trueProfit)}
+          tone={a.trueProfit >= 0 ? "ink" : "loss"}
+          size="xl"
+          sub={
+            <span className="text-white/60">
+              {dep.enabled ? t("db.profitSub") : t("db.profitSubNoDep")}
+              {period === "week" && cur && weeks.previousAtSamePoint && weeks.previousAtSamePoint.netRevenue > 0 && (
+                <span className="block mt-1 text-white/80">
+                  {t("wk.vsSamePoint")} <Delta value={a.earnings.netRevenue - weeks.previousAtSamePoint.netRevenue} fmt={money} />
+                </span>
+              )}
+            </span>
+          }
+        />
+        <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t border-white/15">
+          <InkStat label={t("db.gross")} value={money(a.earnings.netRevenue)} />
+          <InkStat label={t("db.cashProfit")} value={money(a.cashProfit)} />
+          <InkStat label={t("db.perHour")} value={a.perHour != null ? money(a.perHour) : "—"} />
+        </div>
+        {period === "week" && cur && (
+          <div className="mt-4 pt-4 border-t border-white/15">
+            <div className="flex items-center justify-between text-xs text-white/70 mb-1.5">
+              <span>
+                {t("wk.uberWeek")} · {fmtDate(cur.start, locale)} – {fmtDate(new Date(new Date(cur.end).getTime() - 1), locale)}
+              </span>
+              <span className="tnum">{fmtCountdown(weeks.msUntilClose, t)}</span>
+            </div>
+            <div className="h-1.5 rounded-full bg-white/15 overflow-hidden">
+              <div className="h-full bg-white rounded-full" style={{ width: `${Math.round(cur.progress * 100)}%` }} />
+            </div>
+            {weeks.projection && (
+              <div className="text-xs text-white/70 mt-2">
+                {t("wk.onPace", { v: money(weeks.projection.trueProfit), n: weeks.projection.trips })}
+                {weeks.previous && weeks.previous.trueProfit !== 0 && (
+                  <>
+                    {" · "}
+                    {t("wk.vsLastWeek")} <Delta value={weeks.projection.trueProfit - weeks.previous.trueProfit} fmt={money} />
+                  </>
+                )}
+              </div>
+            )}
+            <Link href="/weeks" className="inline-flex items-center gap-1 mt-3 text-sm font-bold text-white">
+              {t("wk.seeWeekly")} <Icon name="chevron" size={16} className="rtl:rotate-180" />
+            </Link>
+          </div>
+        )}
+      </Card>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Tile label={t("db.hoursWorked")} value={fmtNum(a.counts.hoursWorked, locale)} sub={`${t("db.shiftCount")} ${fmtNum(a.counts.shifts, locale, 0)}`} />
+        <Tile label={t("db.tripCount")} value={fmtNum(a.counts.trips, locale, 0)} sub={a.counts.trips > 0 ? `${money(a.earnings.netRevenue / a.counts.trips)} ${t("wk.perTrip")}` : undefined} />
+        <Tile label={t("db.perKm")} value={a.perKm != null ? money(a.perKm) : "—"} sub={`${fmtNum(km.shiftKm, locale, 0)} ${t("c.km")}`} />
+        <Tile label={t("tm.utilization")} value={time.utilizationPct != null ? `${fmtNum(time.utilizationPct, locale, 0)}%` : "—"} sub={t("tm.utilizationSub")} />
+      </div>
+
+      {/* today's target */}
+      {target && <DailyTargetCard target={target} onHours={setPlannedHours} t={t} locale={locale} />}
+
+      {/* time split */}
       <Card>
-        <CardHead icon="💸" title={t("qx.title")} sub={t("qx.sub")} />
+        <CardHead icon="timer" title={t("tm.title")} sub={t("tm.sub")} />
+        {time.onlineMin <= 0 ? (
+          <Empty>{t("c.noData")}</Empty>
+        ) : (
+          <>
+            <StackedMeter
+              height={14}
+              segments={[
+                { key: "trip", value: time.tripMin, color: C.trip, label: t("tm.withRider") },
+                { key: "pickup", value: time.pickupMin, color: C.pickup, label: t("tm.toPickup") },
+                { key: "idle", value: time.idleMin, color: C.idle, label: t("tm.idle") },
+              ]}
+            />
+            <div className="mt-3 space-y-1 text-xs">
+              <LegendRow color={C.trip} label={t("tm.withRider")} value={fmtDuration(time.tripMin, t)} cost={time.onlineMin > 0 ? `${fmtNum((time.tripMin / time.onlineMin) * 100, locale, 0)}%` : undefined} />
+              <LegendRow color={C.pickup} label={t("tm.toPickup")} value={fmtDuration(time.pickupMin, t)} cost={time.onlineMin > 0 ? `${fmtNum((time.pickupMin / time.onlineMin) * 100, locale, 0)}%` : undefined} />
+              <LegendRow color={C.idle} label={t("tm.idle")} value={fmtDuration(time.idleMin, t)} cost={time.onlineMin > 0 ? `${fmtNum((time.idleMin / time.onlineMin) * 100, locale, 0)}%` : undefined} />
+              <div className="flex justify-between pt-2 mt-1 border-t border-line font-bold">
+                <span>{t("tm.online")}</span>
+                <span className="tnum">{fmtDuration(time.onlineMin, t)}</span>
+              </div>
+            </div>
+            {time.tripMin > 0 && (
+              <p className="text-xs text-muted mt-3 leading-relaxed">
+                {t("tm.perTripHour", { v: money((a.earnings.netRevenue / time.tripMin) * 60), online: money((a.earnings.netRevenue / time.onlineMin) * 60) })}
+              </p>
+            )}
+            {time.tripMin === 0 && <p className="text-xs text-warn-ink bg-warn-soft rounded-lg px-3 py-2 mt-3">{t("tm.needMinutes")}</p>}
+          </>
+        )}
+      </Card>
+
+      {/* running costs in one tap */}
+      <Card>
+        <CardHead icon="receipt" title={t("qx.title")} sub={t("qx.sub")} />
         <QuickExpense vehicleId={vehicle.id} recent={expenses} onAdded={reload} />
       </Card>
 
-      {/* streaks & goals — only shown once the driver sets a goal (edited
-          from the vehicle's Cars-page form), never a hollow 0% otherwise */}
       {streak && vehicle && <StreakCard streak={streak} vehicleId={vehicle.id} t={t} locale={locale} />}
-
-      {/* hero + stat tiles */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card className="col-span-2">
-          <div className="text-xs font-semibold text-slate-500">{t("db.trueProfit")}</div>
-          <div className="text-4xl font-black mt-1" style={{ color: profitColor }}>
-            {money(a.trueProfit)}
-          </div>
-          <div className="text-xs text-slate-400 mt-1">{t("db.profitSub")}</div>
-          {/* depreciation is a real cost but not cash leaving your pocket —
-              showing both stops the accrual from hiding what you actually made */}
-          <div className="mt-3 pt-3 border-t border-slate-100 flex items-baseline gap-2">
-            <span className="text-xs text-slate-500">{t("db.cashProfit")}</span>
-            <span className="text-lg font-bold" style={{ color: a.cashProfit >= 0 ? C.goodText : C.critical }}>
-              {money(a.cashProfit)}
-            </span>
-            <span className="text-xs text-slate-400">{t("db.cashProfitSub")}</span>
-          </div>
-        </Card>
-        <StatTile label={t("db.gross")} value={money(a.earnings.netRevenue)} sub={t("db.grossSub")} />
-        <div className="grid grid-rows-2 gap-3">
-          <MiniTile label={t("db.perHour")} value={a.perHour != null ? money(a.perHour) : "—"} />
-          <MiniTile label={t("db.perKm")} value={a.perKm != null ? money(a.perKm) : "—"} />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <MiniTile label={t("db.hoursWorked")} value={fmtNum(a.counts.hoursWorked, locale)} />
-        <MiniTile label={t("db.shiftCount")} value={fmtNum(a.counts.shifts, locale, 0)} />
-        <MiniTile label={t("db.tripCount")} value={fmtNum(a.counts.trips, locale, 0)} />
-        <MiniTile label={t("veh.currentOdo")} value={`${fmtNum(a.currentOdo, locale)} ${t("c.km")}`} />
-      </div>
 
       {/* daily profit + costs */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <Card>
-          <div className="text-sm font-semibold mb-3">{t("db.profitTrend")} (14d)</div>
+          <CardHead title={`${t("db.profitTrend")} (14d)`} />
           <ProfitBars data={a.trend} locale={locale} />
         </Card>
 
         <Card>
-          <div className="text-sm font-semibold mb-3">{t("db.costs")}</div>
+          <CardHead
+            title={t("db.costs")}
+            actions={
+              !dep.enabled && (
+                <Badge tone="neutral" title={t("dep.offHint")}>
+                  {t("dep.off")}
+                </Badge>
+              )
+            }
+          />
           {costRows.length === 0 ? (
             <Empty>{t("c.noData")}</Empty>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {costRows.map((r) => (
                 <div key={r.key}>
-                  <div className="flex justify-between text-xs mb-0.5 gap-2">
-                    <span className="text-slate-500">
+                  <div className="flex justify-between text-xs mb-1 gap-2">
+                    <span className="text-ink-500 min-w-0 truncate">
                       {t(r.key)}
-                      {r.note && <span className="text-slate-300 ms-1.5">{r.note}</span>}
+                      {r.note && <span className="text-muted-2 ms-1.5">{r.note}</span>}
                     </span>
-                    <span className="font-semibold whitespace-nowrap" style={{ fontVariantNumeric: "tabular-nums" }}>
-                      {money(r.v)}
-                    </span>
+                    <span className="font-bold whitespace-nowrap tnum">{money(r.v)}</span>
                   </div>
-                  <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-                    <div
-                      className="h-full rounded-full"
-                      style={{ width: `${(r.v / maxCost) * 100}%`, background: C.pos }}
-                    />
+                  <div className="h-2 rounded-full bg-line overflow-hidden">
+                    <div className="h-full rounded-full" style={{ width: `${(r.v / maxCost) * 100}%`, background: C.pos }} />
                   </div>
                 </div>
               ))}
-              <div className="flex justify-between text-xs pt-2 border-t border-slate-100 font-bold">
-                <span>Σ</span>
-                <span style={{ fontVariantNumeric: "tabular-nums" }}>{money(a.costs.total)}</span>
+              <div className="flex justify-between text-sm pt-2 border-t border-line font-bold">
+                <span>{t("db.costsTotal")}</span>
+                <span className="tnum">{money(a.costs.total)}</span>
               </div>
-            </div>
-          )}
-        </Card>
-      </div>
-
-      {/* weekly recap + platform breakdown */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {weekRecap && <WeeklyRecapCard recap={weekRecap} t={t} locale={locale} />}
-        {platformStats && platformStats.length > 0 && (
-          <Card>
-            <div className="text-sm font-semibold mb-1">{t("db.platformTitle")}</div>
-            <p className="text-xs text-slate-400 mb-3">{t("db.platformSub")}</p>
-            <div className="space-y-2">
-              {platformStats.map((p: any) => (
-                <div key={p.platform} className="flex items-center gap-3 text-sm">
-                  <span className="flex-1 font-semibold">{t(`pf.${p.platform}`)}</span>
-                  <span className="text-xs text-slate-400">{t("pl.tripsN", { n: p.trips })}</span>
-                  <span className="font-bold w-24 text-end" style={{ fontVariantNumeric: "tabular-nums" }}>
-                    {money(p.netRevenue)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </Card>
-        )}
-      </div>
-
-      {/* km split + fuel economy */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <Card>
-          <CardHead icon="🛣" title={t("db.kmSplit")} sub={t("db.kmSplitSub")} />
-          <div className="flex h-6 rounded-lg overflow-hidden" style={{ gap: 2 }}>
-            {[
-              { v: km.tripKm, c: C.pos },
-              { v: km.deadKm, c: C.dead },
-              { v: km.personalKm, c: C.personal },
-            ].map(
-              (s, i) =>
-                s.v > 0 && (
-                  <div key={i} style={{ width: `${(s.v / kmTotal) * 100}%`, background: s.c }} />
-                )
-            )}
-          </div>
-          <div className="mt-3 space-y-1 text-xs">
-            <LegendRow
-              color={C.pos}
-              label={t("db.tripKm")}
-              value={`${fmtNum(km.tripKm, locale)} ${t("c.km")}`}
-            />
-            <LegendRow
-              color={C.dead}
-              label={t("db.deadKm")}
-              value={`${fmtNum(km.deadKm, locale)} ${t("c.km")}`}
-              cost={money(km.deadKm * costPerKm)}
-            />
-            {km.pickupKm > 0 && (
-              <>
-                <SubRow
-                  label={t("db.pickupSplit")}
-                  value={`${fmtNum(km.pickupKm, locale)} ${t("c.km")}`}
-                  cost={money(km.pickupKm * costPerKm)}
-                />
-                <SubRow
-                  label={t("db.cruisingSplit")}
-                  value={`${fmtNum(km.cruisingKm, locale)} ${t("c.km")}`}
-                  cost={money(km.cruisingKm * costPerKm)}
-                />
-              </>
-            )}
-            <LegendRow
-              color={C.personal}
-              label={t("db.personalKm")}
-              value={`${fmtNum(km.personalKm, locale)} ${t("c.km")}`}
-            />
-          </div>
-
-          {/* dead km is the one cost a driver can cut tonight, so it gets a
-              number in EGP rather than only a share of a bar */}
-          {km.shiftKm > 0 && km.deadKm > 0 && (
-            <div className="mt-4 pt-3 border-t border-slate-100">
-              <Meter
-                ratio={km.deadKm / km.shiftKm}
-                tone={deadShare <= 0.15 ? "good" : deadShare <= 0.25 ? "warn" : "bad"}
-                label={t("db.deadShare")}
-                value={`${fmtNum(deadShare * 100, locale, 0)}%`}
-                sub={t("db.deadShareSub", {
-                  km: fmtNum(km.deadKm, locale, 0),
-                  cost: money(km.deadKm * costPerKm),
-                  rate: money(costPerKm),
-                })}
-              />
-              {km.cruisingKm > 0 && (
-                <p className="text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2 mt-3">
-                  💡{" "}
-                  {t("db.deadKmTip", {
-                    km: fmtNum(km.cruisingKm, locale, 0),
-                    cost: money(km.cruisingKm * costPerKm),
-                  })}
+              {dep.enabled && dep.rawPerKm > 0 && (
+                <p className="text-[11px] text-muted leading-relaxed">
+                  {t("dep.explain." + dep.method, { v: money(dep.rawPerKm), pct: fmtNum(dep.sensitivityPct, locale), value: money(dep.basisValue ?? 0) })}{" "}
+                  <Link href="/cars" className="underline">
+                    {t("dep.change")}
+                  </Link>
                 </p>
               )}
             </div>
           )}
         </Card>
+      </div>
+
+      {/* platform */}
+      {platformStats && platformStats.length > 1 && (
+        <Card>
+          <CardHead title={t("db.platformTitle")} sub={t("db.platformSub")} />
+          <div className="space-y-2">
+            {platformStats.map((p: any) => (
+              <div key={p.platform} className="flex items-center gap-3 text-sm">
+                <span className="flex-1 font-bold">{t(`pf.${p.platform}`)}</span>
+                <span className="text-xs text-muted">{t("pl.tripsN", { n: p.trips })}</span>
+                <span className="font-bold w-24 text-end tnum">{money(p.netRevenue)}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* km split + fuel economy */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <Card>
+          <CardHead icon="road" title={t("db.kmSplit")} sub={t("db.kmSplitSub")} />
+          <StackedMeter
+            height={14}
+            segments={[
+              { key: "trip", value: km.tripKm, color: C.pos, label: t("db.tripKm") },
+              { key: "dead", value: km.deadKm, color: C.dead, label: t("db.deadKm") },
+              { key: "personal", value: km.personalKm, color: C.personal, label: t("db.personalKm") },
+            ]}
+          />
+          <div className="mt-3 space-y-1 text-xs">
+            <LegendRow color={C.pos} label={t("db.tripKm")} value={`${fmtNum(km.tripKm, locale)} ${t("c.km")}`} />
+            <LegendRow color={C.dead} label={t("db.deadKm")} value={`${fmtNum(km.deadKm, locale)} ${t("c.km")}`} cost={money(km.deadKm * costPerKm)} />
+            {km.pickupKm > 0 && (
+              <>
+                <SubRow label={t("db.pickupSplit")} value={`${fmtNum(km.pickupKm, locale)} ${t("c.km")}`} cost={money(km.pickupKm * costPerKm)} />
+                <SubRow label={t("db.cruisingSplit")} value={`${fmtNum(km.cruisingKm, locale)} ${t("c.km")}`} cost={money(km.cruisingKm * costPerKm)} />
+              </>
+            )}
+            <LegendRow color={C.personal} label={t("db.personalKm")} value={`${fmtNum(km.personalKm, locale)} ${t("c.km")}`} />
+          </div>
+          {km.shiftKm > 0 && km.deadKm > 0 && (
+            <div className="mt-4 pt-3 border-t border-line">
+              <Meter
+                ratio={km.deadKm / km.shiftKm}
+                tone={deadShare <= 0.15 ? "good" : deadShare <= 0.25 ? "warn" : "bad"}
+                label={t("db.deadShare")}
+                value={`${fmtNum(deadShare * 100, locale, 0)}%`}
+                sub={t("db.deadShareSub", { km: fmtNum(km.deadKm, locale, 0), cost: money(km.deadKm * costPerKm), rate: money(costPerKm) })}
+              />
+              {km.cruisingKm > 0 && (
+                <p className="text-xs bg-warn-soft text-warn-ink rounded-lg px-3 py-2 mt-3">
+                  💡 {t("db.deadKmTip", { km: fmtNum(km.cruisingKm, locale, 0), cost: money(km.cruisingKm * costPerKm) })}
+                </p>
+              )}
+            </div>
+          )}
+          {kmTotal <= 0.001 && <Empty>{t("c.noData")}</Empty>}
+        </Card>
 
         <Card>
-          <div className="text-sm font-semibold mb-3">{t("db.fuelEconomy")}</div>
-          <p className="text-xs text-slate-400 mb-3">{t("db.fuelEconomyHint")}</p>
+          <CardHead icon="fuel" title={t("db.fuelEconomy")} sub={t("db.fuelEconomyHint")} />
           {a.fuelEconomy.length === 0 ? (
             <Empty>{t("fu.fullTankHint")}</Empty>
           ) : (
@@ -459,26 +422,22 @@ export default function DashboardPage() {
               {a.fuelEconomy.map((f: any) => {
                 const unit = f.unit === "m3" ? t("c.m3") : t("c.liters");
                 return (
-                  <div key={f.fuelGroup} className="border border-slate-100 rounded-lg p-3">
-                    <div className="text-xs font-bold text-slate-600 mb-2">
-                      {f.fuelGroup === "CNG" ? t("fu.CNG") : t("veh.fuel.PETROL").split(" ")[0]}
-                    </div>
-                    <div className="text-2xl font-black">
+                  <div key={f.fuelGroup} className="bg-white rounded-xl p-3">
+                    <div className="text-xs font-bold text-ink-500 mb-2">{f.fuelGroup === "CNG" ? t("fu.CNG") : t("veh.fuel.PETROL").split(" ")[0]}</div>
+                    <div className="text-2xl font-bold display">
                       {fmtNum(f.per100, locale)}
-                      <span className="text-xs font-semibold text-slate-400"> {unit} {t("db.l100")}</span>
+                      <span className="text-xs font-bold text-muted">
+                        {" "}
+                        {unit} {t("db.l100")}
+                      </span>
                     </div>
-                    <div className="text-xs text-slate-500 mt-1">
+                    <div className="text-xs text-muted mt-1">
                       {fmtNum(f.kmPerUnit, locale)} {t("c.km")} / {unit}
                     </div>
-                    <div className="text-xs text-slate-500">
+                    <div className="text-xs text-muted">
                       {money(f.costPerKm)} / {t("c.km")}
                     </div>
-                    <div className="text-[10px] text-slate-400 mt-1">
-                      {t("db.fuelMeasuredOver", {
-                        km: fmtNum(f.distanceKm, locale, 0),
-                        pct: fmtNum(f.workSharePct, locale, 0),
-                      })}
-                    </div>
+                    <div className="text-[10px] text-muted-2 mt-1">{t("db.fuelMeasuredOver", { km: fmtNum(f.distanceKm, locale, 0), pct: fmtNum(f.workSharePct, locale, 0) })}</div>
                   </div>
                 );
               })}
@@ -487,156 +446,74 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* you vs. other drivers — a real cross-vehicle average, only shows
-          once other drivers' data actually exists (see lib/benchmark.ts) */}
       {bench && (
         <Card>
-          <div className="text-sm font-semibold mb-3">{t("bm.title")}</div>
+          <CardHead title={t("bm.title")} />
           {bench.others.driverCount === 0 ? (
             <Empty>{t("bm.notEnough")}</Empty>
           ) : (
             <>
               <div className="grid grid-cols-2 gap-4">
-                <BenchMetric
-                  label={t("db.perHour")}
-                  you={bench.you.profitPerHour}
-                  others={bench.others.profitPerHour}
-                  fmt={money}
-                  youLabel={t("bm.you")}
-                  othersLabel={t("bm.others")}
-                />
-                <BenchMetric
-                  label={t("db.perKm")}
-                  you={bench.you.profitPerKm}
-                  others={bench.others.profitPerKm}
-                  fmt={money}
-                  youLabel={t("bm.you")}
-                  othersLabel={t("bm.others")}
-                />
+                <BenchMetric label={t("db.perHour")} you={bench.you.profitPerHour} others={bench.others.profitPerHour} fmt={money} youLabel={t("bm.you")} othersLabel={t("bm.others")} />
+                <BenchMetric label={t("db.perKm")} you={bench.you.profitPerKm} others={bench.others.profitPerKm} fmt={money} youLabel={t("bm.you")} othersLabel={t("bm.others")} />
               </div>
-              <div className="text-xs text-slate-400 mt-3 text-center">
-                {t("bm.driverCount", { n: fmtNum(bench.others.driverCount, locale, 0) })}
-              </div>
+              <div className="text-xs text-muted mt-3 text-center">{t("bm.driverCount", { n: fmtNum(bench.others.driverCount, locale, 0) })}</div>
             </>
           )}
         </Card>
       )}
 
-      {/* your car vs. other drivers with the SAME catalog model — only for
-          vehicles picked from the car-model dropdown, never a fabricated
-          number (see lib/carBenchmark.ts) */}
-      {carBench && carBench.carModel && (
+      {carBench && carBench.carModel && carBench.others.driverCount > 0 && (
         <Card>
-          <div className="text-sm font-semibold mb-1">
-            {t("cbm.title", { car: `${carBench.carModel.make} ${carBench.carModel.model}` })}
+          <CardHead title={t("cbm.title", { car: `${carBench.carModel.make} ${carBench.carModel.model}` })} />
+          <div className="grid grid-cols-2 gap-4 mt-2">
+            <BenchMetric
+              label={carBench.others.fuelUnit === "m3" ? `${t("cbm.fuelPer100")} (${t("c.m3")})` : `${t("cbm.fuelPer100")} (${t("c.liters")})`}
+              you={carBench.you.fuelPer100}
+              others={carBench.others.fuelPer100}
+              fmt={(n) => fmtNum(n, locale)}
+              youLabel={t("bm.you")}
+              othersLabel={t("bm.others")}
+              lowerIsBetter
+            />
+            <BenchMetric label={t("cbm.maintPerKm")} you={carBench.you.maintCostPerKm} others={carBench.others.maintCostPerKm} fmt={money} youLabel={t("bm.you")} othersLabel={t("bm.others")} lowerIsBetter />
           </div>
-          {carBench.others.driverCount === 0 ? (
-            <Empty>{t("bm.notEnough")}</Empty>
-          ) : (
-            <>
-              <div className="grid grid-cols-2 gap-4 mt-2">
-                <BenchMetric
-                  label={
-                    carBench.others.fuelUnit === "m3"
-                      ? `${t("cbm.fuelPer100")} (${t("c.m3")})`
-                      : `${t("cbm.fuelPer100")} (${t("c.liters")})`
-                  }
-                  you={carBench.you.fuelPer100}
-                  others={carBench.others.fuelPer100}
-                  fmt={(n) => fmtNum(n, locale)}
-                  youLabel={t("bm.you")}
-                  othersLabel={t("bm.others")}
-                  lowerIsBetter
-                />
-                <BenchMetric
-                  label={t("cbm.maintPerKm")}
-                  you={carBench.you.maintCostPerKm}
-                  others={carBench.others.maintCostPerKm}
-                  fmt={money}
-                  youLabel={t("bm.you")}
-                  othersLabel={t("bm.others")}
-                  lowerIsBetter
-                />
-              </div>
-              <div className="text-xs text-slate-400 mt-3 text-center">
-                {t("bm.driverCount", { n: fmtNum(carBench.others.driverCount, locale, 0) })}
-              </div>
-              {carModelTip(carBench, t) && (
-                <div className="text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2 mt-3">
-                  💡 {carModelTip(carBench, t)}
-                </div>
-              )}
-            </>
-          )}
+          <div className="text-xs text-muted mt-3 text-center">{t("bm.driverCount", { n: fmtNum(carBench.others.driverCount, locale, 0) })}</div>
+          {carModelTip(carBench, t) && <div className="text-xs bg-warn-soft text-warn-ink rounded-lg px-3 py-2 mt-3">💡 {carModelTip(carBench, t)}</div>}
         </Card>
       )}
 
-      {/* community leaderboard — anonymized ranking, honest min-driver gate */}
-      {leaderboard && (
+      {leaderboard && leaderboard.entries.length > 0 && (
         <Card>
-          <div className="text-sm font-semibold mb-1">🏁 {t("db.leaderboardTitle")}</div>
-          {leaderboard.entries.length === 0 ? (
-            <Empty>{t("bm.notEnough")}</Empty>
-          ) : (
-            <>
-              <div className="space-y-1.5 mt-2">
-                {leaderboard.entries.map((e: any, i: number) => (
-                  <div
-                    key={e.vehicleId}
-                    className={`flex items-center gap-3 text-sm rounded-lg px-2 py-1.5 ${e.isYou ? "bg-emerald-50 font-bold" : ""}`}
-                  >
-                    <span className="w-6 text-center text-slate-400">{i + 1}</span>
-                    <span className="flex-1">{e.isYou ? t("db.leaderboardYou") : e.label}</span>
-                    <span style={{ fontVariantNumeric: "tabular-nums" }}>{money(e.profitPerHour)}/{t("c.hours")}</span>
-                  </div>
-                ))}
+          <CardHead icon="trophy" title={t("db.leaderboardTitle")} />
+          <div className="space-y-1.5 mt-2">
+            {leaderboard.entries.map((e: any, i: number) => (
+              <div key={e.vehicleId} className={`flex items-center gap-3 text-sm rounded-lg px-2 py-1.5 ${e.isYou ? "bg-white font-bold" : ""}`}>
+                <span className="w-6 text-center text-muted">{i + 1}</span>
+                <span className="flex-1">{e.isYou ? t("db.leaderboardYou") : e.label}</span>
+                <span className="tnum">
+                  {money(e.profitPerHour)}/{t("c.hours")}
+                </span>
               </div>
-              {leaderboard.yourRank && leaderboard.yourRank > leaderboard.entries.length && (
-                <div className="text-xs text-slate-400 mt-2 text-center">
-                  {t("db.leaderboardYourRank", { rank: leaderboard.yourRank, total: leaderboard.driverCount })}
-                </div>
-              )}
-              <div className="text-xs text-slate-400 mt-3 text-center">
-                {t("bm.driverCount", { n: fmtNum(leaderboard.driverCount, locale, 0) })}
-              </div>
-            </>
+            ))}
+          </div>
+          {leaderboard.yourRank && leaderboard.yourRank > leaderboard.entries.length && (
+            <div className="text-xs text-muted mt-2 text-center">{t("db.leaderboardYourRank", { rank: leaderboard.yourRank, total: leaderboard.driverCount })}</div>
           )}
+          <div className="text-xs text-muted mt-3 text-center">{t("bm.driverCount", { n: fmtNum(leaderboard.driverCount, locale, 0) })}</div>
         </Card>
       )}
 
-      {/* reminders needing attention — manual ones and the ones the app
-          worked out from the service log read exactly the same here */}
       {attention.length > 0 && (
-        <Card className="border-amber-200">
-          <div className="text-sm font-semibold mb-2">🔔 {t("db.remindersDue")}</div>
+        <Card tone="warn">
+          <CardHead icon="bell" title={t("db.remindersDue")} />
           <div className="space-y-1">
             {attention.map((r: any) => (
-              <Link
-                key={r.id}
-                href={r.source === "service" ? "/maintenance" : "/reminders"}
-                className="flex items-center gap-2 text-sm hover:bg-slate-50 rounded px-2 py-1"
-              >
-                <span
-                  className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
-                    r.state === "overdue" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"
-                  }`}
-                >
-                  {r.state === "overdue" ? t("rm.overdue") : t("rm.dueSoon")}
-                </span>
-                <span className="font-semibold">
-                  {r.source === "service" ? t(`mn.cat.${r.category}`) : r.title}
-                </span>
-                {r.source === "service" && (
-                  <span className="text-[10px] text-slate-400 border border-slate-200 rounded-full px-1.5 py-0.5">
-                    {t("rm.autoBadge")}
-                  </span>
-                )}
+              <Link key={r.id} href={r.source === "service" ? "/maintenance" : "/reminders"} className="flex items-center gap-2 text-sm hover:bg-white/60 rounded-lg px-2 py-1.5">
+                <Badge tone={r.state === "overdue" ? "bad" : "warn"}>{r.state === "overdue" ? t("rm.overdue") : t("rm.dueSoon")}</Badge>
+                <span className="font-bold">{r.source === "service" ? t(`mn.cat.${r.category}`) : r.title}</span>
                 {r.kmRemaining != null && (
-                  <span className="text-xs text-slate-400">
-                    {r.kmRemaining >= 0
-                      ? t("rm.inKm", { n: fmtNum(r.kmRemaining, locale) })
-                      : t("rm.kmOverdue", { n: fmtNum(-r.kmRemaining, locale) })}
-                  </span>
+                  <span className="text-xs text-muted">{r.kmRemaining >= 0 ? t("rm.inKm", { n: fmtNum(r.kmRemaining, locale) }) : t("rm.kmOverdue", { n: fmtNum(-r.kmRemaining, locale) })}</span>
                 )}
               </Link>
             ))}
@@ -647,53 +524,90 @@ export default function DashboardPage() {
   );
 }
 
-function ViewToggle({
-  viewAll,
-  setViewAll,
-  t,
-}: {
-  viewAll: boolean;
-  setViewAll: (v: boolean) => void;
-  t: (k: string) => string;
-}) {
+function QuickAction({ href, icon, label, tone = "ink" }: { href: string; icon: any; label: string; tone?: "ink" | "warn" }) {
   return (
-    <div className="flex gap-1 bg-white border border-slate-200 rounded-lg p-1">
-      <button
-        onClick={() => setViewAll(false)}
-        className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
-          !viewAll ? "bg-emerald-600 text-white" : "text-slate-500 hover:bg-slate-100"
-        }`}
-      >
-        {t("cars.thisCar")}
-      </button>
-      <button
-        onClick={() => setViewAll(true)}
-        className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
-          viewAll ? "bg-emerald-600 text-white" : "text-slate-500 hover:bg-slate-100"
-        }`}
-      >
-        {t("cars.allCars")}
-      </button>
+    <Link
+      href={href}
+      className={`flex flex-col md:flex-row items-center justify-center gap-1.5 md:gap-2 rounded-2xl px-2 py-3 md:py-4 text-[13px] md:text-sm font-bold transition-colors active:scale-[0.98] ${
+        tone === "warn" ? "bg-warn text-ink hover:brightness-95" : "bg-surface text-ink hover:bg-surface-2"
+      }`}
+    >
+      <Icon name={icon} size={22} strokeWidth={2} />
+      <span className="truncate max-w-full">{label}</span>
+    </Link>
+  );
+}
+
+function InkStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-[11px] font-bold text-white/60 uppercase tracking-wide truncate">{label}</div>
+      <div className="text-lg md:text-xl font-bold display text-white mt-0.5 truncate">{value}</div>
     </div>
   );
 }
 
-function StatTile({ label, value, sub }: { label: string; value: string; sub?: string }) {
+function WeekClosedCard({ week, previous, t, locale }: { week: any; previous: any | null; t: (k: string, v?: Record<string, string | number>) => string; locale: string }) {
+  const money = (n: number) => fmtMoney(n, locale);
+  const [copied, setCopied] = useState(false);
+  const shareText = t("db.recapShareText", {
+    profit: money(week.trueProfit),
+    hours: fmtNum(week.time.onlineMin / 60, locale),
+    trips: fmtNum(week.counts.trips, locale, 0),
+    perHour: week.rates.profitPerHour != null ? money(week.rates.profitPerHour) : "—",
+  });
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(shareText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  };
   return (
-    <Card>
-      <div className="text-xs font-semibold text-slate-500">{label}</div>
-      <div className="text-2xl font-black mt-1">{value}</div>
-      {sub && <div className="text-xs text-slate-400 mt-1">{sub}</div>}
+    <Card tone="money">
+      <CardHead
+        icon="flag"
+        title={t("wk.closedTitle")}
+        sub={`${fmtDate(week.start, locale)} – ${fmtDate(new Date(new Date(week.end).getTime() - 1), locale)}`}
+        actions={
+          <Link href={`/weeks?week=${week.key}`} className="text-sm font-bold underline">
+            {t("wk.details")}
+          </Link>
+        }
+      />
+      <div className="flex items-end justify-between gap-3 flex-wrap">
+        <div>
+          <div className="text-[34px] font-bold display leading-none" style={{ color: week.trueProfit >= 0 ? C.goodText : C.critical }}>
+            {money(week.trueProfit)}
+          </div>
+          <div className="text-xs text-muted mt-1.5">
+            {fmtNum(week.time.onlineMin / 60, locale)} {t("c.hours")} · {t("pl.tripsN", { n: week.counts.trips })} · {week.rates.profitPerHour != null ? `${money(week.rates.profitPerHour)}/${t("c.hours")}` : ""}
+            {previous && previous.counts.trips > 0 && (
+              <span className="ms-2">
+                {t("wk.vsLastWeek")} <Delta value={week.trueProfit - previous.trueProfit} fmt={money} />
+              </span>
+            )}
+          </div>
+        </div>
+        <Btn variant="secondary" size="sm" onClick={copy}>
+          {copied ? `✓ ${t("db.recapCopied")}` : t("db.recapCopy")}
+        </Btn>
+      </div>
     </Card>
   );
 }
 
-function MiniTile({ label, value }: { label: string; value: string }) {
+function ViewToggle({ viewAll, setViewAll, t }: { viewAll: boolean; setViewAll: (v: boolean) => void; t: (k: string) => string }) {
   return (
-    <Card className="!p-3">
-      <div className="text-xs font-semibold text-slate-500">{label}</div>
-      <div className="text-lg font-bold mt-0.5">{value}</div>
-    </Card>
+    <Segmented
+      size="sm"
+      value={viewAll ? "all" : "one"}
+      onChange={(v) => setViewAll(v === "all")}
+      options={[
+        { value: "one", label: t("cars.thisCar") },
+        { value: "all", label: t("cars.allCars") },
+      ]}
+    />
   );
 }
 
@@ -730,15 +644,15 @@ function StreakCard({
 
   if (!hasGoal && !editing) {
     return (
-      <Card className="border-emerald-200">
+      <Card className="border-line">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
             <div className="text-sm font-semibold">🔥 {t("db.streakTitle")}</div>
-            <p className="text-xs text-slate-400 mt-1">{t("db.streakSetHint")}</p>
+            <p className="text-xs text-muted mt-1">{t("db.streakSetHint")}</p>
           </div>
           <button
             onClick={() => setEditing(true)}
-            className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg px-3 py-2"
+            className="text-xs font-semibold text-ink bg-surface-2 hover:bg-line border border-line rounded-lg px-3 py-2"
           >
             {t("db.streakSetGoal")}
           </button>
@@ -749,26 +663,26 @@ function StreakCard({
 
   if (editing) {
     return (
-      <Card className="border-emerald-300">
+      <Card className="border-line">
         <div className="text-sm font-semibold mb-3">🔥 {t("db.streakSetGoal")}</div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <label className="block">
-            <span className="block text-xs font-semibold text-slate-600 mb-1">{t("db.streakHoursGoal")}</span>
+            <span className="block text-xs font-semibold text-ink-500 mb-1">{t("db.streakHoursGoal")}</span>
             <input
               type="number"
               value={hoursGoal}
               onChange={(e) => setHoursGoal(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-line px-3 h-11 text-sm"
               placeholder={t("c.optional")}
             />
           </label>
           <label className="block">
-            <span className="block text-xs font-semibold text-slate-600 mb-1">{t("db.streakProfitGoal")}</span>
+            <span className="block text-xs font-semibold text-ink-500 mb-1">{t("db.streakProfitGoal")}</span>
             <input
               type="number"
               value={profitGoal}
               onChange={(e) => setProfitGoal(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-line px-3 h-11 text-sm"
               placeholder={t("c.optional")}
             />
           </label>
@@ -777,13 +691,13 @@ function StreakCard({
           <button
             onClick={save}
             disabled={saving}
-            className="rounded-lg font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 text-sm disabled:opacity-50"
+            className="rounded-lg font-semibold bg-ink hover:bg-ink-700 text-white px-4 py-2 text-sm disabled:opacity-50"
           >
             {t("c.save")}
           </button>
           <button
             onClick={() => setEditing(false)}
-            className="rounded-lg font-semibold bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-4 py-2 text-sm"
+            className="rounded-lg font-semibold bg-white hover:bg-surface-2 text-ink-700 border border-line px-4 py-2 text-sm"
           >
             {t("c.cancel")}
           </button>
@@ -796,19 +710,19 @@ function StreakCard({
   const profitPct = streak.weeklyProfitGoal ? Math.min(100, (streak.thisWeek.profit / streak.weeklyProfitGoal) * 100) : null;
 
   return (
-    <Card className="border-emerald-200">
+    <Card className="border-line">
       <div className="flex items-center justify-between gap-2 mb-3">
         <div className="text-sm font-semibold">🔥 {t("db.streakTitle")}</div>
-        <button onClick={() => setEditing(true)} className="text-xs text-slate-400 underline">
+        <button onClick={() => setEditing(true)} className="text-xs text-muted underline">
           {t("db.streakEditGoal")}
         </button>
       </div>
       <div className="flex items-end gap-4 mb-3">
-        <div className="text-3xl font-black text-emerald-700">{streak.currentStreak}</div>
-        <div className="text-xs text-slate-500 mb-1">
+        <div className="text-3xl font-black text-ink">{streak.currentStreak}</div>
+        <div className="text-xs text-muted mb-1">
           {t("db.streakWeeks", { n: streak.currentStreak })}
           {streak.longestStreak > streak.currentStreak && (
-            <div className="text-slate-400">{t("db.streakBest", { n: streak.longestStreak })}</div>
+            <div className="text-muted">{t("db.streakBest", { n: streak.longestStreak })}</div>
           )}
         </div>
       </div>
@@ -816,26 +730,26 @@ function StreakCard({
         {hoursPct != null && (
           <div>
             <div className="flex justify-between text-xs mb-0.5">
-              <span className="text-slate-500">{t("db.streakHoursGoal")}</span>
+              <span className="text-muted">{t("db.streakHoursGoal")}</span>
               <span className="font-semibold">
                 {fmtNum(streak.thisWeek.hours, locale)} / {fmtNum(streak.weeklyHoursGoal, locale)} {t("c.hours")}
               </span>
             </div>
-            <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-              <div className="h-full rounded-full bg-emerald-500" style={{ width: `${hoursPct}%` }} />
+            <div className="h-2 rounded-full bg-surface-2 overflow-hidden">
+              <div className="h-full rounded-full bg-money" style={{ width: `${hoursPct}%` }} />
             </div>
           </div>
         )}
         {profitPct != null && (
           <div>
             <div className="flex justify-between text-xs mb-0.5">
-              <span className="text-slate-500">{t("db.streakProfitGoal")}</span>
+              <span className="text-muted">{t("db.streakProfitGoal")}</span>
               <span className="font-semibold">
                 {money(streak.thisWeek.profit)} / {money(streak.weeklyProfitGoal)}
               </span>
             </div>
-            <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-              <div className="h-full rounded-full bg-emerald-500" style={{ width: `${profitPct}%` }} />
+            <div className="h-2 rounded-full bg-surface-2 overflow-hidden">
+              <div className="h-full rounded-full bg-money" style={{ width: `${profitPct}%` }} />
             </div>
           </div>
         )}
@@ -844,59 +758,6 @@ function StreakCard({
   );
 }
 
-function WeeklyRecapCard({
-  recap,
-  t,
-  locale,
-}: {
-  recap: any;
-  t: (k: string, vars?: Record<string, string | number>) => string;
-  locale: string;
-}) {
-  const [copied, setCopied] = useState(false);
-  const money = (n: number) => fmtMoney(n, locale);
-
-  const shareText = t("db.recapShareText", {
-    profit: money(recap.trueProfit),
-    hours: fmtNum(recap.counts.hoursWorked, locale),
-    trips: fmtNum(recap.counts.trips, locale, 0),
-    perHour: recap.perHour != null ? money(recap.perHour) : "—",
-  });
-
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(shareText);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // clipboard access denied — the text is still visible to copy manually
-    }
-  };
-
-  return (
-    <Card>
-      <div className="text-sm font-semibold mb-1">📋 {t("db.recapTitle")}</div>
-      <p className="text-xs text-slate-400 mb-3">{t("db.recapSub")}</p>
-      <div className="text-2xl font-black" style={{ color: recap.trueProfit >= 0 ? "#006300" : "#d03b3b" }}>
-        {money(recap.trueProfit)}
-      </div>
-      <div className="text-xs text-slate-500 mt-1 mb-3">
-        {fmtNum(recap.counts.hoursWorked, locale)} {t("c.hours")} · {t("pl.tripsN", { n: recap.counts.trips })}
-      </div>
-      <button
-        onClick={copy}
-        className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg px-3 py-2"
-      >
-        {copied ? `✓ ${t("db.recapCopied")}` : `📋 ${t("db.recapCopy")}`}
-      </button>
-    </Card>
-  );
-}
-
-/** One actionable tip when the driver's own car is meaningfully worse than
- *  other drivers of the same model — never invented, only fires on a real
- *  gap (≥10%) against a real average. Picks the larger of the two gaps
- *  (fuel vs. maintenance) so the card shows one focused suggestion. */
 function carModelTip(carBench: any, t: (k: string, vars?: Record<string, string | number>) => string): string | null {
   const { you, others } = carBench;
   const fuelGap =
@@ -939,20 +800,20 @@ function BenchMetric({
     you != null && others != null && (lowerIsBetter ? you <= others : you >= others);
   return (
     <div>
-      <div className="text-xs text-slate-500 mb-1 text-center">{label}</div>
+      <div className="text-xs text-muted mb-1 text-center">{label}</div>
       <div className="grid grid-cols-2 gap-2">
         <div className="text-center">
-          <div className="text-[10px] text-slate-400">{youLabel}</div>
+          <div className="text-[10px] text-muted">{youLabel}</div>
           <div
             className="text-lg font-bold"
-            style={{ fontVariantNumeric: "tabular-nums", color: youWins ? "#006300" : undefined }}
+            style={{ fontVariantNumeric: "tabular-nums", color: youWins ? "#05a357" : undefined }}
           >
             {you != null ? fmt(you) : "—"}
           </div>
         </div>
         <div className="text-center">
-          <div className="text-[10px] text-slate-400">{othersLabel}</div>
-          <div className="text-lg font-bold text-slate-600" style={{ fontVariantNumeric: "tabular-nums" }}>
+          <div className="text-[10px] text-muted">{othersLabel}</div>
+          <div className="text-lg font-bold text-ink-500" style={{ fontVariantNumeric: "tabular-nums" }}>
             {others != null ? fmt(others) : "—"}
           </div>
         </div>
@@ -976,8 +837,8 @@ function LegendRow({
   return (
     <div className="flex items-center gap-2">
       <span className="inline-block w-3 h-3 rounded-sm shrink-0" style={{ background: color }} />
-      <span className="text-slate-500 flex-1">{label}</span>
-      {cost && <span className="text-slate-400 tnum">{cost}</span>}
+      <span className="text-muted flex-1">{label}</span>
+      {cost && <span className="text-muted tnum">{cost}</span>}
       <span className="font-semibold tnum">{value}</span>
     </div>
   );
@@ -986,7 +847,7 @@ function LegendRow({
 /** An indented breakdown line under a LegendRow. */
 function SubRow({ label, value, cost }: { label: string; value: string; cost?: string }) {
   return (
-    <div className="ps-5 flex items-center gap-2 text-slate-400">
+    <div className="ps-5 flex items-center gap-2 text-muted">
       <span className="flex-1">{label}</span>
       {cost && <span className="tnum">{cost}</span>}
       <span className="tnum">{value}</span>
@@ -1065,7 +926,7 @@ function DailyTargetCard({
             <span className="text-3xl font-black tnum" style={{ color: hitTarget ? C.goodText : undefined }}>
               {money(today.netRevenue)}
             </span>
-            <span className="text-xs text-slate-400">{t("tg.soFar")}</span>
+            <span className="text-xs text-muted">{t("tg.soFar")}</span>
           </div>
 
           <Meter
@@ -1117,7 +978,7 @@ function DailyTargetCard({
         </div>
       </div>
 
-      <p className="text-[11px] text-slate-400 mt-3">
+      <p className="text-[11px] text-muted mt-3">
         {t("tg.footnote", {
           hours: fmtNum(target.plannedHours, locale),
           kmh: fmtNum(target.kmPerHour ?? 0, locale, 0),
@@ -1141,7 +1002,7 @@ function TargetStat({
   const color = tone === "good" ? C.goodText : tone === "warn" ? C.critical : undefined;
   return (
     <div className="min-w-0">
-      <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold truncate">{label}</div>
+      <div className="text-[10px] uppercase tracking-wide text-muted font-semibold truncate">{label}</div>
       <div className="text-sm font-bold tnum truncate" style={{ color }}>
         {value}
       </div>
@@ -1219,10 +1080,10 @@ function ProfitBars({ data, locale }: { data: { date: string; profit: number; gr
       </svg>
       {tip && (
         <div
-          className="absolute top-0 -translate-x-1/2 bg-white border border-slate-200 shadow-md rounded-lg px-2.5 py-1.5 text-xs pointer-events-none z-10"
+          className="absolute top-0 -translate-x-1/2 bg-white border border-line shadow-md rounded-lg px-2.5 py-1.5 text-xs pointer-events-none z-10"
           style={{ left: `${tip.x}%` }}
         >
-          <div className="text-slate-400" style={{ fontVariantNumeric: "tabular-nums" }}>
+          <div className="text-muted" style={{ fontVariantNumeric: "tabular-nums" }}>
             {tip.d.date}
           </div>
           <div className="font-bold" style={{ color: tip.d.profit >= 0 ? C.goodText : C.critical }}>

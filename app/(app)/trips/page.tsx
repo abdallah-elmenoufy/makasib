@@ -1,62 +1,17 @@
 "use client";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useI18n } from "@/components/I18nProvider";
-import { AddPanel, Badge, Btn, Card, Empty, Field, GroupHeader, Input, PageTitle, Pagination, RecordCard, Select, StatCell, StatGrid, Table, Textarea } from "@/components/ui";
+import { AddPanel, Badge, Btn, Card, Empty, Field, GroupHeader, Input, Modal, PageTitle, Pagination, RecordCard, Select, StatCell, StatGrid, Table, Textarea } from "@/components/ui";
+import { Icon } from "@/components/icons";
+import { TripBatchEntry } from "@/components/TripBatchEntry";
 import { useCrud } from "@/components/useCrud";
 import { useVehicle } from "@/components/VehicleProvider";
 import { RowEditor, type EditField } from "@/components/RowEditor";
 import { LoggingContext } from "@/components/LoggingContext";
 import { QuickAddTrip } from "@/components/QuickAddTrip";
 import { fmtDateTime, fmtMoney, fmtNum, hoursBetween, toLocalInput } from "@/lib/format";
-
-/** Inline-editable number cell — click to edit, blur/Enter to save. Used for
- *  fields (tip, pickup km) the driver fixes up trip-by-trip, right where the
- *  trip already lives, instead of a disconnected form. */
-function EditableNum({
-  value,
-  onSave,
-  locale,
-}: {
-  value: number | null | undefined;
-  onSave: (n: number | null) => void;
-  locale: string;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(String(value ?? ""));
-
-  if (!editing) {
-    return (
-      <button
-        onClick={() => {
-          setDraft(value != null ? String(value) : "");
-          setEditing(true);
-        }}
-        className="text-start hover:bg-slate-50 rounded px-1 -mx-1 w-full"
-      >
-        {value ? fmtNum(value, locale) : <span className="text-slate-300">—</span>}
-      </button>
-    );
-  }
-  const commit = () => {
-    setEditing(false);
-    const n = draft.trim() === "" ? null : Number(draft);
-    if (n !== value) onSave(n != null && Number.isFinite(n) ? n : null);
-  };
-  return (
-    <input
-      type="number"
-      step="0.01"
-      autoFocus
-      value={draft}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => e.key === "Enter" && commit()}
-      className="w-20 rounded border border-emerald-300 px-1.5 py-0.5 text-sm"
-    />
-  );
-}
 
 const PLATFORMS = ["UBER", "CAREEM", "INDRIVE", "BOLT", "OTHER"];
 
@@ -83,6 +38,7 @@ const tripEditFields = (t: T): EditField[] => [
   { key: "distanceKm", label: t("tr.distance"), type: "number", step: "0.1" },
   { key: "pickupKm", label: t("tr.pickupKm"), type: "number", step: "0.1" },
   { key: "pickupMin", label: t("tr.pickupMin"), type: "number", step: "1" },
+  { key: "durationMin", label: t("be.minutes"), type: "number", step: "1" },
   { key: "pickupAddress", label: t("tr.pickupAddress"), type: "text" },
   { key: "dropoffAddress", label: t("tr.dropoffAddress"), type: "text" },
   { key: "notes", label: t("c.notes"), type: "textarea" },
@@ -100,7 +56,11 @@ function TripsInner() {
   const { t, locale } = useI18n();
   const { vehicle, loading: vLoading } = useVehicle();
   const params = useSearchParams();
+  const router = useRouter();
   const focusShiftId = params.get("shiftId");
+  // arriving from the dashboard / active-shift card with ?add=1 opens the
+  // batch entry straight away — one tap fewer for a driver at the kerb
+  const [adding, setAdding] = useState(params.get("add") === "1");
 
   const tripsCrud = useCrud<any>("trips", vehicle?.id);
   const { rows: pagedTrips, loading, update: updateTrip, remove, page, setPage, totalPages } = tripsCrud;
@@ -146,6 +106,8 @@ function TripsInner() {
     }
   }, [focusShiftId, focusTrips]);
 
+  const openShift = useMemo(() => shifts.find((sh) => sh.endOdometer == null) ?? null, [shifts]);
+
   const shiftById = useMemo(() => {
     const m: Record<string, any> = {};
     for (const s of shifts) m[s.id] = s;
@@ -182,7 +144,7 @@ function TripsInner() {
   if (!vehicle) {
     return (
       <Empty>
-        <Link href="/cars" className="text-emerald-600 underline">
+        <Link href="/cars" className="text-ink underline">
           {t("veh.createFirst")}
         </Link>
       </Empty>
@@ -215,30 +177,39 @@ function TripsInner() {
       <PageTitle
         actions={
           <div className="flex gap-2 flex-wrap">
-            <Link
-              href="/import?tab=ocr"
-              className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg px-3 py-2"
-            >
-              📸 {t("tr.fromScreens")}
+            <Link href="/import?tab=ocr" className="inline-flex items-center gap-1.5 text-sm font-bold text-ink bg-surface-2 hover:bg-line rounded-full px-4 h-10">
+              <Icon name="camera" size={18} /> {t("tr.fromScreens")}
             </Link>
-            <Link
-              href="/import?tab=manual"
-              className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg px-3 py-2"
-            >
-              ➕ {t("tr.add")}
-            </Link>
+            <Btn onClick={() => setAdding(true)} className="!rounded-full !h-10">
+              <Icon name="plus" size={18} strokeWidth={2.5} /> {t("tr.addMany")}
+            </Btn>
           </div>
         }
       >
         {t("tr.title")}
       </PageTitle>
 
+      <Modal open={adding} onClose={() => { setAdding(false); if (params.get("add")) router.replace("/trips"); }} title={t("tr.addMany")} wide>
+        <TripBatchEntry
+          vehicleId={vehicle.id}
+          shift={openShift ? { id: openShift.id, startTime: openShift.startTime } : focusShiftId && shiftById[focusShiftId] ? { id: focusShiftId, startTime: shiftById[focusShiftId].startTime, endTime: shiftById[focusShiftId].endTime } : null}
+          defaultPlatform={pagedTrips[0]?.platform ?? "UBER"}
+          existingCount={openShift ? pagedTrips.filter((tr) => tr.shiftId === openShift.id).length : 0}
+          onSaved={() => {
+            setAdding(false);
+            if (params.get("add")) router.replace("/trips");
+            tripsCrud.refresh();
+          }}
+          onCancel={() => setAdding(false)}
+        />
+      </Modal>
+
       <LoggingContext vehicleId={vehicle.id} onChanged={() => tripsCrud.refresh()} />
 
       {focusShiftId && (
         <div className="mb-3 flex items-center gap-2 text-sm">
-          <span className="text-slate-500">{t("tr.filteredByShift")}</span>
-          <Link href="/trips" className="text-emerald-600 underline font-semibold">
+          <span className="text-muted">{t("tr.filteredByShift")}</span>
+          <Link href="/trips" className="text-ink underline font-semibold">
             {t("tr.clearFilter")}
           </Link>
         </div>
@@ -325,7 +296,7 @@ function TripsInner() {
                     tone={g.key === "__none__" ? "warn" : "plain"}
                     title={label}
                     meta={`${sub ? sub + " · " : ""}${t("tr.tripCount", { n: g.trips.length })}`}
-                    right={<span className="text-xs font-bold tnum">{fmtMoney(revenue, locale)}</span>}
+                    right={<span className="text-xs font-bold tnum text-money">{fmtMoney(revenue, locale)}</span>}
                   />
                   {isOpen && (
                     <div className="space-y-2 mt-2 ps-2 sm:ps-4">
@@ -340,24 +311,35 @@ function TripsInner() {
                                   {t(`tr.${tr.paymentType}`)}
                                 </Badge>
                                 {!tr.shiftId && <Badge tone="warn">{t("tr.noShift")}</Badge>}
+                                {(tr.pickupLat != null || tr.dropoffLat != null) && (
+                                  <a
+                                    href={`https://www.openstreetmap.org/?mlat=${tr.pickupLat ?? tr.dropoffLat}&mlon=${tr.pickupLng ?? tr.dropoffLng}#map=15/${tr.pickupLat ?? tr.dropoffLat}/${tr.pickupLng ?? tr.dropoffLng}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    title={t("tr.located")}
+                                    className="text-muted hover:text-ink"
+                                  >
+                                    <Icon name="pin" size={14} />
+                                  </a>
+                                )}
                               </div>
                               {(tr.pickupAddress || tr.dropoffAddress) && (
-                                <p className="text-xs text-slate-500 mt-1 truncate">
+                                <p className="text-xs text-muted mt-1 truncate">
                                   {tr.pickupAddress ?? "—"} → {tr.dropoffAddress ?? "—"}
                                 </p>
                               )}
                             </div>
                             <div className="text-end shrink-0">
-                              <div className="text-lg font-black text-emerald-700 tnum leading-none">
+                              <div className="text-lg font-bold text-money tnum leading-none">
                                 {fmtMoney(tr.fare - (tr.commission ?? 0), locale)}
                               </div>
                               <div className="flex gap-2 justify-end mt-1.5">
-                                <button onClick={() => setEditingRow(tr)} className="text-xs text-slate-500 hover:text-slate-800">
+                                <button onClick={() => setEditingRow(tr)} className="text-xs text-muted hover:text-ink">
                                   {t("c.edit")}
                                 </button>
                                 <button
                                   onClick={() => confirm(t("c.confirmDelete")) && remove(tr.id)}
-                                  className="text-xs text-red-400 hover:text-red-600"
+                                  className="text-xs text-loss hover:text-loss"
                                 >
                                   ✕
                                 </button>
@@ -377,9 +359,18 @@ function TripsInner() {
                               label={t("tr.pickupMin")}
                               value={tr.pickupMin != null ? fmtNum(tr.pickupMin, locale, 0) : "—"}
                             />
+                            <StatCell label={t("be.minutes")} value={tr.durationMin != null ? fmtNum(tr.durationMin, locale, 0) : tr.endTime ? fmtNum(hoursBetween(tr.startTime, tr.endTime) * 60, locale, 0) : "—"} />
+                            <StatCell
+                              label={t("tr.perMin")}
+                              value={(() => {
+                                const mins = tr.durationMin ?? (tr.endTime ? hoursBetween(tr.startTime, tr.endTime) * 60 : 0);
+                                return mins > 0 ? fmtMoney((tr.fare - (tr.commission ?? 0) + (tr.tip ?? 0)) / mins, locale) : "—";
+                              })()}
+                              tone="good"
+                            />
                           </StatGrid>
                           {(tr.notes || tr.source) && (
-                            <div className="flex items-center gap-2 mt-2.5 pt-2 border-t border-slate-100 text-xs text-slate-400">
+                            <div className="flex items-center gap-2 mt-2.5 pt-2 border-t border-line text-xs text-muted">
                               {tr.source && <span className="shrink-0">{tr.source}</span>}
                               {tr.notes && <span className="truncate">· {tr.notes}</span>}
                             </div>
@@ -422,11 +413,11 @@ function TripsInner() {
               <tr key={tp.id}>
                 <td className="py-2 px-2">{fmtDateTime(tp.date, locale)}</td>
                 <td className="py-2 px-2 font-semibold">{fmtMoney(tp.amount, locale)}</td>
-                <td className="py-2 px-2 text-slate-400">{tp.notes ?? ""}</td>
+                <td className="py-2 px-2 text-muted">{tp.notes ?? ""}</td>
                 <td className="py-2 px-2">
                   <button
                     onClick={() => confirm(t("c.confirmDelete")) && tipsCrud.remove(tp.id)}
-                    className="text-red-400 text-xs"
+                    className="text-loss text-xs"
                   >
                     ✕
                   </button>

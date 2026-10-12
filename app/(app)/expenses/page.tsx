@@ -35,7 +35,7 @@ const CAT_COLOR: Record<string, string> = {
   RENTAL: "#d97706",
   INSURANCE: "#0891b2",
   LICENSE: "#6b7280",
-  TOLL: "#10b981",
+  TOLL: "#05a357",
   OTHER: "#c3c2b7",
 };
 
@@ -100,7 +100,7 @@ export default function ExpensesPage() {
   if (!vehicle) {
     return (
       <Empty>
-        <Link href="/cars" className="text-emerald-600 underline">
+        <Link href="/cars" className="text-ink underline">
           {t("veh.createFirst")}
         </Link>
       </Empty>
@@ -121,48 +121,48 @@ export default function ExpensesPage() {
         <CardHead icon="💸" title={t("ex.summaryTitle")} sub={t("ex.summarySub")} />
 
         {allRows.length === 0 ? (
-          <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
+          <p className="text-xs text-warn-ink bg-warn-soft border border-warn/60 rounded-lg px-3 py-2 mb-3">
             ⚠️ {t("ex.emptyWarning")}
           </p>
         ) : (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               <div>
-                <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">
+                <div className="text-[10px] uppercase tracking-wide text-muted font-semibold">
                   {t("ex.totalWork")}
                 </div>
                 <div className="text-3xl font-black tnum mt-0.5 leading-tight">{money(totals.work)}</div>
-                <div className="text-xs text-slate-400 mt-1">
+                <div className="text-xs text-muted mt-1">
                   {t("ex.entries", { n: fmtNum(allRows.length, locale, 0) })}
                 </div>
               </div>
               <div>
-                <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">
+                <div className="text-[10px] uppercase tracking-wide text-muted font-semibold">
                   {t("ex.perShiftDay")}
                 </div>
                 <div className="text-3xl font-black tnum mt-0.5 leading-tight">
                   {shiftDays > 0 ? money(totals.work / shiftDays) : "—"}
                 </div>
-                <div className="text-xs text-slate-400 mt-1">
+                <div className="text-xs text-muted mt-1">
                   {t("ex.overDays", { n: fmtNum(shiftDays, locale, 0) })}
                 </div>
               </div>
               {totals.personal > 0 && (
                 <div>
-                  <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">
+                  <div className="text-[10px] uppercase tracking-wide text-muted font-semibold">
                     {t("ex.personalTotal")}
                   </div>
-                  <div className="text-2xl font-black tnum mt-0.5 leading-tight text-slate-400">
+                  <div className="text-2xl font-black tnum mt-0.5 leading-tight text-muted">
                     {money(totals.personal)}
                   </div>
-                  <div className="text-xs text-slate-400 mt-1">{t("ex.personalSub")}</div>
+                  <div className="text-xs text-muted mt-1">{t("ex.personalSub")}</div>
                 </div>
               )}
             </div>
 
             {totals.byCat.length > 0 && (
-              <div className="mt-5 pt-4 border-t border-slate-100">
-                <div className="text-xs font-semibold text-slate-600 mb-2">{t("ex.byCategory")}</div>
+              <div className="mt-5 pt-4 border-t border-line">
+                <div className="text-xs font-semibold text-ink-500 mb-2">{t("ex.byCategory")}</div>
                 <StackedMeter
                   segments={totals.byCat.map((c) => ({
                     key: c.key,
@@ -175,10 +175,10 @@ export default function ExpensesPage() {
                   {totals.byCat.map((c) => (
                     <div key={c.key} className="flex items-center gap-2 text-xs">
                       <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: CAT_COLOR[c.key] }} />
-                      <span className="flex-1 text-slate-600">
+                      <span className="flex-1 text-ink-500">
                         {EXPENSE_ICON[c.key]} {t(`ex.cat.${c.key}`)}
                       </span>
-                      <span className="text-slate-400 tnum">{t("ex.entries", { n: c.count })}</span>
+                      <span className="text-muted tnum">{t("ex.entries", { n: c.count })}</span>
                       <span className="font-semibold tnum w-24 text-end">{money(c.amount)}</span>
                     </div>
                   ))}
@@ -187,7 +187,7 @@ export default function ExpensesPage() {
             )}
 
             {share != null && (
-              <div className="mt-5 pt-4 border-t border-slate-100">
+              <div className="mt-5 pt-4 border-t border-line">
                 <Meter
                   ratio={share}
                   tone={share <= 0.08 ? "good" : share <= 0.15 ? "warn" : "bad"}
@@ -200,8 +200,8 @@ export default function ExpensesPage() {
           </>
         )}
 
-        <div className="mt-4 pt-4 border-t border-slate-100">
-          <div className="text-xs font-semibold text-slate-600 mb-2">{t("qx.title")}</div>
+        <div className="mt-4 pt-4 border-t border-line">
+          <div className="text-xs font-semibold text-ink-500 mb-2">{t("qx.title")}</div>
           <QuickExpense vehicleId={vehicle.id} recent={allRows} onAdded={refresh} />
         </div>
       </Card>
@@ -262,9 +262,9 @@ export default function ExpensesPage() {
                 </td>
                 <td className="py-2 px-2 font-semibold">{fmtMoney(x.amount, locale)}</td>
                 <td className="py-2 px-2">{x.isWork ? "✓" : "—"}</td>
-                <td className="py-2 px-2 text-slate-400 max-w-40 truncate">{x.notes ?? ""}</td>
+                <td className="py-2 px-2 text-muted max-w-40 truncate">{x.notes ?? ""}</td>
                 <td className="py-2 px-2">
-                  <button onClick={() => confirm(t("c.confirmDelete")) && remove(x.id)} className="text-red-400 text-xs">
+                  <button onClick={() => confirm(t("c.confirmDelete")) && remove(x.id)} className="text-loss text-xs">
                     ✕
                   </button>
                 </td>

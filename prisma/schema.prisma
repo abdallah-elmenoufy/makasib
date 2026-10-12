@@ -46,7 +46,16 @@ model Vehicle {
   monthlyInstallment Float?
   dailyRentalFee     Float?
   targetOwnerShare   Float? // % of revenue owed to the car owner (TARGET model)
-  depreciationPerKm  Float? // manual EGP/km override; 0/null = ignore
+  depreciationPerKm  Float? // manual EGP/km override (used when depreciationMethod = MANUAL)
+  // MILEAGE (default: resale penalty per km of current market value) |
+  // LIFETIME (purchase price spread over the car's remaining service km) |
+  // MANUAL (depreciationPerKm as typed). See lib/depreciation.ts.
+  depreciationMethod String   @default("MILEAGE")
+  // master switch: off = depreciation is excluded from every profit figure
+  depreciationEnabled Boolean @default(true)
+  // MILEAGE method: % of the car's current value lost per 10,000 km driven.
+  // null = DEFAULT_MILEAGE_SENSITIVITY_PCT (lib/depreciation.ts)
+  mileageSensitivityPct Float?
   // expected total service life in km; drives use-based depreciation.
   // null = use DEFAULT_LIFETIME_KM (see lib/depreciation.ts)
   lifetimeKm         Float?
@@ -106,6 +115,13 @@ model Trip {
   tip           Float     @default(0) // cash tip received on this trip
   pickupKm      Float? // driver → rider distance, from the trip-request card
   pickupMin     Float? // driver → rider ETA minutes, from the trip-request card
+  durationMin   Float? // minutes with the rider on board (pickup → drop-off)
+  // where the rider was picked up / dropped off. Filled from the shift's GPS
+  // track by time, or from the phone's position when a trip is logged live.
+  pickupLat     Float?
+  pickupLng     Float?
+  dropoffLat    Float?
+  dropoffLng    Float?
   pickupAddress  String? // Google place label read from screenshots
   dropoffAddress String?
   source        String    @default("MANUAL") // MANUAL | CSV | API

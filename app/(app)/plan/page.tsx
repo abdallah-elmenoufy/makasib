@@ -15,8 +15,8 @@ const GpsHeatmap = dynamic(() => import("@/components/GpsHeatmap").then((m) => m
 // sequential blue ramp (validated reference palette) — light → dark = low → high
 const RAMP = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#1c5cab", "#0d366b"];
 const EMPTY_CELL = "#f1f5f9";
-// Egypt week starts Saturday
-const DOW_ORDER = [6, 0, 1, 2, 3, 4, 5];
+// Monday first — the order of Uber's pay week (lib/week.ts)
+const DOW_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
 function dayName(dow: number, locale: string, style: "short" | "long" = "short"): string {
   // 2026-07-05 is a Sunday → +dow days lands on the right weekday
@@ -44,13 +44,13 @@ function WeekdayHeatGrid({ cells, locale, t }: { cells: any[]; locale: string; t
         <div className="grid" style={{ gridTemplateColumns: "3rem repeat(24, 1fr)", gap: 2 }}>
           <div />
           {Array.from({ length: 24 }, (_, h) => (
-            <div key={h} className="text-[9px] text-slate-400 text-center" style={{ fontVariantNumeric: "tabular-nums" }}>
+            <div key={h} className="text-[9px] text-muted text-center" style={{ fontVariantNumeric: "tabular-nums" }}>
               {h % 3 === 0 ? h : ""}
             </div>
           ))}
           {DOW_ORDER.map((dow) => (
             <Fragment key={dow}>
-              <div key={`d${dow}`} className="text-[10px] text-slate-500 font-semibold flex items-center">
+              <div key={`d${dow}`} className="text-[10px] text-muted font-semibold flex items-center">
                 {dayName(dow, locale)}
               </div>
               {Array.from({ length: 24 }, (_, h) => {
@@ -72,7 +72,7 @@ function WeekdayHeatGrid({ cells, locale, t }: { cells: any[]; locale: string; t
             </Fragment>
           ))}
         </div>
-        <div className="flex items-center gap-2 mt-3 text-[10px] text-slate-400">
+        <div className="flex items-center gap-2 mt-3 text-[10px] text-muted">
           <span>{fmtMoney(minRate, locale)}/{t("c.hours")}</span>
           {RAMP.map((c) => (
             <span key={c} className="inline-block w-6 h-2.5 rounded-sm" style={{ background: c }} />
@@ -84,10 +84,10 @@ function WeekdayHeatGrid({ cells, locale, t }: { cells: any[]; locale: string; t
       </div>
       {tip && (
         <div
-          className="absolute -translate-x-1/2 -translate-y-full bg-white border border-slate-200 shadow-md rounded-lg px-2.5 py-1.5 text-xs pointer-events-none z-10 whitespace-nowrap"
+          className="absolute -translate-x-1/2 -translate-y-full bg-white border border-line shadow-md rounded-lg px-2.5 py-1.5 text-xs pointer-events-none z-10 whitespace-nowrap"
           style={{ left: tip.x, top: tip.y - 4 }}
         >
-          <div className="text-slate-400">
+          <div className="text-muted">
             {dayName(tip.cell.dow, locale, "long")} {tip.cell.hour}:00–{tip.cell.hour + 1}:00
           </div>
           <div className="font-bold">
@@ -95,7 +95,7 @@ function WeekdayHeatGrid({ cells, locale, t }: { cells: any[]; locale: string; t
               ? `${fmtMoney(tip.cell.ratePerHour, locale)}/${t("c.hours")}`
               : t("pl.noSample")}
           </div>
-          <div className="text-slate-500">
+          <div className="text-muted">
             {t("pl.tripsN", { n: tip.cell.trips })} · {fmtNum(tip.cell.hours, locale)} {t("c.hours")}
           </div>
         </div>
@@ -129,7 +129,7 @@ export default function PlanPage() {
   if (!vehicle) {
     return (
       <Empty>
-        <Link href="/cars" className="text-emerald-600 underline">
+        <Link href="/cars" className="text-ink underline">
           {t("veh.createFirst")}
         </Link>
       </Empty>
@@ -142,11 +142,10 @@ export default function PlanPage() {
 
   return (
     <div className="space-y-4">
-      <PageTitle>🗓️ {t("pl.title")}</PageTitle>
-      <p className="text-sm text-slate-500 -mt-2">{t("pl.subtitle")}</p>
+      <PageTitle sub={t("pl.subtitle")}>{t("pl.title")}</PageTitle>
 
       {!plan.enoughData && (
-        <Card className="border-amber-200 bg-amber-50">
+        <Card className="border-warn/60 bg-warn-soft">
           <p className="text-sm">
             🌱 {t("pl.learning", { trips: plan.totals.trips, shifts: plan.totals.shifts })}
           </p>
@@ -163,13 +162,13 @@ export default function PlanPage() {
           honestly hidden until there's a real sample to show */}
       <Card>
         <div className="text-sm font-semibold mb-1">👥 {t("pl.communityTitle")}</div>
-        <p className="text-xs text-slate-400 mb-3">{t("pl.communitySub")}</p>
+        <p className="text-xs text-muted mb-3">{t("pl.communitySub")}</p>
         {!community || !community.enoughDrivers ? (
           <Empty>{t("pl.communityNotEnough")}</Empty>
         ) : (
           <>
             <WeekdayHeatGrid cells={community.cells} locale={locale} t={t} />
-            <div className="text-xs text-slate-400 mt-3 text-center">
+            <div className="text-xs text-muted mt-3 text-center">
               {t("bm.driverCount", { n: fmtNum(community.driverCount, locale, 0) })}
             </div>
           </>
@@ -186,14 +185,14 @@ export default function PlanPage() {
             <div className="space-y-2">
               {plan.topSlots.map((s: any, i: number) => (
                 <div key={i} className="flex items-center gap-3 text-sm">
-                  <span className="w-6 text-center font-black text-slate-300">{i + 1}</span>
+                  <span className="w-6 text-center font-black text-muted-2">{i + 1}</span>
                   <span className="flex-1 font-semibold">
                     {dayName(s.dow, locale, "long")} {s.hour}:00–{s.hour + 1}:00
                   </span>
                   <span className="font-bold" style={{ fontVariantNumeric: "tabular-nums" }}>
                     {fmtMoney(s.ratePerHour, locale)}/{t("c.hours")}
                   </span>
-                  <span className="text-xs text-slate-400">{t("pl.tripsN", { n: s.trips })}</span>
+                  <span className="text-xs text-muted">{t("pl.tripsN", { n: s.trips })}</span>
                 </div>
               ))}
             </div>
@@ -203,17 +202,17 @@ export default function PlanPage() {
         {/* wait between trips */}
         <Card>
           <div className="text-sm font-semibold mb-1">⏱ {t("pl.gapsTitle")}</div>
-          <p className="text-xs text-slate-400 mb-3">{t("pl.gapsSub")}</p>
+          <p className="text-xs text-muted mb-3">{t("pl.gapsSub")}</p>
           {gapRows.length === 0 ? (
             <Empty>{t("pl.noData")}</Empty>
           ) : (
             <div className="space-y-1.5">
               {gapRows.map((g: any) => (
                 <div key={g.hour} className="flex items-center gap-2 text-xs">
-                  <span className="w-14 text-slate-500" style={{ fontVariantNumeric: "tabular-nums" }}>
+                  <span className="w-14 text-muted" style={{ fontVariantNumeric: "tabular-nums" }}>
                     {g.hour}:00
                   </span>
-                  <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden" dir="ltr">
+                  <div className="flex-1 h-2 rounded-full bg-surface-2 overflow-hidden" dir="ltr">
                     <div
                       className="h-full rounded-full"
                       style={{ width: `${(g.medianGapMin / maxGap) * 100}%`, background: "#3987e5" }}
@@ -233,7 +232,7 @@ export default function PlanPage() {
           during shifts, not a geocoded guess from address text */}
       <Card>
         <div className="text-sm font-semibold mb-1">🗺️ {t("pl.heatmapTitle")}</div>
-        <p className="text-xs text-slate-400 mb-3">{t("pl.heatmapSub")}</p>
+        <p className="text-xs text-muted mb-3">{t("pl.heatmapSub")}</p>
         {!heatmap || heatmap.points.length === 0 ? (
           <Empty>{t("pl.heatmapEmpty")}</Empty>
         ) : (
@@ -246,19 +245,19 @@ export default function PlanPage() {
         <div className="text-sm font-semibold mb-3">{t("pl.seasonsTitle")}</div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {plan.seasons.map((s: any) => (
-            <div key={s.season} className="border border-slate-100 rounded-lg p-3">
-              <div className="text-xs font-bold text-slate-600 mb-1">{t(`pl.season.${s.season}`)}</div>
+            <div key={s.season} className="border border-line rounded-lg p-3">
+              <div className="text-xs font-bold text-ink-500 mb-1">{t(`pl.season.${s.season}`)}</div>
               <div className="text-2xl font-black">
                 {s.ratePerHour != null ? (
                   <>
                     {fmtMoney(s.ratePerHour, locale)}
-                    <span className="text-xs font-semibold text-slate-400">/{t("c.hours")}</span>
+                    <span className="text-xs font-semibold text-muted">/{t("c.hours")}</span>
                   </>
                 ) : (
-                  <span className="text-slate-300">—</span>
+                  <span className="text-muted-2">—</span>
                 )}
               </div>
-              <div className="text-xs text-slate-500 mt-1">
+              <div className="text-xs text-muted mt-1">
                 {t("pl.tripsN", { n: s.trips })} · {fmtNum(s.hours, locale)} {t("c.hours")}
               </div>
             </div>

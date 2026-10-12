@@ -37,7 +37,7 @@ function ImportInner() {
   if (!vehicle) {
     return (
       <Empty>
-        <Link href="/cars" className="text-emerald-600 underline">
+        <Link href="/cars" className="text-ink underline">
           {t("veh.createFirst")}
         </Link>
       </Empty>
@@ -55,13 +55,13 @@ function ImportInner() {
   return (
     <div>
       <PageTitle>{t("im.title")}</PageTitle>
-      <div className="grid grid-cols-2 sm:flex gap-1.5 mb-4 bg-white border border-slate-200 rounded-xl p-1.5 flex-wrap">
+      <div className="grid grid-cols-2 sm:flex gap-1.5 mb-4 bg-white border border-line rounded-xl p-1.5 flex-wrap">
         {tabs.map((x) => (
           <button
             key={x.id}
             onClick={() => setTab(x.id)}
             className={`px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
-              tab === x.id ? "bg-emerald-600 text-white" : "text-slate-500 hover:bg-slate-100"
+              tab === x.id ? "bg-ink text-white" : "text-muted hover:bg-surface-2"
             }`}
           >
             {x.label}
@@ -165,7 +165,7 @@ function ManualTripImport({ vehicleId }: { vehicleId: string }) {
           <Btn type="submit" disabled={busy}>
             {t("c.save")}
           </Btn>
-          {result && <span className="text-emerald-700 text-sm font-semibold">{result}</span>}
+          {result && <span className="text-ink text-sm font-semibold">{result}</span>}
         </div>
       </form>
     </Card>
@@ -299,7 +299,7 @@ function ShiftPhotosImport({ vehicle }: { vehicle: any }) {
 
   return (
     <Card className="space-y-4">
-      <p className="text-sm text-slate-500">{t("im.shiftHint")}</p>
+      <p className="text-sm text-muted">{t("im.shiftHint")}</p>
 
       {photos.length < 2 && (
         <label
@@ -309,7 +309,7 @@ function ShiftPhotosImport({ vehicle }: { vehicle: any }) {
             processFiles(Array.from(e.dataTransfer.files));
           }}
           className={`block border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
-            busy ? "border-slate-200 text-slate-300" : "border-emerald-300 text-slate-500 hover:bg-emerald-50"
+            busy ? "border-line text-muted-2" : "border-line text-muted hover:bg-surface-2"
           }`}
         >
           <input
@@ -327,17 +327,17 @@ function ShiftPhotosImport({ vehicle }: { vehicle: any }) {
           <div className="text-sm font-semibold">{t("im.shiftDrop")}</div>
         </label>
       )}
-      {progress && <p className="text-sm text-slate-400 animate-pulse">{progress}</p>}
+      {progress && <p className="text-sm text-muted animate-pulse">{progress}</p>}
 
       {photos.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {photos.map((p, i) => (
-            <div key={p.filename} className="border border-slate-200 rounded-xl p-3 space-y-3">
+            <div key={p.filename} className="border border-line rounded-xl p-3 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-bold">
                   {i === 0 ? `▶ ${t("im.shiftStart")}` : `⏹ ${t("im.shiftEnd")}`}
                 </span>
-                <button onClick={() => setPhotos(photos.filter((_, j) => j !== i))} className="text-red-400 text-xs">
+                <button onClick={() => setPhotos(photos.filter((_, j) => j !== i))} className="text-loss text-xs">
                   ✕
                 </button>
               </div>
@@ -367,14 +367,14 @@ function ShiftPhotosImport({ vehicle }: { vehicle: any }) {
       )}
 
       {photos.length === 2 && photos[1].odo !== "" && Number(photos[1].odo) <= Number(photos[0].odo) && (
-        <p className="text-xs text-red-600">{t("im.odoOrder")}</p>
+        <p className="text-xs text-loss">{t("im.odoOrder")}</p>
       )}
       {photos.length > 0 && (
         <Btn onClick={save} disabled={busy || !canSave}>
           {t("c.save")} {photos.length === 1 ? `(${t("sh.start")})` : ""}
         </Btn>
       )}
-      {result && <p className="text-emerald-700 text-sm font-semibold">{result}</p>}
+      {result && <p className="text-ink text-sm font-semibold">{result}</p>}
     </Card>
   );
 }
@@ -417,7 +417,7 @@ function PdfImport({ vehicleId }: { vehicleId: string }) {
 
   return (
     <Card className="space-y-3">
-      <p className="text-sm text-slate-500">{t("im.pdfHint")}</p>
+      <p className="text-sm text-muted">{t("im.pdfHint")}</p>
       <input
         type="file"
         accept=".pdf,application/pdf"
@@ -425,8 +425,8 @@ function PdfImport({ vehicleId }: { vehicleId: string }) {
         onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])}
         className="text-sm"
       />
-      {busy && <p className="text-sm text-slate-400 animate-pulse">…</p>}
-      {result && <p className="text-emerald-700 text-sm font-semibold">{result}</p>}
+      {busy && <p className="text-sm text-muted animate-pulse">…</p>}
+      {result && <p className="text-ink text-sm font-semibold">{result}</p>}
     </Card>
   );
 }
@@ -520,6 +520,7 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
           earnings: r.earnings,
           cashCollected: r.cashCollected,
           distanceKm: r.distanceKm,
+          durationMin: r.durationMin,
           product: r.product,
           pickupAddress: r.pickupAddress,
           dropoffAddress: r.dropoffAddress,
@@ -565,11 +566,11 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
     if (parts.length > 0) setTimeout(() => router.push("/trips"), 600);
   };
 
-  const inputCls = "w-full rounded border border-slate-200 px-1.5 py-1 text-xs bg-white";
+  const inputCls = "w-full rounded border border-line px-1.5 py-1 text-xs bg-white";
 
   return (
     <Card className="space-y-4">
-      <p className="text-sm text-slate-500">{t("im.ocrHint")}</p>
+      <p className="text-sm text-muted">{t("im.ocrHint")}</p>
       <div className="flex items-end gap-3 flex-wrap">
         <Field label={t("im.ocrYear")}>
           <Input
@@ -587,7 +588,7 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
           addFiles(Array.from(e.dataTransfer.files));
         }}
         className={`block border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
-          busy ? "border-slate-200 text-slate-300" : "border-emerald-300 text-slate-500 hover:bg-emerald-50"
+          busy ? "border-line text-muted-2" : "border-line text-muted hover:bg-surface-2"
         }`}
       >
         <input
@@ -606,21 +607,21 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
           {t("im.dropZone")} {files.length > 0 ? `(${files.length})` : ""}
         </div>
       </label>
-      {progress && <p className="text-sm text-slate-400 animate-pulse">🔎 {progress}</p>}
+      {progress && <p className="text-sm text-muted animate-pulse">🔎 {progress}</p>}
 
       {unread.length > 0 && (
-        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+        <p className="text-xs text-warn-ink bg-warn-soft border border-warn/60 rounded-lg px-3 py-2">
           ⚠️ {t("im.unreadable", { n: unread.length })}: {unread.join(", ")}
         </p>
       )}
 
       {rows.length > 0 && (
         <>
-          <p className="text-xs text-slate-500">{t("im.ocrReview")}</p>
+          <p className="text-xs text-muted">{t("im.ocrReview")}</p>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="text-start text-slate-500 border-b border-slate-200">
+                <tr className="text-start text-muted border-b border-line">
                   {[
                     t("im.colDate"),
                     t("im.colTime"),
@@ -636,9 +637,9 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-line">
                 {rows.map((r, i) => (
-                  <tr key={i} className={!r.date || !r.time || !Number.isFinite(r.earnings) ? "bg-amber-50" : ""}>
+                  <tr key={i} className={!r.date || !r.time || !Number.isFinite(r.earnings) ? "bg-warn-soft" : ""}>
                     <td className="py-1 px-1">
                       <input
                         type="date"
@@ -701,7 +702,7 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
                     <td className="py-1 px-1">
                       <button
                         onClick={() => setRows(rows.filter((_, j) => j !== i))}
-                        className="text-red-400"
+                        className="text-loss"
                       >
                         ✕
                       </button>
@@ -716,13 +717,13 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
 
       {reqs.length > 0 && (
         <>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-muted">
             {t("im.reqFound", { n: reqs.length })} — {t("im.reqHint")}
           </p>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="text-start text-slate-500 border-b border-slate-200">
+                <tr className="text-start text-muted border-b border-line">
                   {[
                     t("im.colTime"),
                     t("im.colProduct"),
@@ -738,7 +739,7 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-line">
                 {reqs.map((r, i) => (
                   <tr key={i}>
                     <td className="py-1.5 px-1">{r.clock ?? "—"}</td>
@@ -750,7 +751,7 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
                     <td className="py-1.5 px-1">
                       <button
                         onClick={() => setReqs(reqs.filter((_, j) => j !== i))}
-                        className="text-red-400"
+                        className="text-loss"
                       >
                         ✕
                       </button>
@@ -768,7 +769,7 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
           📥 {t("im.import")}
         </Btn>
       )}
-      {result && <p className="text-emerald-700 text-sm font-semibold">{result}</p>}
+      {result && <p className="text-ink text-sm font-semibold">{result}</p>}
     </Card>
   );
 }
@@ -865,7 +866,7 @@ function CsvImport({ vehicleId }: { vehicleId: string }) {
 
   return (
     <Card className="space-y-4">
-      <p className="text-sm text-slate-500">{t("im.hint")}</p>
+      <p className="text-sm text-muted">{t("im.hint")}</p>
       <div className="flex gap-4 items-end flex-wrap">
         <Field label={t("tr.platform")}>
           <Select value={platform} onChange={(e) => setPlatform(e.target.value)} className="w-40">
@@ -890,7 +891,7 @@ function CsvImport({ vehicleId }: { vehicleId: string }) {
         <>
           <div>
             <div className="font-semibold text-sm">{t("im.map")}</div>
-            <p className="text-xs text-slate-400 mb-2">{t("im.mapHint")}</p>
+            <p className="text-xs text-muted mb-2">{t("im.mapHint")}</p>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               {TARGET_FIELDS.map((f) => (
                 <Field key={f} label={t(`im.field.${f}`)}>
@@ -920,12 +921,12 @@ function CsvImport({ vehicleId }: { vehicleId: string }) {
             <div className="font-semibold text-sm mb-2">
               {t("im.preview")} ({rows.length})
             </div>
-            <div className="overflow-x-auto max-h-48 overflow-y-auto border border-slate-100 rounded-lg">
+            <div className="overflow-x-auto max-h-48 overflow-y-auto border border-line rounded-lg">
               <table className="w-full text-xs">
                 <thead>
                   <tr>
                     {headers.map((h, i) => (
-                      <th key={i} className="text-start px-2 py-1 bg-slate-50 whitespace-nowrap">
+                      <th key={i} className="text-start px-2 py-1 bg-surface whitespace-nowrap">
                         {h}
                       </th>
                     ))}
@@ -933,7 +934,7 @@ function CsvImport({ vehicleId }: { vehicleId: string }) {
                 </thead>
                 <tbody>
                   {rows.slice(0, 5).map((r, ri) => (
-                    <tr key={ri} className="border-t border-slate-100">
+                    <tr key={ri} className="border-t border-line">
                       {r.map((c, ci) => (
                         <td key={ci} className="px-2 py-1 whitespace-nowrap">
                           {c}
@@ -954,7 +955,7 @@ function CsvImport({ vehicleId }: { vehicleId: string }) {
           </Btn>
         </>
       )}
-      {result && <p className="text-emerald-700 text-sm font-semibold">{result}</p>}
+      {result && <p className="text-ink text-sm font-semibold">{result}</p>}
     </Card>
   );
 }

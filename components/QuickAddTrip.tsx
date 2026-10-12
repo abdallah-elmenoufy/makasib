@@ -1,21 +1,21 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useI18n } from "./I18nProvider";
-import { Badge, Btn, Card, Input } from "./ui";
+import { Badge, Btn, Card, Segmented } from "./ui";
+import { Icon } from "./icons";
 
 /**
- * One-field trip logging for the end of a shift.
+ * One-field trip logging while the shift is still running.
  *
- * The full trip form asks for a dozen things. At 2am, parked, last tea going
- * cold, the driver knows exactly one number for sure: what the app paid them.
- * Everything else here is either defaulted (now, current car, the platform
- * they last used) or filled in later from the screenshot import — which
- * merges into this same trip rather than duplicating it, because
- * lib/importApply.ts matches on net amount within a ±5 min window.
+ * At the kerb, the driver knows exactly one number for sure: what the app
+ * just paid. That is the only required field. "Details" unfolds the rest —
+ * tip, trip km, km to the rider, minutes — for anyone who wants them now;
+ * otherwise they merge in later from the screenshot import (±5 min, same
+ * amount — lib/importApply.ts never duplicates).
  *
- * The mic is the same idea taken further: speak the number, don't type it.
- * Web Speech API is Chrome/Safari-only, so the button simply isn't rendered
- * where it won't work rather than failing on tap.
+ * Because this is logged where the rider just got out, the phone's position
+ * is captured as the drop-off (when location is allowed), and the pickup is
+ * read back from the shift's GPS track by time (lib/tripLocation.ts).
  */
 export function QuickAddTrip({
   vehicleId,
@@ -29,15 +29,22 @@ export function QuickAddTrip({
   const { t, locale } = useI18n();
   const [amount, setAmount] = useState("");
   const [payment, setPayment] = useState<"CASH" | "CARD">("CASH");
+  const [more, setMore] = useState(false);
+  const [tip, setTip] = useState("");
+  const [km, setKm] = useState("");
+  const [pickupKm, setPickupKm] = useState("");
+  const [mins, setMins] = useState("");
   const [saving, setSaving] = useState(false);
   const [flash, setFlash] = useState("");
   const [listening, setListening] = useState(false);
   const [voiceOk, setVoiceOk] = useState(false);
+  const [geoOk, setGeoOk] = useState(false);
   const recRef = useRef<any>(null);
 
   useEffect(() => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     setVoiceOk(!!SR);
+    setGeoOk("geolocation" in navigator && window.isSecureContext);
   }, []);
 
   const listen = () => {
@@ -50,8 +57,6 @@ export function QuickAddTrip({
     rec.maxAlternatives = 1;
     rec.onresult = (e: any) => {
       const said: string = e.results[0][0].transcript ?? "";
-      // pull the first number out of whatever was said — "sixty five fifty",
-      // "65.50", "٦٥" all reduce to a figure we can put in the box
       const normalised = said.replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
       const m = normalised.match(/\d+(?:[.,]\d+)?/);
       if (m) setAmount(m[0].replace(",", "."));
@@ -63,31 +68,63 @@ export function QuickAddTrip({
     rec.start();
   };
 
+  /** Where the car is right now — best effort, 4 s budget, never blocks the save. */
+  const herePosition = (): Promise<{ lat: number; lng: number } | null> =>
+    new Promise((resolve) => {
+      if (!geoOk) return resolve(null);
+      const done = (v: { lat: number; lng: number } | null) => resolve(v);
+      const timer = setTimeout(() => done(null), 4000);
+      navigator.geolocation.getCurrentPosition(
+        (p) => {
+          clearTimeout(timer);
+          done({ lat: p.coords.latitude, lng: p.coords.longitude });
+        },
+        () => {
+          clearTimeout(timer);
+          done(null);
+        },
+        { enableHighAccuracy: true, maximumAge: 60_000, timeout: 3500 }
+      );
+    });
+
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     const net = Number(amount);
     if (!Number.isFinite(net) || net <= 0) return;
     setSaving(true);
+    const here = await herePosition();
+    const now = new Date();
+    const durationMin = mins !== "" ? Number(mins) : null;
+    // the trip just ended: its start is `minutes` ago when known
+    const startTime = durationMin && durationMin > 0 ? new Date(now.getTime() - durationMin * 60_000) : now;
     const res = await fetch("/api/trips", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         vehicleId,
         platform: defaultPlatform,
-        startTime: new Date().toISOString(),
-        // net-first, exactly like the full form: fare carries the driver's
-        // earnings and commission stays 0 unless cash reconciliation says so
+        startTime: startTime.toISOString(),
+        endTime: durationMin ? now.toISOString() : null,
         fare: net,
         commission: 0,
         paymentType: payment,
-        tip: 0,
+        tip: tip === "" ? 0 : Number(tip),
+        distanceKm: km,
+        pickupKm,
+        durationMin: mins,
+        dropoffLat: here?.lat ?? null,
+        dropoffLng: here?.lng ?? null,
         source: "MANUAL",
       }),
     });
     setSaving(false);
     if (res.ok) {
       setAmount("");
-      setFlash(t("qa.added"));
+      setTip("");
+      setKm("");
+      setPickupKm("");
+      setMins("");
+      setFlash(here ? t("qa.addedLocated") : t("qa.added"));
       setTimeout(() => setFlash(""), 2500);
       onAdded();
     } else {
@@ -95,59 +132,78 @@ export function QuickAddTrip({
     }
   };
 
+  const small = "w-full h-11 rounded-xl bg-white border border-transparent focus:border-ink focus:outline-none px-3 text-[15px] font-semibold tnum";
+
   return (
-    <Card className="border-emerald-200 bg-gradient-to-br from-emerald-50/60 to-white">
-      <form onSubmit={save} className="flex items-end gap-2 flex-wrap">
-        <div className="flex-1 min-w-[9rem]">
-          <span className="block text-xs font-semibold text-slate-600 mb-1.5">{t("qa.label")}</span>
-          <div className="flex gap-2">
-            <Input
-              type="number"
-              step="0.01"
-              inputMode="decimal"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
-              className="text-lg font-bold"
-            />
-            {voiceOk && (
-              <button
-                type="button"
-                onClick={listen}
-                title={t("qa.speak")}
-                className={`shrink-0 w-12 rounded-xl border transition-colors ${
-                  listening
-                    ? "bg-red-500 border-red-500 text-white animate-pulse"
-                    : "bg-white border-[var(--border)] hover:bg-slate-50"
-                }`}
-              >
-                🎙
-              </button>
-            )}
+    <Card>
+      <form onSubmit={save}>
+        <div className="flex items-end gap-2 flex-wrap">
+          <div className="flex-1 min-w-[10rem]">
+            <span className="block text-xs font-bold text-ink-500 mb-1.5">{t("qa.label")}</span>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                step="0.01"
+                inputMode="decimal"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.00"
+                className="w-full h-14 rounded-xl bg-white border border-transparent focus:border-ink focus:outline-none px-3.5 text-2xl font-bold tnum"
+              />
+              {voiceOk && (
+                <button
+                  type="button"
+                  onClick={listen}
+                  title={t("qa.speak")}
+                  className={`shrink-0 w-14 h-14 rounded-xl flex items-center justify-center transition-colors ${listening ? "bg-loss text-white animate-pulse" : "bg-white text-ink hover:bg-surface-2"}`}
+                >
+                  <Icon name="mic" size={22} />
+                </button>
+              )}
+            </div>
           </div>
+          <Segmented
+            value={payment}
+            onChange={setPayment}
+            options={[
+              { value: "CASH", label: t("tr.CASH") },
+              { value: "CARD", label: t("tr.CARD") },
+            ]}
+          />
+          <Btn type="submit" disabled={saving || !amount} className="h-14 px-5">
+            <Icon name="plus" size={18} strokeWidth={2.5} /> {t("qa.add")}
+          </Btn>
+          {flash && <Badge tone="good">{flash}</Badge>}
         </div>
 
-        <div className="flex gap-1 bg-white border border-[var(--border)] rounded-xl p-1">
-          {(["CASH", "CARD"] as const).map((p) => (
-            <button
-              key={p}
-              type="button"
-              onClick={() => setPayment(p)}
-              className={`px-3 py-2 rounded-lg text-xs font-bold transition-colors ${
-                payment === p ? "bg-emerald-600 text-white" : "text-slate-500 hover:bg-slate-100"
-              }`}
-            >
-              {t(`tr.${p}`)}
-            </button>
-          ))}
-        </div>
-
-        <Btn type="submit" disabled={saving || !amount}>
-          + {t("qa.add")}
-        </Btn>
-        {flash && <Badge tone="good">{flash}</Badge>}
+        <button type="button" onClick={() => setMore((m) => !m)} className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-ink-500">
+          <Icon name="chevron" size={14} className={`transition-transform ${more ? "rotate-90" : "rtl:rotate-180"}`} /> {more ? t("qa.lessDetails") : t("qa.moreDetails")}
+        </button>
+        {more && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2 animate-pop-in">
+            <label className="block">
+              <span className="block text-[10px] font-bold uppercase tracking-wide text-muted mb-1">{t("tr.tip")}</span>
+              <input type="number" inputMode="decimal" step="1" min="0" value={tip} onChange={(e) => setTip(e.target.value)} placeholder="0" className={small} />
+            </label>
+            <label className="block">
+              <span className="block text-[10px] font-bold uppercase tracking-wide text-muted mb-1">{t("be.tripKm")}</span>
+              <input type="number" inputMode="decimal" step="0.1" min="0" value={km} onChange={(e) => setKm(e.target.value)} placeholder="0" className={small} />
+            </label>
+            <label className="block">
+              <span className="block text-[10px] font-bold uppercase tracking-wide text-muted mb-1">{t("be.pickupKm")}</span>
+              <input type="number" inputMode="decimal" step="0.1" min="0" value={pickupKm} onChange={(e) => setPickupKm(e.target.value)} placeholder="0" className={small} />
+            </label>
+            <label className="block">
+              <span className="block text-[10px] font-bold uppercase tracking-wide text-muted mb-1">{t("be.minutes")}</span>
+              <input type="number" inputMode="numeric" step="1" min="0" value={mins} onChange={(e) => setMins(e.target.value)} placeholder="0" className={small} />
+            </label>
+          </div>
+        )}
       </form>
-      <p className="text-xs text-slate-400 mt-2">{t("qa.hint")}</p>
+      <p className="text-xs text-muted mt-3 leading-relaxed flex items-start gap-1.5">
+        {geoOk && <Icon name="pin" size={14} className="mt-0.5 shrink-0" />}
+        <span>{geoOk ? t("qa.hintLocated") : t("qa.hint")}</span>
+      </p>
     </Card>
   );
 }

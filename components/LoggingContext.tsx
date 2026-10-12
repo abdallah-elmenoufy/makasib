@@ -57,18 +57,18 @@ export function LoggingContext({ vehicleId, onChanged }: { vehicleId: string; on
   return (
     <div className="mb-4 space-y-2">
       {open && (
-        <div className="rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-emerald-50/40 px-4 py-3 flex items-center gap-3 flex-wrap">
+        <div className="rounded-2xl border border-line bg-ink px-4 py-3 flex items-center gap-3 flex-wrap">
           <span className="relative flex h-2.5 w-2.5 shrink-0">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-70" />
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-money opacity-70" />
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-money" />
           </span>
           <div className="text-sm min-w-0">
-            <span className="font-bold text-emerald-900">{t("lc.loggingInto")}</span>{" "}
-            <span className="text-emerald-800">{fmtDateTime(open.startTime, locale)}</span>
+            <span className="font-bold text-ink">{t("lc.loggingInto")}</span>{" "}
+            <span className="text-ink">{fmtDateTime(open.startTime, locale)}</span>
           </div>
           <Link
             href="/shifts"
-            className="ms-auto text-xs font-semibold text-emerald-700 hover:text-emerald-900 underline underline-offset-2"
+            className="ms-auto text-xs font-semibold text-ink hover:text-ink underline underline-offset-2"
           >
             {t("lc.endShift")} →
           </Link>
@@ -76,34 +76,34 @@ export function LoggingContext({ vehicleId, onChanged }: { vehicleId: string; on
       )}
 
       {orphans.length > 0 && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+        <div className="rounded-2xl border border-warn/60 bg-warn-soft px-4 py-3">
           <div className="flex items-start gap-2">
             <span className="text-base leading-none mt-0.5">⚠️</span>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold text-amber-900">{t("lc.orphanTitle", { n: orphans.length })}</p>
-              <p className="text-xs text-amber-800/80 mt-0.5 leading-relaxed">{t("lc.orphanWhy")}</p>
+              <p className="text-sm font-bold text-warn-ink">{t("lc.orphanTitle", { n: orphans.length })}</p>
+              <p className="text-xs text-warn-ink mt-0.5 leading-relaxed">{t("lc.orphanWhy")}</p>
               <div className="mt-2.5 space-y-1.5">
                 {orphans.slice(0, 4).map((o: any) => (
                   <div key={o.id} className="flex items-center gap-2 text-xs flex-wrap">
                     <span className="font-semibold tnum">{fmtDateTime(o.startTime, locale)}</span>
-                    <span className="text-amber-900/70">{fmtMoney(o.net, locale)}</span>
+                    <span className="text-warn-ink">{fmtMoney(o.net, locale)}</span>
                     {o.nearestShiftId ? (
                       <button
                         disabled={busy}
                         onClick={() => attach(o.id, o.nearestShiftId)}
-                        className="ms-auto font-semibold text-emerald-700 hover:text-emerald-900 underline underline-offset-2 disabled:opacity-50"
+                        className="ms-auto font-semibold text-ink hover:text-ink underline underline-offset-2 disabled:opacity-50"
                       >
                         {t("lc.attachTo", { when: fmtDateTime(o.nearestShiftLabel, locale) })}
                       </button>
                     ) : (
-                      <Link href="/shifts" className="ms-auto font-semibold text-emerald-700 underline underline-offset-2">
+                      <Link href="/shifts" className="ms-auto font-semibold text-ink underline underline-offset-2">
                         {t("lc.createShift")}
                       </Link>
                     )}
                   </div>
                 ))}
                 {orphans.length > 4 && (
-                  <p className="text-xs text-amber-800/60">{t("lc.andMore", { n: orphans.length - 4 })}</p>
+                  <p className="text-xs text-warn-ink">{t("lc.andMore", { n: orphans.length - 4 })}</p>
                 )}
               </div>
             </div>

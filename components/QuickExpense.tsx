@@ -102,14 +102,14 @@ export function QuickExpense({
               onClick={() => pick(cat)}
               className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition-colors ${
                 active
-                  ? "bg-emerald-600 border-emerald-600 text-white"
-                  : "bg-white border-[var(--border)] text-slate-700 hover:bg-slate-50"
+                  ? "bg-ink border-line text-white"
+                  : "bg-white border-[var(--border)] text-ink-700 hover:bg-surface"
               }`}
             >
               <span className="text-sm leading-none">{EXPENSE_ICON[cat] ?? "➕"}</span>
               <span>{t(`ex.cat.${cat}`)}</span>
               {last != null && (
-                <span className={`tnum ${active ? "text-white/70" : "text-slate-400"}`}>
+                <span className={`tnum ${active ? "text-white/70" : "text-muted"}`}>
                   {fmtMoney(last, locale)}
                 </span>
               )}
@@ -122,7 +122,7 @@ export function QuickExpense({
       {openCat && (
         <form onSubmit={save} className="flex items-end gap-2 mt-3">
           <div className="flex-1 max-w-40">
-            <span className="block text-xs font-semibold text-slate-600 mb-1.5">
+            <span className="block text-xs font-semibold text-ink-500 mb-1.5">
               {t("ex.amount")} · {t(`ex.cat.${openCat}`)}
             </span>
             <Input

@@ -52,11 +52,11 @@ export default function LoginPage() {
     <main className="flex-1 flex items-center justify-center p-4">
       <Card className="w-full max-w-sm">
         <div className="text-center mb-6">
-          <div className="text-3xl font-black text-emerald-600">{t("appName")}</div>
-          <div className="text-sm text-slate-500 mt-1">{t("tagline")}</div>
+          <div className="text-3xl font-black text-ink">{t("appName")}</div>
+          <div className="text-sm text-muted mt-1">{t("tagline")}</div>
         </div>
         {setup === false && (
-          <p className="text-sm text-slate-600 mb-4 text-center">{t("auth.setupTitle")}</p>
+          <p className="text-sm text-ink-500 mb-4 text-center">{t("auth.setupTitle")}</p>
         )}
         <form onSubmit={submit} className="space-y-3">
           <Field label={t("auth.passphrase")}>
@@ -79,12 +79,12 @@ export default function LoginPage() {
               />
             </Field>
           )}
-          {error && <p className="text-red-600 text-sm">{error}</p>}
+          {error && <p className="text-loss text-sm">{error}</p>}
           <Btn type="submit" variant="big">
             {setup ? t("auth.login") : t("auth.setupBtn")}
           </Btn>
         </form>
-        <button onClick={switchLang} className="mt-4 text-xs text-slate-400 hover:text-slate-600 w-full">
+        <button onClick={switchLang} className="mt-4 text-xs text-muted hover:text-ink-500 w-full">
           {locale === "ar" ? "English" : "العربية"}
         </button>
       </Card>

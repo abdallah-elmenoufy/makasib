@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "./db";
 import { matchTripToShift } from "./analytics";
+import { locateTrips } from "./tripLocation";
 
 /**
  * Always-on data integrity for the shift↔trip relationship.
@@ -39,7 +40,8 @@ export async function reconcileVehicle(vehicleId: string): Promise<number> {
   for (const trip of orphans) {
     const shiftId = await matchTripToShift(vehicleId, trip.startTime);
     if (shiftId) {
-      await prisma.trip.update({ where: { id: trip.id }, data: { shiftId } });
+      const updated = await prisma.trip.update({ where: { id: trip.id }, data: { shiftId } });
+      await locateTrips([updated]);
       fixed++;
     }
   }

@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "./db";
 import { matchTripToShift } from "./analytics";
+import { locateTrips } from "./tripLocation";
 
 // One normalized incoming trip, from any source (statement PDF, OCR, CSV).
 export type IncomingTrip = {
@@ -9,6 +10,7 @@ export type IncomingTrip = {
   cashCollected: number | null; // rider-paid cash, when known (cash trips)
   isCash: boolean;
   distanceKm: number | null;
+  durationMin?: number | null; // minutes with the rider, when the source shows it
   product: string | null;
   pickupAddress?: string | null;
   dropoffAddress?: string | null;
@@ -62,6 +64,10 @@ export async function applyTrips(vehicleId: string, trips: IncomingTrip[]): Prom
       if (sameAmount) {
         const data: Record<string, unknown> = {};
         if (near.distanceKm == null && t.distanceKm != null) data.distanceKm = t.distanceKm;
+        if (near.durationMin == null && t.durationMin != null && t.durationMin > 0) {
+          data.durationMin = t.durationMin;
+          if (near.endTime == null) data.endTime = new Date(near.startTime.getTime() + t.durationMin * 60_000);
+        }
         if (!near.notes && t.product) data.notes = t.product;
         if (!near.pickupAddress && t.pickupAddress) data.pickupAddress = t.pickupAddress;
         if (!near.dropoffAddress && t.dropoffAddress) data.dropoffAddress = t.dropoffAddress;
@@ -77,7 +83,7 @@ export async function applyTrips(vehicleId: string, trips: IncomingTrip[]): Prom
 
     const shiftId = await matchTripToShift(vehicleId, t.startTime);
     if (shiftId) res.matchedToShift++;
-    await prisma.trip.create({
+    const created = await prisma.trip.create({
       data: {
         vehicleId,
         shiftId,
@@ -86,6 +92,8 @@ export async function applyTrips(vehicleId: string, trips: IncomingTrip[]): Prom
         fare,
         commission,
         distanceKm: t.distanceKm,
+        durationMin: t.durationMin ?? null,
+        endTime: t.durationMin != null && t.durationMin > 0 ? new Date(t.startTime.getTime() + t.durationMin * 60_000) : null,
         paymentType: t.isCash ? "CASH" : "CARD",
         pickupAddress: t.pickupAddress ?? null,
         dropoffAddress: t.dropoffAddress ?? null,
@@ -94,6 +102,7 @@ export async function applyTrips(vehicleId: string, trips: IncomingTrip[]): Prom
       },
     });
     res.created++;
+    await locateTrips([created]);
   }
 
   return res;

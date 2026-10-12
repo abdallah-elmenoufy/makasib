@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { ENTITIES, coerceBody } from "@/lib/crud";
 import { reconcileVehicle } from "@/lib/tripIntegrity";
+import { locateTrips, locateShiftTrips } from "@/lib/tripLocation";
 
 type Ctx = { params: Promise<{ entity: string; id: string }> };
 
@@ -40,6 +41,8 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     // awaited, so the response already reflects the corrected state.
     if (entity === "shifts" || entity === "trips") {
       await reconcileVehicle(row.vehicleId);
+      if (entity === "trips") await locateTrips([row]);
+      else await locateShiftTrips(row.id);
     }
 
     return NextResponse.json(row);

@@ -123,7 +123,7 @@ export default function MaintenancePage() {
   if (!vehicle) {
     return (
       <Empty>
-        <Link href="/cars" className="text-emerald-600 underline">
+        <Link href="/cars" className="text-ink underline">
           {t("veh.createFirst")}
         </Link>
       </Empty>
@@ -156,7 +156,7 @@ export default function MaintenancePage() {
             title={t("mn.serviceLifeTitle")}
             sub={t("mn.serviceLifeSub")}
             actions={
-              <span className="text-xs text-slate-400 tnum whitespace-nowrap">
+              <span className="text-xs text-muted tnum whitespace-nowrap">
                 {fmtNum(currentOdo!, locale, 0)} {t("c.km")}
               </span>
             }
@@ -170,7 +170,7 @@ export default function MaintenancePage() {
                 label={
                   <>
                     {t(`mn.cat.${m.category}`)}
-                    <span className="font-normal text-slate-400"> · {fmtDate(m.date, locale)}</span>
+                    <span className="font-normal text-muted"> · {fmtDate(m.date, locale)}</span>
                   </>
                 }
                 value={`${fmtNum(p.kmUsed!, locale, 0)} / ${fmtNum(m.lifetimeKm, locale, 0)} ${t("c.km")}`}
@@ -186,7 +186,7 @@ export default function MaintenancePage() {
             ))}
           </div>
           {untrackable > 0 && (
-            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-3">
+            <p className="text-xs text-warn-ink bg-warn-soft border border-warn/60 rounded-lg px-3 py-2 mt-3">
               {t("mn.needsOdometer", { n: fmtNum(untrackable, locale, 0) })}
             </p>
           )}
@@ -229,7 +229,7 @@ export default function MaintenancePage() {
             />
           </Field>
           {perKm != null && (
-            <div className="col-span-2 md:col-span-3 -mt-1 text-xs bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-emerald-800">
+            <div className="col-span-2 md:col-span-3 -mt-1 text-xs bg-surface-2 border border-line rounded-lg px-3 py-2 text-ink">
               {t("mn.perKmPreview", { cost: fmtMoney(perKm, locale), km: fmtNum(Number(form.lifetimeKm), locale, 0) })}
             </div>
           )}
@@ -283,18 +283,18 @@ export default function MaintenancePage() {
                     <td className="py-2 px-2 min-w-40">
                       <ServiceLifeCell m={m} state={p.state} ratio={p.ratio} kmUsed={p.kmUsed} t={t} locale={locale} />
                     </td>
-                    <td className="py-2 px-2 text-emerald-700">
+                    <td className="py-2 px-2 text-ink">
                       {m.lifetimeKm > 0 ? fmtMoney(m.cost / m.lifetimeKm, locale) : "—"}
                     </td>
-                    <td className="py-2 px-2 text-slate-400 max-w-32 truncate">{m.notes ?? ""}</td>
+                    <td className="py-2 px-2 text-muted max-w-32 truncate">{m.notes ?? ""}</td>
                     <td className="py-2 px-2 whitespace-nowrap">
                       <button
                         onClick={() => setEditingRow(m)}
-                        className="text-xs text-slate-500 me-2"
+                        className="text-xs text-muted me-2"
                       >
                         {t("c.edit")}
                       </button>
-                      <button onClick={() => confirm(t("c.confirmDelete")) && remove(m.id)} className="text-red-400 text-xs">
+                      <button onClick={() => confirm(t("c.confirmDelete")) && remove(m.id)} className="text-loss text-xs">
                         ✕
                       </button>
                     </td>
@@ -359,7 +359,7 @@ function ServiceLifeCell({
 }) {
   if (!hasInterval(m)) {
     return (
-      <span className="text-amber-600" title={t("mn.noIntervalHint")}>
+      <span className="text-warn-ink" title={t("mn.noIntervalHint")}>
         {t("mn.noInterval")}
       </span>
     );
@@ -367,7 +367,7 @@ function ServiceLifeCell({
   if (state === "replaced") {
     return (
       <div className="flex items-center gap-2">
-        <span className="text-slate-400 tnum whitespace-nowrap">
+        <span className="text-muted tnum whitespace-nowrap">
           {fmtNum(m.lifetimeKm, locale, 0)} {t("c.km")}
         </span>
         <Badge tone="neutral" title={t("mn.replacedHint")}>
@@ -379,7 +379,7 @@ function ServiceLifeCell({
   if (ratio == null) {
     return (
       <div className="flex items-center gap-2">
-        <span className="text-slate-500 tnum whitespace-nowrap">
+        <span className="text-muted tnum whitespace-nowrap">
           {fmtNum(m.lifetimeKm, locale, 0)} {t("c.km")}
         </span>
         <Badge tone="warn" title={t("mn.needsOdometerHint")}>
@@ -392,7 +392,7 @@ function ServiceLifeCell({
     <div className="min-w-36">
       <div className="text-xs tnum whitespace-nowrap mb-1">
         {fmtNum(kmUsed!, locale, 0)} / {fmtNum(m.lifetimeKm, locale, 0)} {t("c.km")}
-        <span className="text-slate-400"> · {fmtNum(ratio * 100, locale, 0)}%</span>
+        <span className="text-muted"> · {fmtNum(ratio * 100, locale, 0)}%</span>
       </div>
       <Meter ratio={ratio} tone={STATE_TONE[state as keyof typeof STATE_TONE] ?? "neutral"} thin />
     </div>

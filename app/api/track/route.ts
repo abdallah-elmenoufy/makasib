@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
+import { locateShiftTrips } from "@/lib/tripLocation";
 
 type Point = [number, number, number]; // [epochMs, lat, lng]
 
@@ -62,6 +63,8 @@ export async function POST(req: NextRequest) {
       where: { id: shiftId },
       data: { track: JSON.stringify(track), gpsKm },
     });
+    // trips logged live during this shift can now be placed on the map
+    locateShiftTrips(shiftId).catch(() => {});
     return NextResponse.json({ gpsKm, points: track.length });
   } catch (e) {
     if (e instanceof Response) return e;

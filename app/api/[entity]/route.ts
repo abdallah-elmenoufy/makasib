@@ -4,6 +4,7 @@ import { requireAuth } from "@/lib/auth";
 import { ENTITIES, coerceBody } from "@/lib/crud";
 import { matchTripToShift } from "@/lib/analytics";
 import { reconcileVehicle } from "@/lib/tripIntegrity";
+import { locateTrips } from "@/lib/tripLocation";
 
 type Ctx = { params: Promise<{ entity: string }> };
 
@@ -66,7 +67,14 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       data.shiftId = await matchTripToShift(data.vehicleId as string, data.startTime as Date);
     }
 
+    // a trip that knows its duration knows when it ended
+    if (entity === "trips" && data.durationMin != null && data.startTime && data.endTime == null) {
+      data.endTime = new Date((data.startTime as Date).getTime() + (data.durationMin as number) * 60_000);
+    }
+
     const row = await delegate(config.model).create({ data });
+
+    if (entity === "trips") await locateTrips([row]);
 
     // a new shift may cover trips logged earlier that had no shift to
     // attach to yet (including trips orphaned by a previously deleted shift)

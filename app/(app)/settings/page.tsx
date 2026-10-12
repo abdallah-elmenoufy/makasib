@@ -80,7 +80,7 @@ export default function SettingsPage() {
 
       <Card>
         <div className="font-semibold text-sm mb-1">{t("st.retention")}</div>
-        <p className="text-xs text-slate-400 mb-3">{t("st.retentionHint")}</p>
+        <p className="text-xs text-muted mb-3">{t("st.retentionHint")}</p>
         <div className="flex items-center gap-3">
           <Input
             type="number"
@@ -91,26 +91,26 @@ export default function SettingsPage() {
             className="max-w-24"
           />
           <Btn onClick={saveRetention}>{t("c.save")}</Btn>
-          {retMsg && <span className="text-emerald-600 text-sm">✓ {retMsg}</span>}
+          {retMsg && <span className="text-ink text-sm">✓ {retMsg}</span>}
         </div>
       </Card>
 
       <Card>
         <div className="font-semibold text-sm mb-1">{t("st.manual")}</div>
-        <p className="text-xs text-slate-400 mb-3">{t("st.manualHint")}</p>
+        <p className="text-xs text-muted mb-3">{t("st.manualHint")}</p>
         <div className="flex items-center gap-3 flex-wrap">
           <a
             href="/manual-ar.html"
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-lg font-semibold transition-colors bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 text-sm"
+            className="rounded-lg font-semibold transition-colors bg-ink hover:bg-ink-700 text-white px-4 py-2 text-sm"
           >
             📖 {t("st.manualOpen")}
           </a>
           <a
             href="/manual-ar.html"
             download="دليل-استخدام-مكاسب.html"
-            className="rounded-lg font-semibold transition-colors bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-4 py-2 text-sm"
+            className="rounded-lg font-semibold transition-colors bg-white hover:bg-surface-2 text-ink-700 border border-line px-4 py-2 text-sm"
           >
             ⬇️ {t("st.manualDownload")}
           </a>
@@ -119,12 +119,12 @@ export default function SettingsPage() {
 
       <Card>
         <div className="font-semibold text-sm mb-1">{t("st.health")}</div>
-        <p className="text-xs text-slate-400 mb-3">{t("st.healthHint")}</p>
+        <p className="text-xs text-muted mb-3">{t("st.healthHint")}</p>
         <div className="flex items-center gap-3">
           <Btn onClick={runHealthCheck} disabled={healthBusy} variant="secondary">
             {t("st.healthRun")}
           </Btn>
-          {healthMsg && <span className="text-emerald-600 text-sm">{healthMsg}</span>}
+          {healthMsg && <span className="text-ink text-sm">{healthMsg}</span>}
         </div>
       </Card>
 

@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport = {
-  themeColor: "#059669",
+  themeColor: "#000000",
   width: "device-width",
   initialScale: 1,
 };
@@ -24,7 +24,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const { locale, dir } = await getT();
   return (
     <html lang={locale} dir={dir} className="h-full antialiased">
-      <body className="min-h-full flex flex-col bg-slate-50 text-slate-900">
+      <body className="min-h-full flex flex-col bg-white text-ink">
         <I18nProvider locale={locale}>{children}</I18nProvider>
       </body>
     </html>

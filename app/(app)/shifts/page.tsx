@@ -8,8 +8,10 @@ import { useCrud } from "@/components/useCrud";
 import { useVehicle } from "@/components/VehicleProvider";
 import { PhotoInput } from "@/components/PhotoInput";
 import { GpsTracker } from "@/components/GpsTracker";
+import { EndShiftFlow } from "@/components/EndShiftFlow";
+import { Icon } from "@/components/icons";
 import { RowEditor, type EditField } from "@/components/RowEditor";
-import { fmtDate, fmtDateTime, fmtNum, toLocalInput, hoursBetween } from "@/lib/format";
+import { fmtDate, fmtDateTime, fmtMoney, fmtNum, toLocalInput, hoursBetween } from "@/lib/format";
 
 type T = (k: string, vars?: Record<string, string | number>) => string;
 
@@ -126,6 +128,13 @@ export default function ShiftsPage() {
   }, [completed]);
 
   const [editingRow, setEditingRow] = useState<any>(null);
+  // the end-shift flow lives at page level: once the shift is closed the
+  // active card unmounts, but the sheet must stay up for steps 2 and 3
+  const [ending, setEnding] = useState<any>(null);
+  const refreshTrips = () =>
+    fetch(`/api/trips?vehicleId=${vehicle?.id}&all=1`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setTrips);
   const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
   useEffect(() => {
     // the most recent day open by default, everything older starts collapsed
@@ -137,7 +146,7 @@ export default function ShiftsPage() {
   if (!vehicle) {
     return (
       <Empty>
-        <Link href="/cars" className="text-emerald-600 underline">
+        <Link href="/cars" className="text-ink underline">
           {t("veh.createFirst")}
         </Link>
       </Empty>
@@ -148,11 +157,8 @@ export default function ShiftsPage() {
     <div>
       <PageTitle
         actions={
-          <Link
-            href="/import?tab=shift"
-            className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg px-3 py-2"
-          >
-            📷 {t("sh.fromPhotos")}
+          <Link href="/import?tab=shift" className="inline-flex items-center gap-1.5 text-sm font-bold text-ink bg-surface-2 hover:bg-line rounded-full px-4 h-10">
+            <Icon name="camera" size={18} /> {t("sh.fromPhotos")}
           </Link>
         }
       >
@@ -160,11 +166,7 @@ export default function ShiftsPage() {
       </PageTitle>
 
       {active ? (
-        <EndShiftCard
-          shift={active}
-          suggestedEndOdo={suggestEndOdometer(active, trips, completed)}
-          onEnd={(data) => update(active.id, data)}
-        />
+        <ActiveShiftCard shift={active} tally={tripsByShift[active.id] ?? { count: 0, km: 0, revenue: 0 }} onEndClick={() => setEnding(active)} />
       ) : (
         <StartShiftCard
           lastOdo={shifts[0]?.endOdometer ?? vehicle.initialOdometer}
@@ -172,6 +174,19 @@ export default function ShiftsPage() {
           currentVehicleId={vehicle.id}
           onSwitchDefault={setDefaultVehicle}
           onStart={(data) => create(data)}
+        />
+      )}
+
+      {ending && (
+        <EndShiftFlow
+          open
+          onClose={() => setEnding(null)}
+          shift={ending}
+          vehicleId={vehicle.id}
+          suggestedEndOdo={suggestEndOdometer(ending, trips, completed)}
+          existingTrips={tripsByShift[ending.id] ?? { count: 0, km: 0, revenue: 0 }}
+          onEnd={(data) => update(ending.id, data)}
+          onTripsSaved={refreshTrips}
         />
       )}
 
@@ -191,7 +206,7 @@ export default function ShiftsPage() {
                     onToggle={() => toggleDay(dg.key)}
                     title={fmtDate(dg.key, locale)}
                     meta={`${t("sh.shiftCount", { n: dg.shifts.length })} · ${t("tr.tripCount", { n: dayTrips })}`}
-                    right={<span className="text-xs font-bold tnum">{fmtNum(dayRevenue, locale)}</span>}
+                    right={<span className="text-xs font-bold tnum text-money">{fmtMoney(dayRevenue, locale)}</span>}
                   />
                   {isOpen && (
                     <div className="space-y-2 mt-2 ps-2 sm:ps-4">
@@ -204,23 +219,23 @@ export default function ShiftsPage() {
                               <div className="min-w-0">
                                 <div className="font-bold text-sm tnum">
                                   {fmtDateTime(s.startTime, locale)}
-                                  {s.endTime && <span className="text-slate-400"> → {fmtDateTime(s.endTime, locale)}</span>}
+                                  {s.endTime && <span className="text-muted"> → {fmtDateTime(s.endTime, locale)}</span>}
                                 </div>
-                                <div className="text-xs text-slate-500 mt-0.5 tnum">
+                                <div className="text-xs text-muted mt-0.5 tnum">
                                   {fmtNum(s.startOdometer, locale, 0)} → {s.endOdometer != null ? fmtNum(s.endOdometer, locale, 0) : "—"} {t("c.km")}
                                 </div>
                               </div>
                               <div className="text-end shrink-0">
-                                <div className="text-lg font-black text-emerald-700 tnum leading-none">
-                                  {fmtNum(ts.revenue, locale)}
+                                <div className="text-lg font-bold text-money tnum leading-none">
+                                  {fmtMoney(ts.revenue, locale)}
                                 </div>
                                 <div className="flex gap-2 justify-end mt-1.5">
-                                  <button onClick={() => setEditingRow(s)} className="text-xs text-slate-500 hover:text-slate-800">
+                                  <button onClick={() => setEditingRow(s)} className="text-xs text-muted hover:text-ink">
                                     {t("c.edit")}
                                   </button>
                                   <button
                                     onClick={() => confirm(t("c.confirmDelete")) && remove(s.id)}
-                                    className="text-xs text-red-400 hover:text-red-600"
+                                    className="text-xs text-loss hover:text-loss"
                                   >
                                     ✕
                                   </button>
@@ -239,7 +254,7 @@ export default function ShiftsPage() {
                                   ts.count > 0 ? (
                                     <button
                                       onClick={() => router.push(`/trips?shiftId=${s.id}`)}
-                                      className="text-emerald-600 underline underline-offset-2"
+                                      className="text-ink underline underline-offset-2 font-bold"
                                       title={t("sh.viewTrips")}
                                     >
                                       {ts.count}
@@ -253,7 +268,7 @@ export default function ShiftsPage() {
                               <StatCell label={t("sh.deadKm")} value={fmtNum(Math.max(0, km - ts.km), locale)} tone="warn" />
                             </StatGrid>
                             {s.notes && (
-                              <p className="text-xs text-slate-400 mt-2.5 pt-2 border-t border-slate-100 truncate">
+                              <p className="text-xs text-muted mt-2.5 pt-2 border-t border-line truncate">
                                 {s.notes}
                               </p>
                             )}
@@ -325,13 +340,13 @@ function StartShiftCard({
   if (!open) {
     return (
       <Btn variant="big" onClick={() => { setTime(toLocalInput()); setVehicleId(currentVehicleId); setOpen(true); }}>
-        ▶ {t("sh.start")}
+        <Icon name="play" size={20} /> {t("sh.start")}
       </Btn>
     );
   }
 
   return (
-    <Card className="border-emerald-300">
+    <Card tone="outline" className="animate-pop-in">
       <form
         onSubmit={async (e) => {
           e.preventDefault();
@@ -385,7 +400,7 @@ function StartShiftCard({
           <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
         </Field>
         <div className="md:col-span-2 flex gap-2">
-          <Btn type="submit">▶ {t("sh.start")}</Btn>
+          <Btn type="submit"><Icon name="play" size={18} /> {t("sh.start")}</Btn>
           <Btn variant="secondary" onClick={() => setOpen(false)}>
             {t("c.cancel")}
           </Btn>
@@ -395,109 +410,61 @@ function StartShiftCard({
   );
 }
 
-function EndShiftCard({
+
+/**
+ * The shift in progress: live tally, GPS tracker, and the one button that
+ * matters at 2am — End shift — which opens the three-step flow.
+ */
+function ActiveShiftCard({
   shift,
-  suggestedEndOdo,
-  onEnd,
+  tally,
+  onEndClick,
 }: {
   shift: any;
-  suggestedEndOdo: { value: number; basis: "gps" | "ratio" | "trips" } | null;
-  onEnd: (d: Record<string, unknown>) => Promise<boolean>;
+  tally: { count: number; km: number; revenue: number };
+  onEndClick: () => void;
 }) {
   const { t, locale } = useI18n();
-  const router = useRouter();
-  const [odo, setOdo] = useState("");
-  const [time, setTime] = useState(toLocalInput());
-  const [photo, setPhoto] = useState<string | null>(null);
-  const [notes, setNotes] = useState(shift.notes ?? "");
-  const [ocrHint, setOcrHint] = useState(false);
-  const [busy, setBusy] = useState(false);
-
-  const finish = async (thenImport: boolean) => {
-    setBusy(true);
-    const ok = await onEnd({
-      endTime: new Date(time).toISOString(),
-      endOdometer: odo,
-      endPhoto: photo,
-      notes,
-    });
-    setBusy(false);
-    // the driver almost always imports the night's screenshots straight after
-    // ending — carrying them there saves a page hunt while they're tired
-    if (ok && thenImport) router.push("/import?tab=ocr");
-  };
-
-  const onOcrDigits = (candidates: number[]) => {
-    const plausible = candidates.filter(
-      (c) => c > shift.startOdometer && c < shift.startOdometer + 2000
-    );
-    const best = plausible.sort((a, b) => a - b)[0] ?? candidates[0];
-    if (best != null && !odo) {
-      setOdo(String(best));
-      setOcrHint(true);
-    }
-  };
-
+  const elapsed = hoursBetween(shift.startTime, new Date());
   return (
-    <Card className="border-amber-300 bg-amber-50">
-      <div className="flex items-center gap-2 mb-2">
-        <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-        <span className="font-semibold text-sm">
-          {t("sh.active")} · {t("sh.startedAt")} {fmtDateTime(shift.startTime, locale)} ·{" "}
-          {fmtNum(shift.startOdometer, locale)} {t("c.km")}
+    <Card tone="ink">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="inline-block w-2.5 h-2.5 rounded-full bg-money animate-pulse" />
+        <span className="font-bold text-sm">{t("sh.active")}</span>
+        <span className="text-white/60 text-sm ms-auto tnum">
+          {t("sh.startedAt")} {fmtDateTime(shift.startTime, locale)}
         </span>
       </div>
-      <div className="mb-3">
-        <GpsTracker shiftId={shift.id} initialKm={shift.gpsKm ?? null} />
-      </div>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          finish(false);
-        }}
-        className="grid grid-cols-1 md:grid-cols-2 gap-3"
-      >
-        <Field label={t("sh.endOdo")} hint={ocrHint ? `📷 ${t("sh.ocrDetected")}` : undefined}>
-          <Input
-            type="number"
-            step="0.1"
-            value={odo}
-            onChange={(e) => { setOdo(e.target.value); setOcrHint(false); }}
-            min={shift.startOdometer}
-            required
-            autoFocus
-          />
-          {suggestedEndOdo && !odo && (
-            <button
-              type="button"
-              onClick={() => setOdo(String(suggestedEndOdo.value))}
-              className="mt-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg px-2.5 py-1.5 w-full text-start transition-colors"
-            >
-              ✨ {t("sh.suggestOdo", { n: fmtNum(suggestedEndOdo.value, locale, 0) })}
-              <span className="block text-emerald-600/70 font-normal mt-0.5">
-                {t(`sh.suggestBasis.${suggestedEndOdo.basis}`)}
-              </span>
-            </button>
-          )}
-        </Field>
-        <Field label={t("sh.endTime")}>
-          <Input type="datetime-local" value={time} onChange={(e) => setTime(e.target.value)} required />
-        </Field>
-        <Field label={`${t("c.photo")} (${t("c.optional")})`}>
-          <PhotoInput value={photo} onChange={setPhoto} onOcrDigits={onOcrDigits} />
-        </Field>
-        <Field label={`${t("c.notes")} (${t("c.optional")})`}>
-          <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
-        </Field>
-        <div className="md:col-span-2 flex flex-wrap gap-2">
-          <Btn type="submit" disabled={busy}>
-            ⏹ {t("sh.end")}
-          </Btn>
-          <Btn variant="secondary" disabled={busy} onClick={() => odo && finish(true)}>
-            ⏹📸 {t("sh.endAndImport")}
-          </Btn>
+      <div className="grid grid-cols-3 gap-3">
+        <div>
+          <div className="text-[11px] font-bold uppercase tracking-wide text-white/60">{t("sh.duration")}</div>
+          <div className="text-2xl font-bold display mt-0.5">
+            {fmtNum(elapsed, locale)} <span className="text-sm font-semibold text-white/60">{t("c.hours")}</span>
+          </div>
         </div>
-      </form>
+        <div>
+          <div className="text-[11px] font-bold uppercase tracking-wide text-white/60">{t("sh.trips")}</div>
+          <div className="text-2xl font-bold display mt-0.5">{fmtNum(tally.count, locale, 0)}</div>
+        </div>
+        <div>
+          <div className="text-[11px] font-bold uppercase tracking-wide text-white/60">{t("sh.revenue")}</div>
+          <div className="text-2xl font-bold display mt-0.5 text-money">{fmtMoney(tally.revenue, locale)}</div>
+        </div>
+      </div>
+      <div className="mt-4 pt-3 border-t border-white/15 flex items-center gap-3 flex-wrap text-white/80">
+        <GpsTracker shiftId={shift.id} initialKm={shift.gpsKm ?? null} />
+        <span className="text-xs text-white/60 tnum ms-auto">
+          {t("sh.startOdo")}: {fmtNum(shift.startOdometer, locale, 0)}
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-2 mt-4">
+        <Link href="/trips?add=1" className="h-12 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-sm flex items-center justify-center gap-2">
+          <Icon name="plus" size={18} strokeWidth={2.25} /> {t("tr.add")}
+        </Link>
+        <button onClick={onEndClick} className="h-12 rounded-xl bg-white text-ink font-bold text-sm flex items-center justify-center gap-2 hover:bg-surface-2">
+          <Icon name="stop" size={18} /> {t("sh.end")}
+        </button>
+      </div>
     </Card>
   );
 }

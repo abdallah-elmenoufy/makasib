@@ -62,6 +62,7 @@ app/
 ├── app/
 │   ├── (app)/                 # authenticated section (redirects to /login if not)
 │   │   ├── page.tsx           # Dashboard
+│   │   ├── weeks/             # Uber-week analytics (§7b)
 │   │   ├── plan/              # "Plan your day!" statistics module
 │   │   ├── shifts/            # shift start/end (manual + GPS tracker)
 │   │   ├── trips/             # trip list + manual entry
@@ -75,13 +76,16 @@ app/
 │   │   └── layout.tsx         # auth gate + <Nav>
 │   ├── login/                 # passphrase setup/login (outside the auth gate)
 │   └── api/                   # all backend routes — see §4
-├── components/                # shared client components (Nav, ui.tsx primitives, GpsTracker, PhotoInput, useCrud hook)
+├── components/                # shared client components: ui.tsx primitives (Uber-style tokens in app/globals.css), icons.tsx, Nav (bottom tab bar on phones / sidebar on desktop), TripBatchEntry + EndShiftFlow (shift-end logging), QuickAddTrip, GpsTracker, PhotoInput, useCrud
 ├── lib/                       # all business logic — framework-agnostic, mostly pure functions
 │   ├── db.ts                  # Prisma client singleton
 │   ├── auth.ts                # passphrase hash, session cookie
 │   ├── crud.ts                # generic entity config + body coercion (drives /api/[entity])
 │   ├── analytics.ts           # the profit-calculation engine
 │   ├── depreciation.ts        # auto-depreciation formula
+│   ├── week.ts                # Uber pay week (Mon 04:00) boundaries
+│   ├── weekly.ts              # per-week analytics + comparisons (§7b)
+│   ├── tripLocation.ts        # trip pickup/drop-off coordinates from GPS tracks
 │   ├── planner.ts             # "Plan your day!" statistics
 │   ├── uberStatement.ts       # weekly statement PDF parser
 │   ├── earningsActivity.ts    # Earnings Activity screenshot OCR parser
@@ -117,6 +121,7 @@ session — enforced by `requireAuth()` from `lib/auth.ts`, which throws a
 | `GET/POST /api/[entity]`, `GET/PATCH/DELETE /api/[entity]/[id]` | Generic CRUD over the `ENTITIES` map in `lib/crud.ts` (vehicles, shifts, trips, tips, fuelups, maintenance, expenses, reminders) |
 | `GET /api/analytics?vehicleId&period` | Runs `getAnalytics()` — the dashboard's data source |
 | `GET /api/plan?vehicleId` | Runs `getPlan()` — the "Plan your day!" data source |
+| `GET /api/weeks?vehicleId&weeks=12` | Runs `getWeeklyReport()` — Uber-week analytics (§7b) |
 | `POST /api/upload` | Saves a photo to `data/uploads/`; converts HEIC→JPEG via `sips`; triggers the lazy photo-purge check |
 | `GET /api/files/[name]` | Serves an uploaded photo (path-traversal-safe via `path.basename`) |
 | `GET /api/ocr/[name]` | Runs Apple Vision OCR on an uploaded file; compiles `vision-ocr` on first call |
@@ -165,9 +170,9 @@ always allow free-text notes.
 | Model | Role | Notable fields |
 |---|---|---|
 | `Setting` | Key-value store | `passphraseHash`, session JWT secret, `commissionPcts` (JSON, legacy), `photoRetentionDays` |
-| `Vehicle` | One profile per car | `fuelSetup` (PETROL/CNG/DUAL), `ownership` (OWNED/INSTALLMENT/RENTED/TARGET — drives the cost model), `purchasePrice`/`estimatedValue` (feed auto-depreciation), `depreciationPerKm` (manual override — null lets the auto engine run) |
+| `Vehicle` | One profile per car | `fuelSetup` (PETROL/CNG/DUAL), `ownership` (OWNED/INSTALLMENT/RENTED/TARGET — drives the cost model), `purchasePrice`/`estimatedValue`, `depreciationMethod` (MILEAGE/LIFETIME/MANUAL), `depreciationEnabled` (master switch), `mileageSensitivityPct`, `depreciationPerKm` (MANUAL) |
 | `Shift` | One driving session | `startOdometer`/`endOdometer` (the km-split anchor), `startPhoto`/`endPhoto`, `gpsKm` + `track` (JSON `[[epochMs,lat,lng],…]` from in-app GPS tracking) |
-| `Trip` | One ride-hailing trip | `fare`/`commission` (see net-first note below), `paymentType` (CASH/CARD — drives cash reconciliation), `pickupKm`/`pickupMin` (from trip-request cards), `pickupAddress`/`dropoffAddress` (Google place labels from screenshots), `source` (MANUAL/CSV/STATEMENT/OCR) |
+| `Trip` | One ride-hailing trip | `fare`/`commission` (see net-first note below), `paymentType` (CASH/CARD — drives cash reconciliation), `pickupKm`/`pickupMin` (from trip-request cards or typed), `durationMin` (minutes with the rider), `pickupLat/Lng`/`dropoffLat/Lng` (from the shift's GPS track or the phone at quick-add), `pickupAddress`/`dropoffAddress` (Google place labels from screenshots), `source` (MANUAL/CSV/STATEMENT/OCR) |
 | `CashTip` | A cash tip not tied to a specific trip | |
 | `FuelUp` | One fill-up | `fuelType` (PETROL_80/92/95/CNG), `fullTank` (full-to-full pairs drive the L/100km calculation) |
 | `Maintenance` | One service event | `category` enum-by-convention (OIL, TIRES, CNG_SERVICE, …) |
@@ -271,7 +276,7 @@ covering shift.
 
 ## 7. The analytics engine (`lib/analytics.ts`)
 
-`getAnalytics(vehicleId, period)` — `period` is `"today"|"week"|"month"|"all"`
+`getAnalytics(vehicleId, period)` — `period` is `"today"|"week"|"lastWeek"|"month"|"all"`
 — returns everything the dashboard renders. Key derivations:
 
 - **Fuel economy** (`fuelEconomy()`): computed only across **consecutive
@@ -279,16 +284,40 @@ covering shift.
   can't cleanly attribute km to one fuel otherwise). Gives L/100km, km/unit,
   and cost/km. Non-full-tank fill-ups still count toward total spend but not
   the consumption ratio.
-- **Depreciation** (`lib/depreciation.ts`, `estimateDepPerKm()`): **automatic
-  by default.** Declining-balance method — 15%/year of current value
-  (`ANNUAL_DEPRECIATION_RATE = 0.15`), current value = driver's
-  `estimatedValue` if set, else `purchasePrice` aged from the model year and
-  floored at 30% of purchase (`VALUE_FLOOR_RATIO`) so a working car never
-  depreciates to zero. Divided by the vehicle's own **observed annualized
-  km** (`annualizedKm()` — extrapolated from odometer history once ≥14 days
-  of data exist; falls back to `FALLBACK_ANNUAL_KM = 30,000` before that).
-  `Vehicle.depreciationPerKm` is a manual override — **leaving it empty is
-  the intended default state**, not a missing value.
+- **Depreciation** (`lib/depreciation.ts`, `depreciationBasis()`): three
+  methods and a master switch, per vehicle (rebuilt 2026-10-12 after UAT
+  showed the old straight-line model charging ~1.4 EGP/km and turning a
+  profitable week into a loss):
+  - `MILEAGE` (**default**) — the *marginal* resale loss the extra km cause:
+    `current value × mileageSensitivityPct / 10,000 km`. Age-related loss
+    (model year, market) happens whether or not the car moves, so a driver
+    who owns the car anyway is only charged the mileage penalty a buyer
+    applies. Default sensitivity `DEFAULT_MILEAGE_SENSITIVITY_PCT = 1.0`
+    (% of today's value per 10,000 km; a 500k car → 0.50 EGP/km), tunable
+    per car. Current value = `estimatedValue` if typed, else `purchasePrice`
+    aged 15%/year from the model year, floored at 30%.
+  - `LIFETIME` — the previous model, kept for pure work cars:
+    `(purchasePrice − 15% residual) ÷ (lifetimeKm − initialOdometer)`.
+  - `MANUAL` — `Vehicle.depreciationPerKm` as typed. (The migration marks
+    any car that already had a manual figure as `MANUAL`, so nothing changes
+    for it.)
+  - `Vehicle.depreciationEnabled = false` sets the charged rate to **0 in
+    every profit figure** (dashboard, weeks, target, offer scoring, streaks)
+    while `rawPerKm` stays available so the UI can still show what it would
+    cost. The car form previews all three rates for the car side by side.
+- **Uber pay week** (`lib/week.ts`): every period and bucket in the app is
+  Uber's — Monday 04:00 → next Monday 03:59:59 local time. `periodRange()`
+  maps `today` to 04:00→04:00, `week`/`lastWeek` to pay weeks; shifts that
+  straddle the boundary are split by time overlap (km pro-rated). Trips from
+  other platforms or typed by hand follow the same rule, so a week here is
+  always the week on the Uber statement. `payDayIndex()` gives Monday-first
+  day-of-week inside the pay week (a 02:00 Tuesday trip is Monday's).
+- **Time split** (`getAnalytics().time`): online minutes (shift time) split
+  into minutes with a rider (`Trip.durationMin`, else `endTime − startTime`),
+  minutes driving to pickups (`Trip.pickupMin`) and the idle remainder;
+  `utilizationPct` is the with-rider share. Screenshot OCR now carries the
+  trip duration through (`ActivityTrip.durationMin → Trip.durationMin`), and
+  request cards carry `tripMin`.
 - **Km split**: `shiftKm` (odometer end − start, summed over completed
   shifts) → split into `tripKm` (sum of trip distances) and `deadKm`
   (`shiftKm − tripKm`, floored at 0). `deadKm` further splits into
@@ -322,12 +351,39 @@ covering shift.
 
 ---
 
+## 7b. Weekly analytics (`lib/weekly.ts`, `/weeks`, `GET /api/weeks`)
+
+`getWeeklyReport(vehicleId, weeksBack)` returns one `WeekSummary` per Uber
+pay week (oldest → current) plus the comparisons the driver asks for. Per
+week: counts, net/cash/card earnings and cash owed to the platform, the
+amortized cost rows and true/cash profit, rates (profit and earnings per
+online hour, per trip hour, per km, per trip), the time split, the km split
+(trip / pickup / cruising / personal), per-pay-day and per-hour-of-day
+earnings, best trip (highest net per minute, falling back to net), best day,
+best hour, trip-length buckets (<5 / 5–15 / >15 km → EGP per km), platform
+split, fuel-ups and expenses in the week, and goal status. Report-level:
+`best` week keys (by profit / per hour / net / trips), `deltaVsPrevious`,
+`deltaVsBest`, a straight-line `projection` once ≥20% of the week has
+elapsed, and `previousAtSamePoint` — last week's figures at the same elapsed
+fraction, the honest "am I ahead?" answer. `lastClosed` feeds the dashboard's
+"Your week closed" recap for the first two days of a new week.
+
+**Locations** (`zoneStats()`): trips are grouped into ~1.1 km grid cells when
+they carry coordinates, else by their normalized address label; each zone
+reports trips, net, average net per trip and net per minute. Coordinates come
+from `lib/tripLocation.ts`: a trip inside a GPS-tracked shift gets its pickup
+from the track point nearest `startTime` and its drop-off from the point
+nearest `startTime + durationMin` (≤10 min gap), filled on trip create/update,
+after each GPS batch, on reconcile, and by the Settings health check. A trip
+logged live from the quick-add also stores the phone's position as the
+drop-off. Nothing is geocoded and no external API is used.
+
 ## 8. "Plan your day!" (`lib/planner.ts`, `/plan`)
 
 Reads every logged shift and trip to answer **when** to drive (not yet
 **where** — see gap below).
 
-- **Heatmap**: weekday × hour grid of EGP/hour. Shift hours are distributed
+- **Heatmap**: weekday × hour grid of EGP/hour (Monday first, matching the pay week). Shift hours are distributed
   fractionally into their overlapping hour buckets (`hoursGrid`); trip
   earnings (net + tips) land in the bucket of their start hour. A cell only
   gets a rate once it clears `MIN_HOURS_FOR_RATE = 1` hour of logged

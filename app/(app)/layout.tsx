@@ -11,7 +11,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <ActivityProvider>
         <div className="flex-1 flex flex-col md:flex-row">
           <Nav />
-          <main className="flex-1 p-4 md:p-6 max-w-5xl w-full mx-auto">{children}</main>
+          {/* bottom padding keeps the last card clear of the phone tab bar */}
+          <main className="flex-1 px-4 pt-4 pb-[calc(var(--nav-h)+24px)] md:p-8 md:pb-10 max-w-5xl w-full mx-auto">{children}</main>
         </div>
         <ActivityBadge />
       </ActivityProvider>
