@@ -5,6 +5,11 @@ import { weekRange, weekKey, overlapMs, payDayIndex, WEEK_MS, type WeekRange } f
 
 // Weekly analytics on Uber's pay week (lib/week.ts).
 //
+// Scope, deliberately: the driver's own money (net earnings, tips) and the
+// car's running costs. Cash settlement with the platform (what a cash trip
+// collected vs. what Uber keeps) is Uber's own ledger and is not computed or
+// shown anywhere in the app.
+//
 // Every number here is bucketed Monday 04:00 → Monday 04:00 so a week in this
 // app is the week on the driver's Uber statement. Shifts that straddle the
 // boundary are split by time, and their km pro-rated by that same split, so
@@ -60,9 +65,6 @@ export type WeekSummary = {
     fares: number;
     tips: number;
     netRevenue: number;
-    cashCollected: number;
-    /** cash held that belongs to the platform (cash collected − earnings on cash trips) */
-    cashOwed: number;
     cardNet: number;
     cashNet: number;
   };
@@ -288,8 +290,6 @@ function summarizeWeek(range: WeekRange, rows: Rows, vehicle: Vehicle, rates: Ra
   const netRevenue = fares - commission + tripTips + standaloneTips;
   const cashTrips = trips.filter((t) => t.paymentType === "CASH");
   const cardTrips = trips.filter((t) => t.paymentType !== "CASH");
-  const cashCollected = cashTrips.reduce((s, t) => s + t.fare, 0);
-  const cashOwed = cashTrips.reduce((s, t) => s + (t.commission ?? 0), 0);
 
   const allocFuel = rates.fuelCostPerKm * shiftKm;
   const allocMaint = rates.maintCostPerKm * shiftKm;
@@ -406,8 +406,6 @@ function summarizeWeek(range: WeekRange, rows: Rows, vehicle: Vehicle, rates: Ra
       fares: r2(fares),
       tips: r2(tripTips + standaloneTips),
       netRevenue: r2(netRevenue),
-      cashCollected: r2(cashCollected),
-      cashOwed: r2(cashOwed),
       cardNet: r2(cardTrips.reduce((s, t) => s + tripNet(t), 0)),
       cashNet: r2(cashTrips.reduce((s, t) => s + tripNet(t), 0)),
     },

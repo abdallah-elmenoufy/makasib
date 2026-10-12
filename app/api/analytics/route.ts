@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/auth";
 import { getAnalytics, Period } from "@/lib/analytics";
 import { maybePurgeUploads } from "@/lib/purge";
 import { maybeSweep } from "@/lib/tripIntegrity";
+import { maybeGeocode } from "@/lib/geocode";
 
 export async function GET(req: NextRequest) {
   try {
@@ -12,6 +13,7 @@ export async function GET(req: NextRequest) {
     const vehicleId = req.nextUrl.searchParams.get("vehicleId");
     const period = (req.nextUrl.searchParams.get("period") ?? "week") as Period;
     if (!vehicleId) return NextResponse.json({ error: "vehicleId required" }, { status: 400 });
+    maybeGeocode(vehicleId);
     return NextResponse.json(await getAnalytics(vehicleId, period));
   } catch (e) {
     if (e instanceof Response) return e;

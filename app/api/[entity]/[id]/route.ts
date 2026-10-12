@@ -33,6 +33,19 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     const config = ENTITIES[entity];
     if (!config) return NextResponse.json({ error: "unknown entity" }, { status: 404 });
     const data = coerceBody(config, await req.json());
+
+    // a closed shift must carry an end odometer: every km-based cost (fuel,
+    // maintenance, depreciation) is charged per shift km, so a shift with an
+    // end time but no reading would silently drop its km from the maths
+    if (entity === "shifts") {
+      const existing = await delegate(config.model).findUnique({ where: { id } });
+      if (!existing) return NextResponse.json({ error: "not found" }, { status: 404 });
+      const merged = { ...existing, ...data };
+      if (merged.endTime != null && (merged.endOdometer == null || !(merged.endOdometer > merged.startOdometer))) {
+        return NextResponse.json({ error: "endOdometer required" }, { status: 400 });
+      }
+    }
+
     const row = await delegate(config.model).update({ where: { id }, data });
 
     // Editing either side of the relationship can change which trips belong

@@ -37,6 +37,11 @@
   --info: #276ef1;
   --info-soft: #eff3fe;
 
+  /* white card / sheet surface, and the black "hero" card with its text */
+  --paper: #ffffff;
+  --hero: #000000;
+  --hero-fg: #ffffff;
+
   /* legacy aliases still referenced by a few components */
   --border: var(--line);
   --surface-sunken: var(--surface);
@@ -52,6 +57,73 @@
   --shadow-lg: 0 16px 48px -12px rgba(0, 0, 0, 0.28);
 
   --nav-h: 64px;
+}
+
+/* ---------------------------------------------------------------------------
+   Dark theme — the Uber Driver app's own look: black ground, charcoal tiles,
+   white type, the same green/red. Chosen per device from Settings
+   (data-theme on <html>, set before paint by the script in app/layout.tsx)
+   or inherited from the OS when the driver leaves it on "System".
+--------------------------------------------------------------------------- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --background: #000000;
+    --foreground: #ffffff;
+    --surface: #1a1a1a;
+    --surface-2: #2a2a2a;
+    --line: #333333;
+    --line-strong: #4a4a4a;
+    --ink: #ffffff;
+    --ink-700: #e2e2e2;
+    --ink-500: #c6c6c6;
+    --muted: #a0a0a0;
+    --muted-2: #6e6e6e;
+    --money: #1fcf7a;
+    --money-soft: #0d2b1c;
+    --loss: #ff5a45;
+    --loss-soft: #3a1511;
+    --warn: #ffc043;
+    --warn-ink: #ffd57a;
+    --warn-soft: #3a2e10;
+    --info: #5a8ff5;
+    --info-soft: #16233f;
+    --paper: #121212;
+    --hero: #161616;
+    --hero-fg: #ffffff;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.6);
+    --shadow-md: 0 4px 16px -4px rgba(0, 0, 0, 0.7);
+    --shadow-lg: 0 16px 48px -12px rgba(0, 0, 0, 0.9);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #000000;
+  --foreground: #ffffff;
+  --surface: #1a1a1a;
+  --surface-2: #2a2a2a;
+  --line: #333333;
+  --line-strong: #4a4a4a;
+  --ink: #ffffff;
+  --ink-700: #e2e2e2;
+  --ink-500: #c6c6c6;
+  --muted: #a0a0a0;
+  --muted-2: #6e6e6e;
+  --money: #1fcf7a;
+  --money-soft: #0d2b1c;
+  --loss: #ff5a45;
+  --loss-soft: #3a1511;
+  --warn: #ffc043;
+  --warn-ink: #ffd57a;
+  --warn-soft: #3a2e10;
+  --info: #5a8ff5;
+  --info-soft: #16233f;
+  --paper: #121212;
+  --hero: #161616;
+  --hero-fg: #ffffff;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.6);
+  --shadow-md: 0 4px 16px -4px rgba(0, 0, 0, 0.7);
+  --shadow-lg: 0 16px 48px -12px rgba(0, 0, 0, 0.9);
 }
 
 @theme inline {
@@ -75,6 +147,9 @@
   --color-warn-soft: var(--warn-soft);
   --color-info: var(--info);
   --color-info-soft: var(--info-soft);
+  --color-paper: var(--paper);
+  --color-hero: var(--hero);
+  --color-hero-fg: var(--hero-fg);
   --font-sans: "Uber Move Text", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto,
     "Helvetica Neue", Arial, "Noto Sans Arabic", sans-serif;
 }
@@ -92,11 +167,11 @@ body {
   letter-spacing: -0.005em;
 }
 
-/* explicit, never inherited from a UA dark theme */
+/* follow the theme, never the UA default */
 input,
 select,
 textarea {
-  color: #000;
+  color: var(--ink);
 }
 
 /* big display figures: proportional digits, tight tracking (Uber Move Display feel) */

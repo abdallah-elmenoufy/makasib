@@ -132,7 +132,7 @@ export function QuickAddTrip({
     }
   };
 
-  const small = "w-full h-11 rounded-xl bg-white border border-transparent focus:border-ink focus:outline-none px-3 text-[15px] font-semibold tnum";
+  const small = "w-full h-11 rounded-xl bg-paper border border-transparent focus:border-ink focus:outline-none px-3 text-[15px] font-semibold tnum";
 
   return (
     <Card>
@@ -148,14 +148,14 @@ export function QuickAddTrip({
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.00"
-                className="w-full h-14 rounded-xl bg-white border border-transparent focus:border-ink focus:outline-none px-3.5 text-2xl font-bold tnum"
+                className="w-full h-14 rounded-xl bg-paper border border-transparent focus:border-ink focus:outline-none px-3.5 text-2xl font-bold tnum"
               />
               {voiceOk && (
                 <button
                   type="button"
                   onClick={listen}
                   title={t("qa.speak")}
-                  className={`shrink-0 w-14 h-14 rounded-xl flex items-center justify-center transition-colors ${listening ? "bg-loss text-white animate-pulse" : "bg-white text-ink hover:bg-surface-2"}`}
+                  className={`shrink-0 w-14 h-14 rounded-xl flex items-center justify-center transition-colors ${listening ? "bg-loss text-white animate-pulse" : "bg-paper text-ink hover:bg-surface-2"}`}
                 >
                   <Icon name="mic" size={22} />
                 </button>

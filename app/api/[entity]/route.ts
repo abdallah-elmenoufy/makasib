@@ -62,6 +62,14 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     const body = await req.json();
     const data = coerceBody(config, body);
 
+    // odometer readings are mandatory on both ends of a shift (see [id]/route.ts)
+    if (entity === "shifts") {
+      if (data.startOdometer == null) return NextResponse.json({ error: "startOdometer required" }, { status: 400 });
+      if (data.endTime != null && (data.endOdometer == null || !((data.endOdometer as number) > (data.startOdometer as number)))) {
+        return NextResponse.json({ error: "endOdometer required" }, { status: 400 });
+      }
+    }
+
     // auto-attach a trip to the shift covering its start time
     if (entity === "trips" && !data.shiftId && data.vehicleId && data.startTime) {
       data.shiftId = await matchTripToShift(data.vehicleId as string, data.startTime as Date);

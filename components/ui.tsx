@@ -21,8 +21,8 @@ export function Card({
 }) {
   const tones = {
     tile: "bg-surface",
-    outline: "bg-white border border-line",
-    ink: "bg-ink text-white",
+    outline: "bg-paper border border-line",
+    ink: "bg-hero text-hero-fg ring-1 ring-hero-fg/10",
     money: "bg-money-soft",
     loss: "bg-loss-soft",
     warn: "bg-warn-soft",
@@ -99,12 +99,12 @@ export function Btn({
 }) {
   const sizes = size === "sm" ? "px-3 h-9 text-[13px]" : "px-4 h-12 text-sm";
   const styles = {
-    primary: `bg-ink hover:bg-ink-700 active:bg-ink-500 text-white ${sizes}`,
+    primary: `bg-ink hover:bg-ink-700 active:bg-ink-500 text-background ${sizes}`,
     secondary: `bg-surface-2 hover:bg-line active:bg-line-strong text-ink ${sizes}`,
-    danger: `bg-white hover:bg-loss-soft text-loss border border-line ${sizes}`,
+    danger: `bg-paper hover:bg-loss-soft text-loss border border-line ${sizes}`,
     ghost: `bg-transparent hover:bg-surface-2 text-ink-500 ${sizes}`,
     money: `bg-money hover:brightness-95 text-white ${sizes}`,
-    big: "bg-ink hover:bg-ink-700 active:bg-ink-500 text-white px-6 h-14 text-base w-full",
+    big: "bg-ink hover:bg-ink-700 active:bg-ink-500 text-background px-6 h-14 text-base w-full",
   }[variant];
   return (
     <button
@@ -131,7 +131,7 @@ export function Field({ label, hint, children, className = "" }: { label: string
 
 const inputCls =
   "w-full rounded-xl bg-surface-2 border border-transparent px-3.5 h-12 text-[15px] text-ink placeholder:text-muted-2 " +
-  "focus:outline-none focus:bg-white focus:border-ink focus:ring-2 focus:ring-ink/10 transition-colors";
+  "focus:outline-none focus:bg-paper focus:border-ink focus:ring-2 focus:ring-ink/10 transition-colors";
 
 export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={`${inputCls} ${props.className ?? ""}`} />;
@@ -148,7 +148,7 @@ export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
 export function Checkbox({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <label className="flex items-center gap-2.5 text-sm cursor-pointer select-none min-h-12">
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="w-5 h-5 accent-black" />
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="w-5 h-5 accent-ink" />
       {label}
     </label>
   );
@@ -185,7 +185,7 @@ export function Toggle({
         className={`relative shrink-0 w-[52px] h-8 rounded-full transition-colors ${checked ? "bg-money" : "bg-line-strong"}`}
       >
         <span
-          className="absolute top-1 w-6 h-6 rounded-full bg-white shadow transition-all"
+          className="absolute top-1 w-6 h-6 rounded-full bg-[#fff] shadow transition-all"
           style={{ insetInlineStart: checked ? 24 : 4 }}
         />
       </button>
@@ -218,7 +218,7 @@ export function Segmented<T extends string>({
           type="button"
           onClick={() => onChange(o.value)}
           className={`${size === "sm" ? "px-3 h-8 text-xs" : "px-4 h-9 text-sm"} ${fill ? "flex-1 px-1" : ""} rounded-full font-bold whitespace-nowrap transition-colors ${
-            value === o.value ? "bg-ink text-white" : "text-ink-500 hover:bg-white"
+            value === o.value ? "bg-ink text-background" : "text-ink-500 hover:bg-paper"
           }`}
         >
           {o.label}
@@ -242,8 +242,8 @@ export function Badge({
     good: "bg-money-soft text-money",
     warn: "bg-warn-soft text-warn-ink",
     bad: "bg-loss-soft text-loss",
-    brand: "bg-ink text-white",
-    ink: "bg-ink text-white",
+    brand: "bg-ink text-background",
+    ink: "bg-ink text-background",
   }[tone];
   return (
     <span title={title} className={`inline-flex items-center gap-1 text-xs font-bold rounded-full px-2.5 py-1 ${tones}`}>
@@ -322,13 +322,13 @@ export function Tile({
   const inv = tone === "ink";
   return (
     <Card tone={tone} className={`!p-3.5 md:!p-4 ${className}`}>
-      <div className={`flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide ${inv ? "text-white/60" : "text-muted"}`}>
+      <div className={`flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide ${inv ? "text-hero-fg/60" : "text-muted"}`}>
         {icon && <Icon name={icon} size={13} />}
         <span className="truncate">{label}</span>
       </div>
-      <div className={`text-[22px] md:text-2xl font-bold display mt-1 leading-tight ${inv ? "text-white" : ""}`}>{value}</div>
+      <div className={`text-[22px] md:text-2xl font-bold display mt-1 leading-tight ${inv ? "text-hero-fg" : ""}`}>{value}</div>
       {(sub || delta) && (
-        <div className={`flex items-center gap-2 mt-1 text-xs ${inv ? "text-white/60" : "text-muted"}`}>
+        <div className={`flex items-center gap-2 mt-1 text-xs ${inv ? "text-hero-fg/60" : "text-muted"}`}>
           {delta}
           {sub && <span className="truncate">{sub}</span>}
         </div>
@@ -490,7 +490,7 @@ export function Modal({
       <div
         role="dialog"
         aria-modal="true"
-        className={`relative bg-white text-ink w-full ${wide ? "md:max-w-3xl" : "md:max-w-xl"} max-h-[94vh] flex flex-col
+        className={`relative bg-paper text-ink w-full ${wide ? "md:max-w-3xl" : "md:max-w-xl"} max-h-[94vh] flex flex-col
                     rounded-t-3xl md:rounded-2xl shadow-[var(--shadow-lg)] animate-sheet-in`}
       >
         <div className="md:hidden flex justify-center pt-2.5">
@@ -501,7 +501,7 @@ export function Modal({
           <IconButton name="close" onClick={onClose} label="Close" />
         </div>
         <div className="px-4 md:px-5 pb-4 md:pb-5 overflow-y-auto flex-1 safe-bottom">{children}</div>
-        {footer && <div className="px-4 md:px-5 py-3 border-t border-line bg-white rounded-b-2xl safe-bottom">{footer}</div>}
+        {footer && <div className="px-4 md:px-5 py-3 border-t border-line bg-paper rounded-b-2xl safe-bottom">{footer}</div>}
       </div>
     </div>
   );
@@ -549,7 +549,7 @@ export function RecordCard({
   className?: string;
 }) {
   const tones = {
-    plain: "bg-white border-line",
+    plain: "bg-paper border-line",
     warn: "bg-warn-soft border-warn/60",
   }[tone];
   return <div className={`rounded-xl border ${tones} px-3.5 py-3 ${className}`}>{children}</div>;
@@ -623,11 +623,11 @@ export function GroupHeader({
 }
 
 const METER_TONES = {
-  good: "#05a357",
-  warn: "#ffc043",
-  bad: "#e11900",
-  brand: "#000000",
-  neutral: "#afafaf",
+  good: "var(--money)",
+  warn: "var(--warn)",
+  bad: "var(--loss)",
+  brand: "var(--ink)",
+  neutral: "var(--muted-2)",
 } as const;
 
 export type MeterTone = keyof typeof METER_TONES;
@@ -727,7 +727,7 @@ export function Gauge({
     <div className="flex flex-col items-center">
       <div className="relative w-[160px]">
         <svg viewBox="0 0 160 92" className="w-full" role="img" aria-label={caption ?? value}>
-          <path d="M 12 80 A 68 68 0 0 1 148 80" fill="none" stroke="#e2e2e2" strokeWidth={12} strokeLinecap="round" />
+          <path d="M 12 80 A 68 68 0 0 1 148 80" fill="none" stroke="var(--line)" strokeWidth={12} strokeLinecap="round" />
           <path
             d="M 12 80 A 68 68 0 0 1 148 80"
             fill="none"
@@ -819,7 +819,7 @@ export function EditableNum({
       onChange={(e) => setDraft(e.target.value)}
       onBlur={commit}
       onKeyDown={(e) => e.key === "Enter" && commit()}
-      className="w-20 rounded-lg border border-ink px-1.5 h-8 text-sm bg-white"
+      className="w-20 rounded-lg border border-ink px-1.5 h-8 text-sm bg-paper"
     />
   );
 }

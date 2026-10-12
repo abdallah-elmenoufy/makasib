@@ -14,7 +14,7 @@ const GpsHeatmap = dynamic(() => import("@/components/GpsHeatmap").then((m) => m
 
 // sequential blue ramp (validated reference palette) — light → dark = low → high
 const RAMP = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#1c5cab", "#0d366b"];
-const EMPTY_CELL = "#f1f5f9";
+const EMPTY_CELL = "var(--line)";
 // Monday first — the order of Uber's pay week (lib/week.ts)
 const DOW_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
@@ -84,7 +84,7 @@ function WeekdayHeatGrid({ cells, locale, t }: { cells: any[]; locale: string; t
       </div>
       {tip && (
         <div
-          className="absolute -translate-x-1/2 -translate-y-full bg-white border border-line shadow-md rounded-lg px-2.5 py-1.5 text-xs pointer-events-none z-10 whitespace-nowrap"
+          className="absolute -translate-x-1/2 -translate-y-full bg-paper border border-line shadow-md rounded-lg px-2.5 py-1.5 text-xs pointer-events-none z-10 whitespace-nowrap"
           style={{ left: tip.x, top: tip.y - 4 }}
         >
           <div className="text-muted">

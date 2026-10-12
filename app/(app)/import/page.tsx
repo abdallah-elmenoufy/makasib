@@ -55,13 +55,13 @@ function ImportInner() {
   return (
     <div>
       <PageTitle>{t("im.title")}</PageTitle>
-      <div className="grid grid-cols-2 sm:flex gap-1.5 mb-4 bg-white border border-line rounded-xl p-1.5 flex-wrap">
+      <div className="grid grid-cols-2 sm:flex gap-1.5 mb-4 bg-paper border border-line rounded-xl p-1.5 flex-wrap">
         {tabs.map((x) => (
           <button
             key={x.id}
             onClick={() => setTab(x.id)}
             className={`px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
-              tab === x.id ? "bg-ink text-white" : "text-muted hover:bg-surface-2"
+              tab === x.id ? "bg-ink text-background" : "text-muted hover:bg-surface-2"
             }`}
           >
             {x.label}
@@ -140,16 +140,6 @@ function ManualTripImport({ vehicleId }: { vehicleId: string }) {
             <option value="CARD">{t("tr.CARD")}</option>
           </Select>
         </Field>
-        {form.paymentType === "CASH" && (
-          <Field label={t("tr.cashCollected")} hint={t("tr.cashCollectedHint")}>
-            <Input
-              type="number"
-              step="0.01"
-              value={form.cashCollected}
-              onChange={(e) => set("cashCollected", e.target.value)}
-            />
-          </Field>
-        )}
         <Field label={t("tr.distance")}>
           <Input type="number" step="0.1" value={form.distanceKm} onChange={(e) => set("distanceKm", e.target.value)} />
         </Field>
@@ -232,8 +222,11 @@ function ShiftPhotosImport({ vehicle }: { vehicle: any }) {
           const { serverOdometerCandidates, ocrOdometerCandidates } = await import("@/lib/ocr");
           let c = await serverOdometerCandidates(filename);
           if (c == null || c.length === 0) {
-            const served = await fetch(`/api/files/${filename}`).then((r) => r.blob());
-            c = await ocrOdometerCandidates(served);
+            // OCR the file we already have; fetch the served copy only when
+            // the server converted a HEIC to JPEG
+            const converted = filename.split(".").pop() !== file.name.split(".").pop()?.toLowerCase();
+            const blob = converted ? await fetch(`/api/files/${filename}`).then((r) => r.blob()) : file;
+            c = await ocrOdometerCandidates(blob);
           }
           return c;
         });
@@ -566,7 +559,7 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
     if (parts.length > 0) setTimeout(() => router.push("/trips"), 600);
   };
 
-  const inputCls = "w-full rounded border border-line px-1.5 py-1 text-xs bg-white";
+  const inputCls = "w-full rounded border border-line px-1.5 py-1 text-xs bg-paper";
 
   return (
     <Card className="space-y-4">

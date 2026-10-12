@@ -76,13 +76,32 @@ quick-start.
 - **Score this offer!** (قيّم العرض) — screenshot an incoming trip request
   and get an instant profit/km and profit/hour estimate against your own
   average, before you accept.
-- **Uber-style UI** — black/white, big numbers, bottom tab bar on the phone.
+- **Where to go now** — the dashboard ranks your pickup areas for this hour
+  on this kind of day (weekday / weekend) from your own last 8 weeks, with
+  what each paid per trip and per minute, and names the best coming hour.
+- **Week export** — any pay week as a CSV (one row per trip) for your own
+  archive or to check against the Uber statement.
+- **Addresses on the map** — trips imported from screenshots carry an
+  address but no position; Makasib looks each new label up once on
+  OpenStreetMap (switchable off in Settings) so they count in "Where to go".
+- **Uber-style UI** — black/white, big numbers, bottom tab bar on the phone,
+  light and dark themes (per device, or follow the phone).
+- **Not in scope, on purpose** — cash settlement with Uber (what a cash trip
+  collected vs. what Uber keeps). Uber's Wallet already does that exactly;
+  Makasib only tracks your net earnings and the car's costs.
 - **Full English/Arabic UI**, switchable any time, RTL-correct.
 
 The driver-facing user manual (Egyptian Arabic, printable) lives at
 [`public/manual-ar.html`](./public/manual-ar.html) — served at
 `/manual-ar.html` when the app is running. Keep it in step with the UI: it
 is the only documentation an actual driver ever reads.
+
+## Tests
+
+```bash
+npm test          # vitest: pay-week boundaries, depreciation, weekly zones/best trip, OCR parsers, GPS lookup, geocoding
+npm run typecheck
+```
 
 ## Requirements
 
@@ -187,6 +206,40 @@ permission the first time.
 > Both `mkcert` and `local-ssl-proxy` are dev-only tooling for phase-1 UAT on
 > your own network. None of this is needed once phase 2 hosts the app on a
 > real domain with a real TLS certificate.
+
+## Hosting it online for live testing (free tier)
+
+Phase 1 runs on a Mac; to test on real trips from the car you want it on
+the public internet with HTTPS (which also makes GPS tracking work on the
+phone without the mkcert dance). The cheapest honest setup, all free tiers:
+
+| Piece | Service | Why |
+|---|---|---|
+| App (Next.js) | **Vercel Hobby** | Zero-config for Next.js, fast cold starts, HTTPS. Hobby is for non-commercial use — fine for testing; move to Pro ($20/mo) when you start charging. |
+| Database | **Neon** (Postgres, free) | 0.5 GB, scales to zero when idle, works with Prisma out of the box. (Supabase free also works but pauses after 7 idle days.) |
+| Photos | the server's `/tmp` | Odometer/receipt photos are optional evidence and auto-purged anyway; on Vercel set `UPLOAD_DIR=/tmp/uploads`. Odometer OCR now reads the photo on the phone, so it keeps working. |
+
+Steps (one-time, ~20 minutes):
+
+1. **Switch Prisma to Postgres.** In `prisma/schema.prisma` change
+   `provider = "sqlite"` to `provider = "postgresql"`. Delete the
+   `prisma/migrations` folder (it is SQLite dialect) and run
+   `npx prisma migrate dev --name init` once against your Neon URL to
+   generate Postgres migrations. Commit them.
+2. **Neon:** create a project → copy the pooled connection string.
+3. **Vercel:** import the GitHub repo. Environment variables:
+   `DATABASE_URL` (Neon), `UPLOAD_DIR=/tmp/uploads`. Build command stays
+   `next build`; `postinstall` already runs `prisma generate`. Add
+   `npx prisma migrate deploy && next build` as the build command so the
+   schema is applied on every deploy.
+4. Open the URL on your phone, set the passphrase, **Add to Home Screen**
+   (it is a PWA), and start a shift.
+
+What degrades on Linux hosting: Apple Vision odometer OCR falls back to
+tesseract (worse on LCD dashboards — type the reading if it misreads), and
+HEIC photos are not converted (set the iPhone camera to **Most Compatible**
+so it shoots JPEG). Everything else — imports, GPS, weeks, analytics — is
+unchanged. Full detail in DOCS.md §13.
 
 ## Scripts
 

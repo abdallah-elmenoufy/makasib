@@ -29,10 +29,10 @@ const FUEL_TYPES = ["PETROL_80", "PETROL_92", "PETROL_95", "CNG"];
 
 /** One colour per fuel type, reused by the split bar and its legend. */
 const FUEL_COLOR: Record<string, string> = {
-  PETROL_80: "#c3c2b7",
+  PETROL_80: "var(--muted-2)",
   PETROL_92: "#eda100",
   PETROL_95: "#2a78d6",
-  CNG: "#05a357",
+  CNG: "var(--money)",
 };
 
 /** Dial ceiling for the consumption gauge — a working range for a
@@ -445,8 +445,8 @@ function FuelShockCard({
               onClick={() => setPrice(Math.round((latestPrice + step) * 100) / 100)}
               className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors ${
                 Math.abs(price - (latestPrice + step)) < 0.001
-                  ? "bg-ink border-line text-white"
-                  : "bg-white border-[var(--border)] text-ink-500 hover:bg-surface"
+                  ? "bg-ink border-line text-background"
+                  : "bg-paper border-[var(--border)] text-ink-500 hover:bg-surface"
               }`}
             >
               +{step}

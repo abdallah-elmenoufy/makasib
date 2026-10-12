@@ -638,8 +638,6 @@ const en: Record<string, string> = {
   "wk.moneyTitle": "Money",
   "wk.cardNet": "Card trips (net)",
   "wk.cashNet": "Cash trips (net)",
-  "wk.cashCollected": "Cash collected",
-  "wk.cashOwed": "{v} of it belongs to the platform",
   "wk.fuelThisWeek": "{n} fill-up(s) this week · {q} L · {v}",
   "wk.bestTrip": "Best trip",
   "wk.bestTripSub": "Paid the most for its minutes",
@@ -733,6 +731,25 @@ const en: Record<string, string> = {
   "tr.addMany": "Add trips",
   "tr.located": "Pickup/drop-off located — open map",
   "tr.perMin": "Per minute",
+
+  // theme, geocoding, where-to-go, export
+  "st.theme": "Appearance",
+  "st.themeSystem": "System",
+  "st.themeLight": "Light",
+  "st.themeDark": "Dark",
+  "st.themeHint": "Saved on this device only. \"System\" follows your phone's setting.",
+  "st.geocode": "Locate addresses on the map (OpenStreetMap)",
+  "st.geocodeHint": "Trips imported from screenshots carry an address but no position. When on, each new address label is looked up once on OpenStreetMap so those trips count in \"Where to go\". Off = address text never leaves this app.",
+  "now.title": "Where to go now",
+  "now.sub": "Your trips around {slot} on a {kind}, last 8 weeks.",
+  "now.learning": "Still learning this hour — {n} of {min} trips needed around this time before a suggestion is shown.",
+  "now.weekday": "weekday",
+  "now.weekend": "weekend",
+  "now.perRiderHour": "per hour with a rider at this time",
+  "now.noZones": "No pickup areas with enough trips yet — GPS tracking or screenshot imports with addresses fill this in.",
+  "now.nextBest": "Best coming hour: {h} (≈ {v} per trip).",
+  "wk.export": "CSV",
+  "st.flyerOpen": "Open the flyer",
 };
 
 const ar: Record<string, string> = {
@@ -1344,8 +1361,6 @@ const ar: Record<string, string> = {
   "wk.moneyTitle": "الفلوس",
   "wk.cardNet": "رحلات الكارت (صافي)",
   "wk.cashNet": "رحلات الكاش (صافي)",
-  "wk.cashCollected": "كاش محصّل",
-  "wk.cashOwed": "{v} منه مستحق للمنصة",
   "wk.fuelThisWeek": "{n} تموين هذا الأسبوع · {q} لتر · {v}",
   "wk.bestTrip": "أفضل رحلة",
   "wk.bestTripSub": "الأعلى دخلاً مقابل دقائقها",
@@ -1433,6 +1448,24 @@ const ar: Record<string, string> = {
   "tr.addMany": "إضافة رحلات",
   "tr.located": "تم تحديد مكان الالتقاط/التوصيل — افتح الخريطة",
   "tr.perMin": "للدقيقة",
+
+  "st.theme": "المظهر",
+  "st.themeSystem": "تلقائي",
+  "st.themeLight": "فاتح",
+  "st.themeDark": "داكن",
+  "st.themeHint": "يُحفظ على هذا الجهاز فقط. \"تلقائي\" يتبع إعداد هاتفك.",
+  "st.geocode": "تحديد العناوين على الخريطة (OpenStreetMap)",
+  "st.geocodeHint": "الرحلات المستوردة من لقطات الشاشة فيها عنوان بدون موقع. عند التفعيل يُبحث عن كل عنوان جديد مرة واحدة على OpenStreetMap لتُحسب هذه الرحلات في \"فين تروح\". عند الإيقاف لا يخرج نص العناوين من التطبيق أبداً.",
+  "now.title": "تروح فين دلوقتي",
+  "now.sub": "رحلاتك حوالي {slot} في {kind}، آخر ٨ أسابيع.",
+  "now.learning": "لسه بنتعلم الساعة دي — محتاجين {min} رحلات حوالين الوقت ده (عندك {n}) قبل ما نقترح.",
+  "now.weekday": "يوم شغل",
+  "now.weekend": "ويك إند",
+  "now.perRiderHour": "في الساعة مع راكب في الوقت ده",
+  "now.noZones": "لا توجد مناطق التقاط برحلات كافية بعد — تتبّع GPS أو استيراد لقطات بعناوين يملأها.",
+  "now.nextBest": "أفضل ساعة جاية: {h} (≈ {v} للرحلة).",
+  "wk.export": "CSV",
+  "st.flyerOpen": "افتح الإعلان",
 };
 
 export const messages: Record<Locale, Record<string, string>> = { en, ar };

@@ -6,7 +6,6 @@ export type TripFormState = {
   platform: string;
   startTime: string;
   earnings: string;
-  cashCollected: string;
   distanceKm: string;
   paymentType: string;
   tip: string;
@@ -18,7 +17,6 @@ export function emptyTripForm(): TripFormState {
     platform: "UBER",
     startTime: toLocalInput(),
     earnings: "",
-    cashCollected: "",
     distanceKm: "",
     paymentType: "CASH",
     tip: "",
@@ -26,17 +24,16 @@ export function emptyTripForm(): TripFormState {
   };
 }
 
-// Net-first: the driver types what the platform shows (net earnings) plus the
-// cash actually collected; fare/commission are derived for storage (see
-// DOCS.md §5 for why fare/commission aren't the naive "gross fare"/"cut").
+// Net-first: the driver types what the platform shows (net earnings). Cash
+// settlement with the platform is Uber's own ledger and is not tracked here
+// (see DOCS.md §5).
 export function toTripData(form: TripFormState) {
   const earnings = Number(form.earnings);
-  const cash = form.paymentType === "CASH" && form.cashCollected !== "" ? Number(form.cashCollected) : null;
   return {
     platform: form.platform,
     startTime: new Date(form.startTime).toISOString(),
-    fare: cash ?? earnings,
-    commission: cash != null ? cash - earnings : 0,
+    fare: earnings,
+    commission: 0,
     distanceKm: form.distanceKm,
     paymentType: form.paymentType,
     tip: form.tip,

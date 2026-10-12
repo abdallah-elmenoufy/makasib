@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useI18n } from "./I18nProvider";
 import { Btn, Field, Input, Modal, Textarea } from "./ui";
@@ -73,6 +73,10 @@ export function EndShiftFlow({
     setStep(2);
   };
 
+  const batchShift = useMemo(
+    () => (closed ? { id: shift.id as string, startTime: shift.startTime as string, endTime: closed.endTime } : null),
+    [shift.id, shift.startTime, closed]
+  );
   const km = closed ? closed.endOdometer - shift.startOdometer : 0;
   const hours = closed ? hoursBetween(shift.startTime, closed.endTime) : 0;
 
@@ -88,7 +92,7 @@ export function EndShiftFlow({
           const active = step === n;
           return (
             <div key={label} className="flex items-center gap-2 flex-1 min-w-0">
-              <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${active ? "bg-ink text-white" : done ? "bg-money text-white" : "bg-surface-2 text-muted"}`}>
+              <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${active ? "bg-ink text-background" : done ? "bg-money text-background" : "bg-surface-2 text-muted"}`}>
                 {done ? <Icon name="check" size={14} strokeWidth={2.5} /> : n}
               </span>
               <span className={`text-xs font-bold truncate ${active ? "text-ink" : "text-muted"}`}>{label}</span>
@@ -167,7 +171,7 @@ export function EndShiftFlow({
           <p className="text-sm text-muted mb-3">{t("sh.logTripsHint")}</p>
           <TripBatchEntry
             vehicleId={vehicleId}
-            shift={{ id: shift.id, startTime: shift.startTime, endTime: closed.endTime }}
+            shift={batchShift}
             existingCount={existingTrips.count}
             minRows={1}
             onSaved={(n) => {

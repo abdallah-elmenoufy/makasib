@@ -102,7 +102,7 @@ export default function CarsPage() {
                   <td className="py-2 px-2 text-warn-ink">
                     {s?.depreciationSoFar != null ? money(s.depreciationSoFar) : "—"}
                   </td>
-                  <td className="py-2 px-2 font-semibold" style={{ color: s && s.trueProfit >= 0 ? "#05a357" : "#e11900" }}>
+                  <td className="py-2 px-2 font-semibold" style={{ color: s && s.trueProfit >= 0 ? "var(--money)" : "var(--loss)" }}>
                     {s ? money(s.trueProfit) : "—"}
                   </td>
                   <td className="py-2 px-2">
@@ -110,8 +110,8 @@ export default function CarsPage() {
                       <span
                         className="text-xs font-bold rounded-full px-2 py-0.5"
                         style={{
-                          color: s.healthScore >= 70 ? "#05a357" : s.healthScore >= 40 ? "#b45309" : "#e11900",
-                          background: s.healthScore >= 70 ? "#ecfdf5" : s.healthScore >= 40 ? "#fffbeb" : "#fef2f2",
+                          color: s.healthScore >= 70 ? "var(--money)" : s.healthScore >= 40 ? "var(--warn-ink)" : "var(--loss)",
+                          background: s.healthScore >= 70 ? "var(--money-soft)" : s.healthScore >= 40 ? "var(--warn-soft)" : "var(--loss-soft)",
                         }}
                         title={t("cars.healthHint")}
                       >
@@ -467,7 +467,7 @@ function DepreciationSection({ form, set }: { form: any; set: (k: string, v: unk
               <Input type="number" inputMode="decimal" step="0.01" value={form.depreciationPerKm ?? ""} onChange={(e) => set("depreciationPerKm", e.target.value)} />
             </Field>
           )}
-          <div className="rounded-xl bg-white p-3">
+          <div className="rounded-xl bg-paper p-3">
             <div className="text-[10px] font-bold uppercase tracking-wide text-muted">{t("dep.preview")}</div>
             <div className="text-2xl font-bold display mt-0.5">{activePerKm != null ? `${money(activePerKm)} / ${t("c.km")}` : "—"}</div>
             <div className="text-xs text-muted mt-1 leading-relaxed">

@@ -8,7 +8,7 @@ import path from "path";
 // (data/uploads; the DB holds just the filename). Those get purged after the
 // configured number of days — extracted numbers stay, the pixels go.
 
-const UPLOAD_DIR = path.join(process.cwd(), "data", "uploads");
+const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), "data", "uploads");
 export const MAX_RETENTION_DAYS = 30;
 export const DEFAULT_RETENTION_DAYS = 30;
 

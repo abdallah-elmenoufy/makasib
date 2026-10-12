@@ -39,8 +39,11 @@ export function PhotoInput({
           const { serverOdometerCandidates, ocrOdometerCandidates } = await import("@/lib/ocr");
           let c = await serverOdometerCandidates(fname);
           if (c == null || c.length === 0) {
-            const served = await fetch(`/api/files/${fname}`).then((r) => r.blob());
-            c = await ocrOdometerCandidates(served);
+            // the photo is still in hand — OCR it directly; only a HEIC the
+            // server converted needs the served JPEG (browsers can't decode HEIC)
+            const converted = fname.split(".").pop() !== file.name.split(".").pop()?.toLowerCase();
+            const blob = converted ? await fetch(`/api/files/${fname}`).then((r) => r.blob()) : file;
+            c = await ocrOdometerCandidates(blob);
           }
           return c;
         });

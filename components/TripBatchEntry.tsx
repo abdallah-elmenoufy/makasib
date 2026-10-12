@@ -22,7 +22,6 @@ export type BatchRow = {
   id: number;
   time: string; // HH:mm
   earnings: string;
-  cashCollected: string;
   paymentType: "CASH" | "CARD";
   tip: string;
   distanceKm: string;
@@ -58,7 +57,12 @@ export function TripBatchEntry({
   existingCount?: number;
 }) {
   const { t, locale } = useI18n();
-  const anchor = useMemo(() => (shift ? new Date(shift.startTime) : new Date()), [shift]);
+  // keyed on the shift's identity, not the prop object: callers re-render
+  // freely and must not reset the rows a driver is typing into
+  const shiftId = shift?.id ?? null;
+  const shiftStart = shift ? new Date(shift.startTime).getTime() : null;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const anchor = useMemo(() => (shiftStart != null ? new Date(shiftStart) : new Date()), [shiftId, shiftStart]);
 
   const blank = (prev?: BatchRow): BatchRow => {
     let time: string;
@@ -77,7 +81,6 @@ export function TripBatchEntry({
       id: nextId++,
       time,
       earnings: "",
-      cashCollected: "",
       paymentType: prev?.paymentType ?? "CASH",
       tip: "",
       distanceKm: "",
@@ -92,11 +95,15 @@ export function TripBatchEntry({
   const [error, setError] = useState("");
   const lastRef = useRef<HTMLInputElement | null>(null);
 
-  // re-seed the first row's time when the shift changes (e.g. sheet re-opened)
+  // re-seed the first row's time only when the sheet is opened for a
+  // different shift (never on an ordinary parent re-render)
+  const seededFor = useRef<string | null>(shiftId);
   useEffect(() => {
+    if (seededFor.current === shiftId) return;
+    seededFor.current = shiftId;
     setRows((rs) => (rs.length === 1 && rs[0].earnings === "" ? [blank()] : rs));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [anchor]);
+  }, [shiftId]);
 
   const set = (id: number, patch: Partial<BatchRow>) => setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   const add = () => {
@@ -125,7 +132,6 @@ export function TripBatchEntry({
     let saved = 0;
     for (const r of valid) {
       const earnings = Number(r.earnings);
-      const cash = r.paymentType === "CASH" && r.cashCollected !== "" ? Number(r.cashCollected) : null;
       const res = await fetch("/api/trips", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -134,10 +140,10 @@ export function TripBatchEntry({
           shiftId: shift?.id ?? null,
           platform: r.platform,
           startTime: instantFor(r.time).toISOString(),
-          // net-first (DOCS §5): fare carries what the rider paid on cash
-          // trips so cash reconciliation works; commission is the delta
-          fare: cash ?? earnings,
-          commission: cash != null ? cash - earnings : 0,
+          // net-first (DOCS §5): the driver types what the app paid them;
+          // cash settlement with the platform is Uber's ledger, not ours
+          fare: earnings,
+          commission: 0,
           paymentType: r.paymentType,
           tip: r.tip === "" ? 0 : Number(r.tip),
           distanceKm: r.distanceKm,
@@ -162,12 +168,12 @@ export function TripBatchEntry({
         {rows.map((r, i) => (
           <div key={r.id} className="rounded-2xl bg-surface p-3 animate-pop-in">
             <div className="flex items-center gap-2 mb-2 flex-wrap">
-              <span className="w-7 h-7 rounded-full bg-ink text-white text-xs font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+              <span className="w-7 h-7 rounded-full bg-ink text-background text-xs font-bold flex items-center justify-center shrink-0">{i + 1}</span>
               <input
                 type="time"
                 value={r.time}
                 onChange={(e) => set(r.id, { time: e.target.value })}
-                className="h-9 rounded-lg bg-white px-2 text-sm font-bold tnum border border-transparent focus:border-ink focus:outline-none"
+                className="h-9 rounded-lg bg-paper px-2 text-sm font-bold tnum border border-transparent focus:border-ink focus:outline-none"
               />
               <Segmented
                 size="sm"
@@ -181,7 +187,7 @@ export function TripBatchEntry({
               <select
                 value={r.platform}
                 onChange={(e) => set(r.id, { platform: e.target.value })}
-                className="h-9 rounded-lg bg-white px-2 text-xs font-bold border border-transparent focus:border-ink focus:outline-none ms-auto max-w-[6.5rem]"
+                className="h-9 rounded-lg bg-paper px-2 text-xs font-bold border border-transparent focus:border-ink focus:outline-none ms-auto max-w-[6.5rem]"
               >
                 {PLATFORMS.map((p) => (
                   <option key={p} value={p}>
@@ -190,7 +196,7 @@ export function TripBatchEntry({
                 ))}
               </select>
               {rows.length > 1 && (
-                <button type="button" onClick={() => removeRow(r.id)} className="w-9 h-9 rounded-full flex items-center justify-center text-muted hover:text-loss hover:bg-white" aria-label={t("c.delete")}>
+                <button type="button" onClick={() => removeRow(r.id)} className="w-9 h-9 rounded-full flex items-center justify-center text-muted hover:text-loss hover:bg-paper" aria-label={t("c.delete")}>
                   <Icon name="close" size={16} />
                 </button>
               )}
@@ -205,7 +211,6 @@ export function TripBatchEntry({
                 autoFocus={i === 0}
                 className="col-span-2"
               />
-              {r.paymentType === "CASH" && <Num label={t("tr.cashCollected")} value={r.cashCollected} onChange={(v) => set(r.id, { cashCollected: v })} placeholder={r.earnings || "—"} />}
               <Num label={t("tr.tip")} value={r.tip} onChange={(v) => set(r.id, { tip: v })} />
               <Num label={t("be.tripKm")} value={r.distanceKm} onChange={(v) => set(r.id, { distanceKm: v })} />
               <Num label={t("be.pickupKm")} value={r.pickupKm} onChange={(v) => set(r.id, { pickupKm: v })} />
@@ -270,7 +275,7 @@ function Num({
         autoFocus={autoFocus}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className={`w-full rounded-xl bg-white border border-transparent focus:border-ink focus:outline-none px-3 tnum ${big ? "h-14 text-2xl font-bold" : "h-11 text-[15px] font-semibold"}`}
+        className={`w-full rounded-xl bg-paper border border-transparent focus:border-ink focus:outline-none px-3 tnum ${big ? "h-14 text-2xl font-bold" : "h-11 text-[15px] font-semibold"}`}
       />
     </label>
   );

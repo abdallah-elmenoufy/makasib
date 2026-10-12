@@ -86,6 +86,8 @@ app/
 │   ├── week.ts                # Uber pay week (Mon 04:00) boundaries
 │   ├── weekly.ts              # per-week analytics + comparisons (§7b)
 │   ├── tripLocation.ts        # trip pickup/drop-off coordinates from GPS tracks
+│   ├── now.ts                 # "where to go now" (hour × day-kind × zones)
+│   ├── geocode.ts             # Nominatim lookups for address labels (+GeoCache)
 │   ├── planner.ts             # "Plan your day!" statistics
 │   ├── uberStatement.ts       # weekly statement PDF parser
 │   ├── earningsActivity.ts    # Earnings Activity screenshot OCR parser
@@ -122,6 +124,8 @@ session — enforced by `requireAuth()` from `lib/auth.ts`, which throws a
 | `GET /api/analytics?vehicleId&period` | Runs `getAnalytics()` — the dashboard's data source |
 | `GET /api/plan?vehicleId` | Runs `getPlan()` — the "Plan your day!" data source |
 | `GET /api/weeks?vehicleId&weeks=12` | Runs `getWeeklyReport()` — Uber-week analytics (§7b) |
+| `GET /api/weeks/export?vehicleId&week=` | CSV of one pay week's trips (§7b) |
+| `GET /api/now?vehicleId` | "Where to go now" suggestion (§7b) |
 | `POST /api/upload` | Saves a photo to `data/uploads/`; converts HEIC→JPEG via `sips`; triggers the lazy photo-purge check |
 | `GET /api/files/[name]` | Serves an uploaded photo (path-traversal-safe via `path.basename`) |
 | `GET /api/ocr/[name]` | Runs Apple Vision OCR on an uploaded file; compiles `vision-ocr` on first call |
@@ -130,7 +134,7 @@ session — enforced by `requireAuth()` from `lib/auth.ts`, which throws a
 | `POST /api/import/activity` | Accepts client-OCR'd Earnings Activity trips (already reviewed by the user) |
 | `POST /api/import/requests` | Accepts client-OCR'd trip-request cards, enriches existing trips with pickup km/address |
 | `POST /api/track` | Appends a batch of GPS points to a shift's track, recomputes `gpsKm` |
-| `GET/POST /api/settings` | Locale, per-platform commission % (legacy, unused post net-first — see §7), photo retention days |
+| `GET/POST /api/settings` | Locale, photo retention days, `geocodeEnabled`, default vehicle (commission % is legacy — see §7) |
 
 ### The generic CRUD system (`lib/crud.ts`)
 
@@ -171,7 +175,7 @@ always allow free-text notes.
 |---|---|---|
 | `Setting` | Key-value store | `passphraseHash`, session JWT secret, `commissionPcts` (JSON, legacy), `photoRetentionDays` |
 | `Vehicle` | One profile per car | `fuelSetup` (PETROL/CNG/DUAL), `ownership` (OWNED/INSTALLMENT/RENTED/TARGET — drives the cost model), `purchasePrice`/`estimatedValue`, `depreciationMethod` (MILEAGE/LIFETIME/MANUAL), `depreciationEnabled` (master switch), `mileageSensitivityPct`, `depreciationPerKm` (MANUAL) |
-| `Shift` | One driving session | `startOdometer`/`endOdometer` (the km-split anchor), `startPhoto`/`endPhoto`, `gpsKm` + `track` (JSON `[[epochMs,lat,lng],…]` from in-app GPS tracking) |
+| `Shift` | One driving session | `startOdometer`/`endOdometer` (the km-split anchor — **both mandatory**: the API rejects a shift closed without an end reading above the start, since every km cost hangs off it), `startPhoto`/`endPhoto`, `gpsKm` + `track` (JSON `[[epochMs,lat,lng],…]` from in-app GPS tracking) |
 | `Trip` | One ride-hailing trip | `fare`/`commission` (see net-first note below), `paymentType` (CASH/CARD — drives cash reconciliation), `pickupKm`/`pickupMin` (from trip-request cards or typed), `durationMin` (minutes with the rider), `pickupLat/Lng`/`dropoffLat/Lng` (from the shift's GPS track or the phone at quick-add), `pickupAddress`/`dropoffAddress` (Google place labels from screenshots), `source` (MANUAL/CSV/STATEMENT/OCR) |
 | `CashTip` | A cash tip not tied to a specific trip | |
 | `FuelUp` | One fill-up | `fuelType` (PETROL_80/92/95/CNG), `fullTank` (full-to-full pairs drive the L/100km calculation) |
@@ -325,7 +329,13 @@ covering shift.
   `deadKm`) and `cruisingKm` (the remainder) — only shown once pickup data
   exists. `personalKm` is the odometer span **between** shifts (i.e. driving
   the app never saw a shift for).
-- **No cash-reconciliation panel, by design**: an earlier version summed
+- **No cash settlement with the platform, by design (reaffirmed 2026-10-13)**:
+  the app computes and shows nothing about cash collected vs. owed to Uber —
+  no panel, no weekly row, no "cash collected" input on any form (the batch
+  entry, manual form and trip editor only take net earnings). `Trip.fare` /
+  `Trip.commission` are still populated by the statement import so
+  `tripNet()` is right for cash trips, but they are internal.
+- ~~**No cash-reconciliation panel, by design**~~: an earlier version summed
   `commission` per platform into a "you owe / platform owes you" dashboard
   card. Removed 2026-07-20 — it duplicated what Uber's own Wallet already
   computes authoritatively (real payout cycle, tolls, refunds, promotions),
@@ -351,6 +361,18 @@ covering shift.
 
 ---
 
+## 7a. UI shell (added 2026-10-12/13)
+
+Uber-style tokens live in `app/globals.css` (`--ink`, `--surface`, `--money`,
+`--loss`, `--hero`, `--paper`, …) and are exposed to Tailwind via `@theme`.
+Light and dark palettes are both defined at the token level; dark applies
+through `prefers-color-scheme` unless `data-theme` is set on `<html>`, which
+Settings → Appearance writes to `localStorage.theme` (per device) and an
+inline script in `app/layout.tsx` applies before first paint. Chart colours
+in pages use `var(--…)` so SVGs follow the theme. Navigation
+(`components/Nav.tsx`): bottom tab bar on phones (Home, Shifts, Trips, Weeks,
+More sheet), sidebar on desktop. Shared primitives in `components/ui.tsx`.
+
 ## 7b. Weekly analytics (`lib/weekly.ts`, `/weeks`, `GET /api/weeks`)
 
 `getWeeklyReport(vehicleId, weeksBack)` returns one `WeekSummary` per Uber
@@ -367,6 +389,25 @@ split, fuel-ups and expenses in the week, and goal status. Report-level:
 elapsed, and `previousAtSamePoint` — last week's figures at the same elapsed
 fraction, the honest "am I ahead?" answer. `lastClosed` feeds the dashboard's
 "Your week closed" recap for the first two days of a new week.
+
+**Where to go now** (`lib/now.ts`, `GET /api/now`, dashboard card): the
+trips of the last 8 weeks that started within ±1 h of the current hour on the
+same kind of day (weekday vs. Fri/Sat weekend; falls back to all days while
+the sample is thin), ranked as pickup zones by `avgNet × √trips`, with net per
+hour-with-rider for the slot and the best of the next six hours. Gated at 5
+trips in the window and 2 per zone.
+
+**CSV export** (`GET /api/weeks/export?vehicleId&week=yyyy-mm-dd`): one row
+per trip of that pay week, UTF-8 with BOM, net-first columns (earnings, tip,
+km, pickup km/min, duration, per-km, per-min, addresses, coordinates).
+
+**Geocoding** (`lib/geocode.ts`, `GeoCache` table): address labels from
+screenshot imports are looked up once on OpenStreetMap's Nominatim
+(`countrycodes=eg`, 1 request/s, identifying User-Agent, misses cached too)
+in a lazy background pass off `/api/analytics` (≤12 lookups per run, 10-min
+cooldown). Only empty coordinate fields are filled — GPS-track positions
+win. `Setting.geocodeEnabled` (Settings → "Locate addresses") turns it off,
+in which case no address text ever leaves the install.
 
 **Locations** (`zoneStats()`): trips are grouped into ~1.1 km grid cells when
 they carry coordinates, else by their normalized address label; each zone
@@ -475,8 +516,11 @@ the photo.
 
 ## 12. Known gaps / honest limitations
 
-- **No automated test suite.** The scaffold was created with `--no-eslint`
-  and nothing has added tests since. Verification so far has been manual
+- ~~No automated test suite~~ — **Vitest added 2026-10-13** (`npm test`,
+  `tests/*.test.ts`): pay-week boundaries, depreciation methods, weekly zones
+  and best-trip, OCR parsers (Earnings Activity, request card), GPS track
+  lookup, geocoding helpers. Still thin on `analytics.ts` itself and the
+  statement PDF parser. The scaffold was created with `--no-eslint`. Verification so far has been manual
   (build + typecheck + ad-hoc Node scripts importing the pure `lib/*.ts`
   functions directly, run against real screenshots/PDFs during UAT — see git
   history commit messages for what was checked). Recommend adding Vitest and
@@ -519,6 +563,32 @@ the photo.
 ---
 
 ## 13. Roadmap
+
+### Hosting for live testing today (free tiers) — added 2026-10-13
+
+Recommended: **Vercel Hobby** for the Next.js app + **Neon** free Postgres.
+Reasoning and alternatives:
+
+- *Why Vercel over Render/Fly/Railway for the app*: a driver at the kerb
+  cannot wait a minute for a free dyno to wake; Vercel's cold start is ~1 s
+  and Hobby is free for non-commercial testing (Pro once monetised).
+  Render's free web service sleeps after 15 min idle; Fly.io no longer has a
+  free allowance; Railway's trial credit runs out.
+- *Why Neon over Supabase/Turso for the DB*: Neon scales to zero and never
+  pauses the project; Supabase free pauses after 7 idle days (fine if you
+  drive daily, annoying otherwise) but bundles Storage/Auth you will want in
+  phase 2 — a reasonable alternative. Turso (hosted libSQL) would keep the
+  SQLite dialect but needs Prisma's driver-adapter preview; not worth it.
+- *Photos*: on serverless the filesystem is ephemeral and not shared between
+  instances, so uploaded photos may 404 later. `UPLOAD_DIR` is now an env var
+  (`/tmp/uploads` on Vercel); odometer OCR reads the local photo on the
+  phone (`PhotoInput`, shift-photos import) so it no longer depends on the
+  server copy. Photos are evidence, not data — acceptable for testing. For
+  real hosting, move uploads to Supabase Storage / Vercel Blob.
+- *Linux*: Apple Vision OCR and `sips` HEIC conversion are unavailable
+  (§12). tesseract fallback runs; shoot JPEG ("Most Compatible") on iPhone.
+- *Steps*: see README → "Hosting it online for live testing". The only code
+  change is the Prisma provider line plus regenerated migrations.
 
 ### Phase 2 — hosted web app
 1. **Database**: migrate `schema.prisma`'s `datasource` from `sqlite` to

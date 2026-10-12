@@ -6,7 +6,7 @@ import { access, constants } from "fs/promises";
 import path from "path";
 
 const execFileP = promisify(execFile);
-const UPLOAD_DIR = path.join(process.cwd(), "data", "uploads");
+const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), "data", "uploads");
 const TOOL_DIR = path.join(process.cwd(), "tools");
 const BIN = path.join(TOOL_DIR, "vision-ocr");
 

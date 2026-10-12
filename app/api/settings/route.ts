@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { getCommissionPcts } from "@/lib/analytics";
 import { getRetentionDays, setRetentionDays } from "@/lib/purge";
+import { getGeocodeEnabled, setGeocodeEnabled } from "@/lib/geocode";
 
 export async function GET() {
   try {
@@ -14,6 +15,7 @@ export async function GET() {
       locale,
       commissionPcts: await getCommissionPcts(),
       photoRetentionDays: await getRetentionDays(),
+      geocodeEnabled: await getGeocodeEnabled(),
       defaultVehicleId: defaultVehicleRow?.value ?? null,
     });
   } catch (e) {
@@ -36,6 +38,10 @@ export async function POST(req: NextRequest) {
 
     if (body.photoRetentionDays != null) {
       await setRetentionDays(Number(body.photoRetentionDays));
+    }
+
+    if (body.geocodeEnabled != null) {
+      await setGeocodeEnabled(body.geocodeEnabled === true || body.geocodeEnabled === "true");
     }
 
     if (body.commissionPcts) {

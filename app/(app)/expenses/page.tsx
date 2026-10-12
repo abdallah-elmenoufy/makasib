@@ -35,8 +35,8 @@ const CAT_COLOR: Record<string, string> = {
   RENTAL: "#d97706",
   INSURANCE: "#0891b2",
   LICENSE: "#6b7280",
-  TOLL: "#05a357",
-  OTHER: "#c3c2b7",
+  TOLL: "var(--money)",
+  OTHER: "var(--muted-2)",
 };
 
 const empty = () => ({

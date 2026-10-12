@@ -67,9 +67,9 @@ export function Nav() {
   return (
     <>
       {/* ---------- desktop sidebar ---------- */}
-      <nav className="hidden md:flex md:flex-col md:w-64 shrink-0 border-e border-line bg-white md:sticky md:top-0 md:h-screen md:overflow-y-auto px-3 py-4">
+      <nav className="hidden md:flex md:flex-col md:w-64 shrink-0 border-e border-line bg-background md:sticky md:top-0 md:h-screen md:overflow-y-auto px-3 py-4">
         <Link href="/" className="flex items-center gap-2.5 px-2 mb-5">
-          <span className="w-9 h-9 rounded-xl bg-ink text-white flex items-center justify-center text-base font-bold">م</span>
+          <span className="w-9 h-9 rounded-xl bg-ink text-background flex items-center justify-center text-base font-bold">م</span>
           <span className="text-xl font-bold tracking-tight">{t("appName")}</span>
         </Link>
         <VehicleSwitcher />
@@ -99,9 +99,9 @@ export function Nav() {
       </nav>
 
       {/* ---------- phone top bar ---------- */}
-      <header className="md:hidden sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-line px-4 h-14 flex items-center gap-3">
+      <header className="md:hidden sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-line px-4 h-14 flex items-center gap-3">
         <Link href="/" className="flex items-center gap-2">
-          <span className="w-8 h-8 rounded-lg bg-ink text-white flex items-center justify-center text-sm font-bold">م</span>
+          <span className="w-8 h-8 rounded-lg bg-ink text-background flex items-center justify-center text-sm font-bold">م</span>
           <span className="text-lg font-bold tracking-tight">{t("appName")}</span>
         </Link>
         <div className="ms-auto min-w-0 max-w-[55%]">
@@ -110,7 +110,7 @@ export function Nav() {
       </header>
 
       {/* ---------- phone bottom tab bar ---------- */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-line safe-bottom">
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-background border-t border-line safe-bottom">
         <div className="grid grid-cols-5 h-[var(--nav-h)]">
           {TABS.map((l) => {
             const active = isActive(l.href);
@@ -165,7 +165,7 @@ function SideLink({ item, active, label }: { item: Item; active: boolean; label:
     <Link
       href={item.href}
       className={`flex items-center gap-3 px-3 h-11 rounded-xl text-sm transition-colors ${
-        active ? "bg-ink text-white font-bold" : "text-ink-700 hover:bg-surface-2 font-semibold"
+        active ? "bg-ink text-background font-bold" : "text-ink-700 hover:bg-surface-2 font-semibold"
       }`}
     >
       <Icon name={item.icon} size={20} strokeWidth={active ? 2.1 : 1.75} />

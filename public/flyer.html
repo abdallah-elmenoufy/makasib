@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<!--
+  Makasib promotional flyer. Open in a browser, print to A4, or share the page.
+  Before distributing, edit: the link (makasib.app is a placeholder), the QR block, and the offer line.
+-->
+<title>مكاسب — اعرف ربحك الحقيقي</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap">
+<style>
+  /* Layout: a tall A4-ish column — black statement band, proof tiles, feature grid, black call-to-action band.
+     Committed single look (the app's own light theme), so colours are explicit everywhere. */
+  :root {
+    color-scheme: light;
+    --bg: #ffffff;
+    --ink: #000000;
+    --tile: #f3f3f1;
+    --line: #e2e2e2;
+    --muted: #6b6b66;
+    --money: #05a357;
+    --money-soft: #e6f6ee;
+    --warn: #ffc043;
+    --hero-fg: #ffffff;
+    --font: "Cairo", "Noto Sans Arabic", "Segoe UI", Tahoma, system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); line-height: 1.7; direction: rtl; }
+  .page { max-width: 820px; margin: 0 auto; padding-block: 20px 48px; padding-inline: 16px; }
+  .band { background: var(--ink); color: var(--hero-fg); border-radius: 28px; padding: 32px 28px; position: relative; overflow: hidden; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .mark { width: 44px; height: 44px; border-radius: 12px; background: var(--hero-fg); color: var(--ink); display: grid; place-items: center; font-weight: 900; font-size: 24px; }
+  .brand .name { font-weight: 900; font-size: 26px; letter-spacing: -0.01em; }
+  .brand .latin { font-size: 13px; color: rgba(255,255,255,0.6); font-weight: 600; margin-inline-start: auto; letter-spacing: 0.08em; text-transform: uppercase; }
+  .hero { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 24px; align-items: center; margin-top: 28px; }
+  .hero h1 { font-size: clamp(30px, 5.2vw, 46px); line-height: 1.2; margin: 0; font-weight: 900; text-wrap: balance; }
+  .hero h1 em { font-style: normal; color: var(--money); }
+  .hero p.lead { font-size: 17px; color: rgba(255,255,255,0.78); margin: 14px 0 0; max-width: 34ch; }
+  .week-pill { display: inline-flex; align-items: center; gap: 8px; margin-top: 18px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.18); border-radius: 999px; padding: 6px 14px; font-size: 13px; font-weight: 700; }
+  .week-pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--money); }
+
+  /* phone mockup — the real dashboard, drawn in CSS */
+  .phone { width: 100%; max-width: 270px; margin: 0 auto; background: #1a1a1a; border-radius: 36px; padding: 10px; box-shadow: 0 30px 60px -20px rgba(0,0,0,0.8), inset 0 0 0 2px #333; }
+  .screen { background: #fff; color: #000; border-radius: 28px; padding: 14px 12px 16px; font-size: 11px; }
+  .notch { width: 90px; height: 6px; background: #000; border-radius: 999px; margin: 0 auto 10px; }
+  .s-title { font-weight: 900; font-size: 15px; margin: 0 0 2px; }
+  .s-sub { color: #757575; font-size: 9px; margin: 0 0 10px; }
+  .s-hero { background: #000; color: #fff; border-radius: 16px; padding: 12px; }
+  .s-hero .lbl { font-size: 8px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.6); font-weight: 700; }
+  .s-hero .num { font-size: 26px; font-weight: 900; line-height: 1.1; margin-top: 4px; color: var(--money); letter-spacing: -0.02em; }
+  .s-hero .row { display: flex; gap: 10px; margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.15); }
+  .s-hero .row div { flex: 1; min-width: 0; }
+  .s-hero .row .k { font-size: 7px; color: rgba(255,255,255,0.6); font-weight: 700; text-transform: uppercase; }
+  .s-hero .row .v { font-size: 11px; font-weight: 800; }
+  .s-bar { height: 4px; background: rgba(255,255,255,0.18); border-radius: 999px; margin-top: 10px; overflow: hidden; }
+  .s-bar i { display: block; height: 100%; width: 64%; background: #fff; border-radius: 999px; }
+  .s-foot { display: flex; justify-content: space-between; font-size: 7.5px; color: rgba(255,255,255,0.65); margin-top: 5px; }
+  .s-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+  .s-tile { background: #f3f3f1; border-radius: 12px; padding: 8px 10px; }
+  .s-tile .k { font-size: 7px; color: #757575; font-weight: 700; text-transform: uppercase; }
+  .s-tile .v { font-size: 14px; font-weight: 900; }
+  .s-tile .d { font-size: 7.5px; color: var(--money); font-weight: 700; }
+  .s-split { margin-top: 8px; background: #f3f3f1; border-radius: 12px; padding: 8px 10px; }
+  .s-split .k { font-size: 8px; font-weight: 800; margin-bottom: 5px; }
+  .s-split .track { display: flex; gap: 2px; height: 6px; border-radius: 999px; overflow: hidden; }
+  .s-split .track i { display: block; height: 100%; }
+  .s-split .leg { display: flex; justify-content: space-between; font-size: 7px; color: #6b6b66; margin-top: 4px; }
+
+  /* proof tiles */
+  .proof { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 18px; }
+  .proof .t { background: var(--tile); border-radius: 20px; padding: 18px 16px; }
+  .proof .k { font-size: 12px; color: var(--muted); font-weight: 700; }
+  .proof .v { font-size: 30px; font-weight: 900; line-height: 1.15; letter-spacing: -0.02em; margin-top: 4px; }
+  .proof .v small { font-size: 13px; color: var(--muted); font-weight: 700; }
+  .proof .s { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+  .proof .v.money { color: var(--money); }
+  .note { font-size: 11.5px; color: var(--muted); margin: 8px 4px 0; }
+
+  h2.sec { font-size: 22px; font-weight: 900; margin: 34px 0 14px; letter-spacing: -0.01em; text-wrap: balance; }
+  .features { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .f { display: flex; gap: 12px; align-items: flex-start; background: var(--tile); border-radius: 18px; padding: 14px 16px; }
+  .f .ic { width: 40px; height: 40px; border-radius: 50%; background: #fff; display: grid; place-items: center; flex-shrink: 0; }
+  .f .ic svg { width: 20px; height: 20px; stroke: #000; fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  .f b { display: block; font-size: 15px; }
+  .f span { display: block; font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+  .why { margin-top: 30px; border-top: 2px solid var(--ink); padding-top: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px 28px; }
+  .why div { font-size: 14px; }
+  .why b { display: block; font-size: 16px; margin-bottom: 2px; }
+
+  .cta { margin-top: 34px; }
+  .cta .band { display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: center; padding: 28px; }
+  .cta h3 { margin: 0; font-size: 26px; font-weight: 900; line-height: 1.25; text-wrap: balance; }
+  .cta p { margin: 8px 0 0; color: rgba(255,255,255,0.78); font-size: 15px; }
+  .cta .price { display: inline-block; margin-top: 14px; background: var(--money); color: #fff; font-weight: 900; border-radius: 999px; padding: 8px 18px; font-size: 15px; }
+  .qr { width: 132px; height: 132px; background: #fff; border-radius: 16px; display: grid; place-items: center; color: #000; text-align: center; font-size: 11px; font-weight: 700; padding: 10px; line-height: 1.4; }
+  .qr .grid { width: 70px; height: 70px; background:
+      repeating-linear-gradient(90deg, #000 0 6px, transparent 6px 12px),
+      repeating-linear-gradient(0deg, #000 0 6px, #fff 6px 12px); background-blend-mode: multiply; border-radius: 4px; margin-bottom: 6px; opacity: 0.85; }
+  .url { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 14px; letter-spacing: 0.02em; color: #fff; direction: ltr; display: inline-block; margin-top: 10px; border-bottom: 1px dashed rgba(255,255,255,0.5); }
+  footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 22px; }
+
+  @media (max-width: 640px) {
+    .hero, .features, .why, .cta .band { grid-template-columns: 1fr; }
+    .proof { grid-template-columns: 1fr; }
+    .band { padding: 24px 18px; }
+    .cta .qr { justify-self: start; }
+  }
+  @media print {
+    @page { size: A4; margin: 10mm; }
+    .page { max-width: none; padding: 0; }
+    .band { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .proof, .features, .why { break-inside: avoid; }
+  }
+</style>
+
+</head>
+<body>
+<div class="page">
+  <section class="band">
+    <div class="brand">
+      <div class="mark">م</div>
+      <div class="name">مكاسب</div>
+      <div class="latin">Makasib · Driver profit</div>
+    </div>
+    <div class="hero">
+      <div>
+        <h1>اعرف ربحك <em>الحقيقي</em><br>مش بس اللي أوبر بتقولك عليه</h1>
+        <p class="lead">بعد البنزين والصيانة وقيمة العربية — بالجنيه، كل أسبوع، بنفس أسبوع أوبر: من الاتنين ٤ الفجر للاتنين اللي بعده.</p>
+        <div class="week-pill"><span class="dot"></span> أسبوعك هنا = أسبوعك في كشف أوبر</div>
+      </div>
+      <div class="phone" aria-label="شاشة مكاسب الرئيسية">
+        <div class="screen">
+          <div class="notch"></div>
+          <p class="s-title">لوحة التحكم</p>
+          <p class="s-sub">هذا الأسبوع · أسبوع أوبر · يُغلق بعد ٢ يوم و١٢ س</p>
+          <div class="s-hero">
+            <div class="lbl">الربح الحقيقي</div>
+            <div class="num">٣٬٨٨٠ ج.م</div>
+            <div class="row">
+              <div><div class="k">أرباحك</div><div class="v">٦٬١٩٢ ج.م</div></div>
+              <div><div class="k">كاش في جيبك</div><div class="v">٤٬٤١٩ ج.م</div></div>
+              <div><div class="k">الربح / ساعة</div><div class="v">٨٠٫٥ ج.م</div></div>
+            </div>
+            <div class="s-bar"><i></i></div>
+            <div class="s-foot"><span>٥ – ١٢ أكتوبر</span><span>٦٤٪ من الأسبوع</span></div>
+          </div>
+          <div class="s-tiles">
+            <div class="s-tile"><div class="k">الرحلات</div><div class="v">٣٦</div><div class="d">↑ ١٧٢ ج.م للرحلة</div></div>
+            <div class="s-tile"><div class="k">نسبة التشغيل</div><div class="v">٧٣٪</div><div class="d">↑ من الوقت مع راكب</div></div>
+          </div>
+          <div class="s-split">
+            <div class="k">وقتك · ٤٨ س ١٢ د</div>
+            <div class="track"><i style="width:73%;background:#2a78d6"></i><i style="width:14%;background:#eb6834"></i><i style="width:13%;background:#c3c2b7"></i></div>
+            <div class="leg"><span>مع راكب ٣٥ س</span><span>للراكب ٦ س</span><span>انتظار ٦ س</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="proof" aria-label="مثال من أسبوع حقيقي">
+    <div class="t">
+      <div class="k">أوبر بتقولك</div>
+      <div class="v">٦٬١٩٢ <small>ج.م</small></div>
+      <div class="s">صافي الدخل الأسبوعي اللي شايفه في التطبيق</div>
+    </div>
+    <div class="t">
+      <div class="k">العربية خدت منهم</div>
+      <div class="v">٢٬٣١٢ <small>ج.م</small></div>
+      <div class="s">بنزين ١٬٠٨٥ · صيانة ٥٣٨ · إهلاك ٥٣٩ · مصاريف ١٥٠</div>
+    </div>
+    <div class="t">
+      <div class="k">اللي فضل لك فعلاً</div>
+      <div class="v money">٣٬٨٨٠ <small>ج.م</small></div>
+      <div class="s">٨٠٫٥ ج.م لكل ساعة اتصال — ده الرقم اللي يهم</div>
+    </div>
+  </section>
+  <p class="note">أرقام أسبوع تجريبي لتوضيح الفكرة — في التطبيق كل رقم محسوب من بياناتك انت، مفيش متوسطات عامة.</p>
+
+  <h2 class="sec">مبني لسائق تعبان في آخر الوردية</h2>
+  <div class="features">
+    <div class="f">
+      <div class="ic"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></div>
+      <div><b>خلّص ورديتك في ٣ خطوات</b><span>قراءة العداد (التطبيق بيقترحها)، سجّل رحلات الليلة أو استورد اللقطات، شوف الملخّص — ونام.</span></div>
+    </div>
+    <div class="f">
+      <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
+      <div><b>رحلات بسرعة، صف صف</b><span>المبلغ بس إجباري. البقشيش، الكم، كم للراكب، الدقائق — لو عايز. كل صف جديد جاهز من اللي قبله.</span></div>
+    </div>
+    <div class="f">
+      <div class="ic"><svg viewBox="0 0 24 24"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7H8l1.5-2h5L16 7h2.5A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/><circle cx="12" cy="13" r="3.2"/></svg></div>
+      <div><b>صوّر شاشة الأرباح وخلاص</b><span>مكاسب بيقرا الرحلات من لقطات الشاشة وكشف حساب أوبر PDF — بالدقائق والعناوين، ومن غير تكرار.</span></div>
+    </div>
+    <div class="f">
+      <div class="ic"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div>
+      <div><b>كل أسبوع لوحده، وبالمقارنة</b><span>الربح، الوقت مع راكب، الكيلومترات المدفوعة، أفضل يوم وساعة ورحلة — مقابل الأسبوع اللي فات وأحسن أسبوع ليك.</span></div>
+    </div>
+    <div class="f">
+      <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></svg></div>
+      <div><b>تروح فين دلوقتي؟</b><span>من رحلاتك انت: المناطق اللي بتدفع أحسن في الساعة دي ونوع اليوم ده، وأحسن ساعة جاية.</span></div>
+    </div>
+    <div class="f">
+      <div class="ic"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></div>
+      <div><b>قيّم العرض قبل ما تقبل</b><span>صوّر كارت الطلب — هتعرف في ثواني الرحلة دي هتربح كام في الساعة والكيلومتر مقارنة بمعدّلك.</span></div>
+    </div>
+  </div>
+
+  <div class="why">
+    <div><b>إهلاك عادل، وبزرار</b>بيحسب بس خسارة سعر البيع اللي كيلومتراتك بتعملها — مش عمر العربية اللي بيعدّي على أي حال. ومش عايزه؟ اقفله.</div>
+    <div><b>مفيش أرقام متأليفة</b>تكلفة الكيلومتر، استهلاك البنزين، هدف اليوم — كلها من ورديّاتك وتعبئاتك وصيانتك انت.</div>
+    <div><b>شغلك انت، مش الكاش بتاع أوبر</b>مكاسب مش بيعيد حساب الـ Wallet. بيركز على ربحك الصافي وتكاليف العربية.</div>
+    <div><b>عربي / إنجليزي · فاتح / داكن</b>واجهة سهلة بالليل، أزرار كبيرة، وشريط تحت زي تطبيق أوبر.</div>
+  </div>
+
+  <section class="cta">
+    <div class="band">
+      <div>
+        <h3>ابدأ أسبوعك الجاي وانت عارف بتكسب كام فعلاً</h3>
+        <p>اشتراك أسبوعي بسعر رحلة واحدة — بيتجدد مع أسبوع أوبر، وتقدر توقفه وقت ما تحب.</p>
+        <span class="price">جرّب مجاناً</span>
+        <br>
+        <span class="url">makasib.app</span>
+      </div>
+      <div class="qr" aria-label="مكان كود QR">
+        <div>
+          <div class="grid"></div>
+          امسح الكود<br>وابدأ من الموبايل
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>مكاسب — اعرف ربحك الحقيقي، مش بس اللي بتكسبه.</footer>
+</div>
+
+</body>
+</html>

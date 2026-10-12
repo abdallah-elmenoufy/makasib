@@ -13,11 +13,11 @@ const C = {
   s1: "#2a78d6",
   s2: "#eb6834",
   s4: "#eda100",
-  neutral: "#c3c2b7",
+  neutral: "var(--muted-2)",
   neg: "#e34948",
-  ink: "#000000",
-  grid: "#e1e0d9",
-  muted: "#898781",
+  ink: "var(--ink)",
+  grid: "var(--line)",
+  muted: "var(--muted)",
 };
 const RAMP = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#1c5cab", "#0d366b"];
 
@@ -131,9 +131,9 @@ function WeeksInner() {
             <button
               key={w.key}
               onClick={() => select(w.key)}
-              className={`shrink-0 rounded-2xl px-3.5 py-2 text-start transition-colors ${active ? "bg-ink text-white" : "bg-surface hover:bg-surface-2"}`}
+              className={`shrink-0 rounded-2xl px-3.5 py-2 text-start transition-colors ${active ? "bg-ink text-background" : "bg-surface hover:bg-surface-2"}`}
             >
-              <span className={`block text-[11px] font-bold ${active ? "text-white/60" : "text-muted"}`}>
+              <span className={`block text-[11px] font-bold ${active ? "text-hero-fg/60" : "text-muted"}`}>
                 {w.isCurrent ? t("wk.current") : w.key === report.best.byProfit ? `🏆 ${t("wk.best")}` : fmtDate(w.start, locale)}
               </span>
               <span className={`block text-sm font-bold tnum ${!active && w.trueProfit < 0 ? "text-loss" : ""}`}>{w.counts.trips > 0 || w.counts.shifts > 0 ? money(w.trueProfit) : "—"}</span>
@@ -166,13 +166,18 @@ function WeeksInner() {
           )}
           {isBest && <Badge tone="good">🏆 {t("wk.bestWeek")}</Badge>}
           {week.goals.metProfit === true && <Badge tone="good">{t("wk.goalMet")}</Badge>}
-          <button onClick={share} className="ms-auto inline-flex items-center gap-1 text-xs font-bold text-white/80 hover:text-white">
-            <Icon name="download" size={14} /> {copied ? t("db.recapCopied") : t("wk.share")}
-          </button>
+          <span className="ms-auto inline-flex items-center gap-3">
+            <a href={`/api/weeks/export?vehicleId=${vehicle.id}&week=${week.key}`} className="inline-flex items-center gap-1 text-xs font-bold text-hero-fg/80 hover:text-hero-fg">
+              <Icon name="download" size={14} /> {t("wk.export")}
+            </a>
+            <button onClick={share} className="inline-flex items-center gap-1 text-xs font-bold text-hero-fg/80 hover:text-hero-fg">
+              {copied ? t("db.recapCopied") : t("wk.share")}
+            </button>
+          </span>
         </div>
         {!hasData ? (
           <Empty>
-            <span className="text-white/60">{t("wk.noData")}</span>
+            <span className="text-hero-fg/60">{t("wk.noData")}</span>
           </Empty>
         ) : (
           <>
@@ -182,7 +187,7 @@ function WeeksInner() {
               tone={week.trueProfit >= 0 ? "ink" : "loss"}
               size="xl"
               sub={
-                <span className="text-white/70 flex items-center gap-2 flex-wrap">
+                <span className="text-hero-fg/70 flex items-center gap-2 flex-wrap">
                   {prev && prev.counts.trips > 0 && (
                     <>
                       {t("wk.vsLastWeek")} <Delta value={d((w) => w.trueProfit)} fmt={money} />
@@ -196,13 +201,13 @@ function WeeksInner() {
                 </span>
               }
             />
-            <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t border-white/15">
+            <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t border-hero-fg/15">
               <InkStat label={t("db.gross")} value={money(week.earnings.netRevenue)} delta={<Delta value={d((w) => w.earnings.netRevenue)} fmt={money} />} />
               <InkStat label={t("db.cashProfit")} value={money(week.cashProfit)} />
               <InkStat label={t("db.perHour")} value={week.rates.profitPerHour != null ? money(week.rates.profitPerHour) : "—"} delta={<Delta value={d((w) => w.rates.profitPerHour)} fmt={money} />} />
             </div>
             {week.isCurrent && report.projection && (
-              <p className="text-xs text-white/70 mt-4">
+              <p className="text-xs text-hero-fg/70 mt-4">
                 {t("wk.onPace", { v: money(report.projection.trueProfit), n: report.projection.trips })}
                 {report.previousAtSamePoint && report.previousAtSamePoint.netRevenue > 0 && (
                   <>
@@ -310,7 +315,6 @@ function WeeksInner() {
                 <Row label={t("wk.cardNet")} value={money(week.earnings.cardNet)} sub={t("tr.tripCount", { n: week.counts.cardTrips })} />
                 <Row label={t("wk.cashNet")} value={money(week.earnings.cashNet)} sub={t("tr.tripCount", { n: week.counts.cashTrips })} />
                 <Row label={t("tr.tip")} value={money(week.earnings.tips)} />
-                <Row label={t("wk.cashCollected")} value={money(week.earnings.cashCollected)} sub={t("wk.cashOwed", { v: money(week.earnings.cashOwed) })} />
                 <Row label={t("db.gross")} value={money(week.earnings.netRevenue)} bold />
                 <Row label={t("db.fuelCost")} value={`− ${money(week.costs.fuel)}`} muted />
                 <Row label={t("db.maintCost")} value={`− ${money(week.costs.maintenance)}`} muted />
@@ -343,7 +347,7 @@ function WeeksInner() {
                 <CardHead title={t("wk.lengthTitle")} sub={t("wk.lengthSub")} />
                 <div className="grid grid-cols-3 gap-2">
                   {week.lengthBuckets.map((b: any) => (
-                    <div key={b.bucket} className="bg-white rounded-xl p-3">
+                    <div key={b.bucket} className="bg-paper rounded-xl p-3">
                       <div className="text-[10px] font-bold uppercase tracking-wide text-muted">{t(`wk.len.${b.bucket}`)}</div>
                       <div className="text-lg font-bold display mt-0.5">{b.perKm != null ? `${money(b.perKm)}` : "—"}</div>
                       <div className="text-[11px] text-muted">
@@ -427,16 +431,16 @@ function WeeksInner() {
 function InkStat({ label, value, delta }: { label: string; value: string; delta?: React.ReactNode }) {
   return (
     <div className="min-w-0">
-      <div className="text-[11px] font-bold text-white/60 uppercase tracking-wide truncate">{label}</div>
-      <div className="text-lg md:text-xl font-bold display text-white mt-0.5 truncate">{value}</div>
-      {delta && <div className="mt-0.5 [&_span]:!text-white/80">{delta}</div>}
+      <div className="text-[11px] font-bold text-hero-fg/60 uppercase tracking-wide truncate">{label}</div>
+      <div className="text-lg md:text-xl font-bold display text-hero-fg mt-0.5 truncate">{value}</div>
+      {delta && <div className="mt-0.5 [&_span]:!text-hero-fg/80">{delta}</div>}
     </div>
   );
 }
 
 function Mini({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-white rounded-xl px-3 py-2.5">
+    <div className="bg-paper rounded-xl px-3 py-2.5">
       <div className="text-[10px] font-bold uppercase tracking-wide text-muted truncate">{label}</div>
       <div className="text-base font-bold display mt-0.5 truncate">{value}</div>
     </div>
@@ -563,7 +567,7 @@ function HourStrip({ hours, locale, t }: { hours: { hour: number; trips: number;
       <div className="grid gap-[2px]" style={{ gridTemplateColumns: "repeat(24, 1fr)" }}>
         {hours.map((h) => {
           const f = h.net / max;
-          const color = h.net <= 0 ? "#f1f5f9" : RAMP[Math.min(RAMP.length - 1, Math.floor(f * RAMP.length))];
+          const color = h.net <= 0 ? "var(--line)" : RAMP[Math.min(RAMP.length - 1, Math.floor(f * RAMP.length))];
           return <div key={h.hour} className="h-7 rounded-sm" style={{ background: color }} onMouseEnter={() => setTip(h.hour)} onMouseLeave={() => setTip(null)} onClick={() => setTip(h.hour)} title={`${h.hour}:00 · ${fmtMoney(h.net, locale)} · ${t("pl.tripsN", { n: h.trips })}`} />;
         })}
       </div>
@@ -623,7 +627,7 @@ function WeekBars({ weeks, selected, onSelect, valueOf, fmt, locale }: { weeks: 
         })}
       </svg>
       {hover != null && (
-        <div className="absolute top-0 -translate-x-1/2 bg-white border border-line shadow-md rounded-lg px-2.5 py-1.5 text-xs pointer-events-none z-10 whitespace-nowrap" style={{ left: `${((PAD.left + bw * hover + bw / 2) / W) * 100}%` }}>
+        <div className="absolute top-0 -translate-x-1/2 bg-paper border border-line shadow-md rounded-lg px-2.5 py-1.5 text-xs pointer-events-none z-10 whitespace-nowrap" style={{ left: `${((PAD.left + bw * hover + bw / 2) / W) * 100}%` }}>
           <div className="text-muted tnum">{fmtDate(weeks[hover].start, locale)}</div>
           <div className="font-bold tnum">{fmt(vals[hover])}</div>
         </div>

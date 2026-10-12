@@ -431,37 +431,37 @@ function ActiveShiftCard({
       <div className="flex items-center gap-2 mb-3">
         <span className="inline-block w-2.5 h-2.5 rounded-full bg-money animate-pulse" />
         <span className="font-bold text-sm">{t("sh.active")}</span>
-        <span className="text-white/60 text-sm ms-auto tnum">
+        <span className="text-hero-fg/60 text-sm ms-auto tnum">
           {t("sh.startedAt")} {fmtDateTime(shift.startTime, locale)}
         </span>
       </div>
       <div className="grid grid-cols-3 gap-3">
         <div>
-          <div className="text-[11px] font-bold uppercase tracking-wide text-white/60">{t("sh.duration")}</div>
+          <div className="text-[11px] font-bold uppercase tracking-wide text-hero-fg/60">{t("sh.duration")}</div>
           <div className="text-2xl font-bold display mt-0.5">
-            {fmtNum(elapsed, locale)} <span className="text-sm font-semibold text-white/60">{t("c.hours")}</span>
+            {fmtNum(elapsed, locale)} <span className="text-sm font-semibold text-hero-fg/60">{t("c.hours")}</span>
           </div>
         </div>
         <div>
-          <div className="text-[11px] font-bold uppercase tracking-wide text-white/60">{t("sh.trips")}</div>
+          <div className="text-[11px] font-bold uppercase tracking-wide text-hero-fg/60">{t("sh.trips")}</div>
           <div className="text-2xl font-bold display mt-0.5">{fmtNum(tally.count, locale, 0)}</div>
         </div>
         <div>
-          <div className="text-[11px] font-bold uppercase tracking-wide text-white/60">{t("sh.revenue")}</div>
+          <div className="text-[11px] font-bold uppercase tracking-wide text-hero-fg/60">{t("sh.revenue")}</div>
           <div className="text-2xl font-bold display mt-0.5 text-money">{fmtMoney(tally.revenue, locale)}</div>
         </div>
       </div>
-      <div className="mt-4 pt-3 border-t border-white/15 flex items-center gap-3 flex-wrap text-white/80">
+      <div className="mt-4 pt-3 border-t border-hero-fg/15 flex items-center gap-3 flex-wrap text-hero-fg/80">
         <GpsTracker shiftId={shift.id} initialKm={shift.gpsKm ?? null} />
-        <span className="text-xs text-white/60 tnum ms-auto">
+        <span className="text-xs text-hero-fg/60 tnum ms-auto">
           {t("sh.startOdo")}: {fmtNum(shift.startOdometer, locale, 0)}
         </span>
       </div>
       <div className="grid grid-cols-2 gap-2 mt-4">
-        <Link href="/trips?add=1" className="h-12 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-sm flex items-center justify-center gap-2">
+        <Link href="/trips?add=1" className="h-12 rounded-xl bg-hero-fg/10 hover:bg-hero-fg/15 text-hero-fg font-bold text-sm flex items-center justify-center gap-2">
           <Icon name="plus" size={18} strokeWidth={2.25} /> {t("tr.add")}
         </Link>
-        <button onClick={onEndClick} className="h-12 rounded-xl bg-white text-ink font-bold text-sm flex items-center justify-center gap-2 hover:bg-surface-2">
+        <button onClick={onEndClick} className="h-12 rounded-xl bg-hero-fg text-hero font-bold text-sm flex items-center justify-center gap-2 hover:opacity-90">
           <Icon name="stop" size={18} /> {t("sh.end")}
         </button>
       </div>

@@ -8,7 +8,7 @@ import path from "path";
 import crypto from "crypto";
 
 const execFileP = promisify(execFile);
-const UPLOAD_DIR = path.join(process.cwd(), "data", "uploads");
+const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), "data", "uploads");
 const ALLOWED = new Set([".jpg", ".jpeg", ".png", ".webp", ".heic", ".gif"]);
 
 export async function POST(req: NextRequest) {

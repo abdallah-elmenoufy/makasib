@@ -14,6 +14,17 @@ model Setting {
   value String
 }
 
+// Address label → coordinates, looked up once on OpenStreetMap's Nominatim
+// (lib/geocode.ts). A miss is cached too (lat/lng null) so the same unknown
+// label is never asked twice.
+model GeoCache {
+  query     String   @id
+  lat       Float?
+  lng       Float?
+  label     String?
+  createdAt DateTime @default(now())
+}
+
 // Curated catalog of common ride-hailing car makes/models (seeded, not
 // user-editable) — lets the vehicle form offer a real dropdown instead of
 // free text, and groups vehicles for cross-driver "same car" benchmarking.

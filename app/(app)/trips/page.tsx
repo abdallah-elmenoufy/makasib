@@ -24,7 +24,6 @@ const tripEditFields = (t: T): EditField[] => [
   { key: "endTime", label: t("tr.endTime"), type: "datetime" },
   { key: "platform", label: t("tr.platform"), type: "select", options: PLATFORMS.map((p) => ({ value: p, label: t(`pf.${p}`) })) },
   { key: "fare", label: t("tr.fare"), type: "number", step: "0.01" },
-  { key: "commission", label: t("tr.commission"), type: "number", step: "0.01", hint: t("tr.commissionHint") },
   {
     key: "paymentType",
     label: t("tr.payment"),
@@ -348,10 +347,6 @@ function TripsInner() {
                           </div>
                           <StatGrid cols={6}>
                             <StatCell label={t("tr.endTime")} value={tr.endTime ? fmtDateTime(tr.endTime, locale) : "—"} />
-                            <StatCell
-                              label={t("tr.cashCollected")}
-                              value={tr.paymentType === "CASH" ? fmtMoney(tr.fare, locale) : "—"}
-                            />
                             <StatCell label={t("tr.tip")} value={tr.tip ? fmtNum(tr.tip, locale) : "—"} />
                             <StatCell label={t("tr.distance")} value={tr.distanceKm ? fmtNum(tr.distanceKm, locale) : "—"} />
                             <StatCell label={t("tr.pickupKm")} value={tr.pickupKm ? fmtNum(tr.pickupKm, locale) : "—"} />

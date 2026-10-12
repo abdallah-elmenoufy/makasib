@@ -14,14 +14,14 @@ const C = {
   neg: "#e34948", // diverging red pole
   dead: "#eda100", // series-4 yellow (labelled — relief rule)
   pickup: "#eb6834", // series-2 orange
-  personal: "#c3c2b7", // neutral
-  idle: "#c3c2b7",
+  personal: "var(--muted-2)", // neutral
+  idle: "var(--muted-2)",
   trip: "#2a78d6",
-  grid: "#e1e0d9",
-  axis: "#c3c2b7",
-  muted: "#898781",
-  goodText: "#05a357",
-  critical: "#e11900",
+  grid: "var(--line)",
+  axis: "var(--muted-2)",
+  muted: "var(--muted)",
+  goodText: "var(--money)",
+  critical: "var(--loss)",
 };
 
 const PERIODS = ["today", "week", "lastWeek", "month", "all"] as const;
@@ -63,6 +63,7 @@ export default function DashboardPage() {
   const [streak, setStreak] = useState<any>(null);
   const [weeks, setWeeks] = useState<any>(null);
   const [integrity, setIntegrity] = useState<any>(null);
+  const [nowHint, setNowHint] = useState<any>(null);
   const [target, setTarget] = useState<any>(null);
   const [plannedHours, setPlannedHours] = useState<number | null>(null);
   const [expenses, setExpenses] = useState<any[]>([]);
@@ -88,6 +89,7 @@ export default function DashboardPage() {
     fetch(`/api/streak?vehicleId=${vehicle.id}`).then((r) => (r.ok ? r.json() : null)).then(setStreak);
     fetch(`/api/weeks?vehicleId=${vehicle.id}&weeks=3`).then((r) => (r.ok ? r.json() : null)).then(setWeeks);
     fetch(`/api/integrity?vehicleId=${vehicle.id}`).then((r) => (r.ok ? r.json() : null)).then(setIntegrity);
+    fetch(`/api/now?vehicleId=${vehicle.id}`).then((r) => (r.ok ? r.json() : null)).then(setNowHint);
     fetch(`/api/expenses?vehicleId=${vehicle.id}&all=1`)
       .then((r) => (r.ok ? r.json() : []))
       .then((d) => setExpenses(Array.isArray(d) ? d : []));
@@ -123,8 +125,8 @@ export default function DashboardPage() {
         <PageTitle actions={activeVehicles.length > 1 && <ViewToggle viewAll={viewAll} setViewAll={setViewAll} t={t} />}>{t("db.title")}</PageTitle>
         {periodPicker}
         <Card tone="ink">
-          <Hero label={t("db.trueProfit")} value={money(p.trueProfit)} tone={p.trueProfit >= 0 ? "ink" : "loss"} sub={<span className="text-white/60">{t("cars.allCarsSub")}</span>} />
-          <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t border-white/15">
+          <Hero label={t("db.trueProfit")} value={money(p.trueProfit)} tone={p.trueProfit >= 0 ? "ink" : "loss"} sub={<span className="text-hero-fg/60">{t("cars.allCarsSub")}</span>} />
+          <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t border-hero-fg/15">
             <InkStat label={t("db.gross")} value={money(p.earnings.netRevenue)} />
             <InkStat label={t("db.perHour")} value={p.perHour != null ? money(p.perHour) : "—"} />
             <InkStat label={t("db.perKm")} value={p.perKm != null ? money(p.perKm) : "—"} />
@@ -193,6 +195,9 @@ export default function DashboardPage() {
         <QuickAction href="/import?tab=ocr" icon="camera" label={t("nav.import")} />
       </div>
 
+      {/* where to go right now — this hour, this kind of day, from the driver's own trips */}
+      {nowHint && <WhereNowCard hint={nowHint} t={t} locale={locale} />}
+
       {/* week closed recap — the first days after Monday 04:00 */}
       {showWeekClose && <WeekClosedCard week={weeks.lastClosed} previous={weeks.weeks[weeks.weeks.length - 3] ?? null} t={t} locale={locale} />}
 
@@ -206,34 +211,34 @@ export default function DashboardPage() {
           tone={a.trueProfit >= 0 ? "ink" : "loss"}
           size="xl"
           sub={
-            <span className="text-white/60">
+            <span className="text-hero-fg/60">
               {dep.enabled ? t("db.profitSub") : t("db.profitSubNoDep")}
               {period === "week" && cur && weeks.previousAtSamePoint && weeks.previousAtSamePoint.netRevenue > 0 && (
-                <span className="block mt-1 text-white/80">
+                <span className="block mt-1 text-hero-fg/80">
                   {t("wk.vsSamePoint")} <Delta value={a.earnings.netRevenue - weeks.previousAtSamePoint.netRevenue} fmt={money} />
                 </span>
               )}
             </span>
           }
         />
-        <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t border-white/15">
+        <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t border-hero-fg/15">
           <InkStat label={t("db.gross")} value={money(a.earnings.netRevenue)} />
           <InkStat label={t("db.cashProfit")} value={money(a.cashProfit)} />
           <InkStat label={t("db.perHour")} value={a.perHour != null ? money(a.perHour) : "—"} />
         </div>
         {period === "week" && cur && (
-          <div className="mt-4 pt-4 border-t border-white/15">
-            <div className="flex items-center justify-between text-xs text-white/70 mb-1.5">
+          <div className="mt-4 pt-4 border-t border-hero-fg/15">
+            <div className="flex items-center justify-between text-xs text-hero-fg/70 mb-1.5">
               <span>
                 {t("wk.uberWeek")} · {fmtDate(cur.start, locale)} – {fmtDate(new Date(new Date(cur.end).getTime() - 1), locale)}
               </span>
               <span className="tnum">{fmtCountdown(weeks.msUntilClose, t)}</span>
             </div>
-            <div className="h-1.5 rounded-full bg-white/15 overflow-hidden">
-              <div className="h-full bg-white rounded-full" style={{ width: `${Math.round(cur.progress * 100)}%` }} />
+            <div className="h-1.5 rounded-full bg-hero-fg/15 overflow-hidden">
+              <div className="h-full bg-paper rounded-full" style={{ width: `${Math.round(cur.progress * 100)}%` }} />
             </div>
             {weeks.projection && (
-              <div className="text-xs text-white/70 mt-2">
+              <div className="text-xs text-hero-fg/70 mt-2">
                 {t("wk.onPace", { v: money(weeks.projection.trueProfit), n: weeks.projection.trips })}
                 {weeks.previous && weeks.previous.trueProfit !== 0 && (
                   <>
@@ -243,7 +248,7 @@ export default function DashboardPage() {
                 )}
               </div>
             )}
-            <Link href="/weeks" className="inline-flex items-center gap-1 mt-3 text-sm font-bold text-white">
+            <Link href="/weeks" className="inline-flex items-center gap-1 mt-3 text-sm font-bold text-hero-fg">
               {t("wk.seeWeekly")} <Icon name="chevron" size={16} className="rtl:rotate-180" />
             </Link>
           </div>
@@ -422,7 +427,7 @@ export default function DashboardPage() {
               {a.fuelEconomy.map((f: any) => {
                 const unit = f.unit === "m3" ? t("c.m3") : t("c.liters");
                 return (
-                  <div key={f.fuelGroup} className="bg-white rounded-xl p-3">
+                  <div key={f.fuelGroup} className="bg-paper rounded-xl p-3">
                     <div className="text-xs font-bold text-ink-500 mb-2">{f.fuelGroup === "CNG" ? t("fu.CNG") : t("veh.fuel.PETROL").split(" ")[0]}</div>
                     <div className="text-2xl font-bold display">
                       {fmtNum(f.per100, locale)}
@@ -488,7 +493,7 @@ export default function DashboardPage() {
           <CardHead icon="trophy" title={t("db.leaderboardTitle")} />
           <div className="space-y-1.5 mt-2">
             {leaderboard.entries.map((e: any, i: number) => (
-              <div key={e.vehicleId} className={`flex items-center gap-3 text-sm rounded-lg px-2 py-1.5 ${e.isYou ? "bg-white font-bold" : ""}`}>
+              <div key={e.vehicleId} className={`flex items-center gap-3 text-sm rounded-lg px-2 py-1.5 ${e.isYou ? "bg-paper font-bold" : ""}`}>
                 <span className="w-6 text-center text-muted">{i + 1}</span>
                 <span className="flex-1">{e.isYou ? t("db.leaderboardYou") : e.label}</span>
                 <span className="tnum">
@@ -509,7 +514,7 @@ export default function DashboardPage() {
           <CardHead icon="bell" title={t("db.remindersDue")} />
           <div className="space-y-1">
             {attention.map((r: any) => (
-              <Link key={r.id} href={r.source === "service" ? "/maintenance" : "/reminders"} className="flex items-center gap-2 text-sm hover:bg-white/60 rounded-lg px-2 py-1.5">
+              <Link key={r.id} href={r.source === "service" ? "/maintenance" : "/reminders"} className="flex items-center gap-2 text-sm hover:bg-hero-fg/60 rounded-lg px-2 py-1.5">
                 <Badge tone={r.state === "overdue" ? "bad" : "warn"}>{r.state === "overdue" ? t("rm.overdue") : t("rm.dueSoon")}</Badge>
                 <span className="font-bold">{r.source === "service" ? t(`mn.cat.${r.category}`) : r.title}</span>
                 {r.kmRemaining != null && (
@@ -521,6 +526,65 @@ export default function DashboardPage() {
         </Card>
       )}
     </div>
+  );
+}
+
+function WhereNowCard({ hint, t, locale }: { hint: any; t: (k: string, v?: Record<string, string | number>) => string; locale: string }) {
+  const money = (n: number) => fmtMoney(n, locale);
+  const slot = `${String(hint.hour).padStart(2, "0")}:00–${String((hint.hour + 1) % 24).padStart(2, "0")}:00`;
+  return (
+    <Card>
+      <CardHead
+        icon="pin"
+        title={t("now.title")}
+        sub={hint.enoughData ? t("now.sub", { slot, kind: t(hint.isWeekend ? "now.weekend" : "now.weekday") }) : t("now.learning", { n: hint.sampleTrips, min: 5 })}
+        actions={
+          <Link href="/plan" className="text-xs font-bold underline">
+            {t("nav.plan")}
+          </Link>
+        }
+      />
+      {hint.enoughData && (
+        <>
+          <div className="flex items-baseline gap-3 flex-wrap mb-3">
+            {hint.netPerTripHour != null && (
+              <span className="text-sm">
+                <b className="text-xl display">{money(hint.netPerTripHour)}</b> <span className="text-muted">{t("now.perRiderHour")}</span>
+              </span>
+            )}
+            {hint.avgNetPerTrip != null && (
+              <span className="text-sm">
+                <b className="text-xl display">{money(hint.avgNetPerTrip)}</b> <span className="text-muted">{t("wk.perTrip")}</span>
+              </span>
+            )}
+          </div>
+          {hint.zones.length === 0 ? (
+            <p className="text-xs text-muted">{t("now.noZones")}</p>
+          ) : (
+            <div className="rows">
+              {hint.zones.map((z: any, i: number) => (
+                <div key={z.key} className="flex items-center gap-3 py-2.5">
+                  <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${i === 0 ? "bg-ink text-background" : "bg-surface-2 text-muted"}`}>{i + 1}</span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-bold truncate">{z.label}</span>
+                    <span className="block text-xs text-muted">{t("pl.tripsN", { n: z.trips })}</span>
+                  </span>
+                  <span className="text-end">
+                    <span className="block text-sm font-bold tnum text-money">{money(z.avgNet)}</span>
+                    <span className="block text-xs text-muted">{z.perMin != null ? `${money(z.perMin)}/${t("c.minShort")}` : t("wk.perTrip")}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          {hint.nextBest && (
+            <p className="text-xs text-muted mt-3">
+              {t("now.nextBest", { h: `${String(hint.nextBest.hour).padStart(2, "0")}:00`, v: money(hint.nextBest.avgNet) })}
+            </p>
+          )}
+        </>
+      )}
+    </Card>
   );
 }
 
@@ -541,8 +605,8 @@ function QuickAction({ href, icon, label, tone = "ink" }: { href: string; icon: 
 function InkStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
-      <div className="text-[11px] font-bold text-white/60 uppercase tracking-wide truncate">{label}</div>
-      <div className="text-lg md:text-xl font-bold display text-white mt-0.5 truncate">{value}</div>
+      <div className="text-[11px] font-bold text-hero-fg/60 uppercase tracking-wide truncate">{label}</div>
+      <div className="text-lg md:text-xl font-bold display text-hero-fg mt-0.5 truncate">{value}</div>
     </div>
   );
 }
@@ -691,13 +755,13 @@ function StreakCard({
           <button
             onClick={save}
             disabled={saving}
-            className="rounded-lg font-semibold bg-ink hover:bg-ink-700 text-white px-4 py-2 text-sm disabled:opacity-50"
+            className="rounded-lg font-semibold bg-ink hover:bg-ink-700 text-background px-4 py-2 text-sm disabled:opacity-50"
           >
             {t("c.save")}
           </button>
           <button
             onClick={() => setEditing(false)}
-            className="rounded-lg font-semibold bg-white hover:bg-surface-2 text-ink-700 border border-line px-4 py-2 text-sm"
+            className="rounded-lg font-semibold bg-paper hover:bg-surface-2 text-ink-700 border border-line px-4 py-2 text-sm"
           >
             {t("c.cancel")}
           </button>
@@ -806,7 +870,7 @@ function BenchMetric({
           <div className="text-[10px] text-muted">{youLabel}</div>
           <div
             className="text-lg font-bold"
-            style={{ fontVariantNumeric: "tabular-nums", color: youWins ? "#05a357" : undefined }}
+            style={{ fontVariantNumeric: "tabular-nums", color: youWins ? "var(--money)" : undefined }}
           >
             {you != null ? fmt(you) : "—"}
           </div>
@@ -1080,7 +1144,7 @@ function ProfitBars({ data, locale }: { data: { date: string; profit: number; gr
       </svg>
       {tip && (
         <div
-          className="absolute top-0 -translate-x-1/2 bg-white border border-line shadow-md rounded-lg px-2.5 py-1.5 text-xs pointer-events-none z-10"
+          className="absolute top-0 -translate-x-1/2 bg-paper border border-line shadow-md rounded-lg px-2.5 py-1.5 text-xs pointer-events-none z-10"
           style={{ left: `${tip.x}%` }}
         >
           <div className="text-muted" style={{ fontVariantNumeric: "tabular-nums" }}>

@@ -157,7 +157,7 @@ export default function ScorePage() {
       {form && (
         <>
           {score && (
-            <Card className={`${VERDICT_BG[score.verdict]} text-white border-none`}>
+            <Card className={`${VERDICT_BG[score.verdict]} text-hero-fg border-none`}>
               <div className="text-center">
                 <div className="text-2xl font-black">
                   {VERDICT_ICON[score.verdict]} {t(`score.verdict.${score.verdict}`)}
