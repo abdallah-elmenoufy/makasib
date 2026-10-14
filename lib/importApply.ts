@@ -7,8 +7,10 @@ import { locateTrips } from "./tripLocation";
 export type IncomingTrip = {
   startTime: Date;
   earnings: number; // driver net
-  cashCollected: number | null; // rider-paid cash, when known (cash trips)
+  cashCollected: number | null; // kept for callers; only isCash is used
   isCash: boolean;
+  tip?: number | null;
+  pickupKm?: number | null;
   distanceKm: number | null;
   durationMin?: number | null; // minutes with the rider, when the source shows it
   product: string | null;
@@ -34,11 +36,9 @@ const MATCH_WINDOW_MS = 5 * 60 * 1000;
  *   imports of the same week enrich one another;
  * - otherwise create, auto-matched to the covering shift.
  *
- * Money mapping (fare = rider-side, commission = platform share):
- * cash trip:  fare = cashCollected, commission = cashCollected − earnings
- *             (negative commission = Uber owes the driver the difference);
- * card trip:  fare = earnings, commission = 0 — earnings are already net.
- * Both give netRevenue = earnings and correct cash reconciliation.
+ * Money: fare = the driver's net earnings, commission = 0, for cash and card
+ * alike. Cash settlement with the platform is Uber's own ledger and is not
+ * tracked here (DOCS §5); only isCash is kept, for the cash/card split.
  */
 export async function applyTrips(vehicleId: string, trips: IncomingTrip[]): Promise<ApplyResult> {
   const res: ApplyResult = { created: 0, merged: 0, skipped: 0, matchedToShift: 0 };
@@ -54,8 +54,8 @@ export async function applyTrips(vehicleId: string, trips: IncomingTrip[]): Prom
       },
     });
 
-    const fare = t.isCash && t.cashCollected != null ? t.cashCollected : t.earnings;
-    const commission = t.isCash && t.cashCollected != null ? t.cashCollected - t.earnings : 0;
+    const fare = t.earnings;
+    const commission = 0;
 
     if (near) {
       const nearNet = near.fare - (near.commission ?? 0);
@@ -64,6 +64,8 @@ export async function applyTrips(vehicleId: string, trips: IncomingTrip[]): Prom
       if (sameAmount) {
         const data: Record<string, unknown> = {};
         if (near.distanceKm == null && t.distanceKm != null) data.distanceKm = t.distanceKm;
+        if (near.pickupKm == null && t.pickupKm != null && t.pickupKm > 0) data.pickupKm = t.pickupKm;
+        if (!(near.tip > 0) && t.tip != null && t.tip > 0) data.tip = t.tip;
         if (near.durationMin == null && t.durationMin != null && t.durationMin > 0) {
           data.durationMin = t.durationMin;
           if (near.endTime == null) data.endTime = new Date(near.startTime.getTime() + t.durationMin * 60_000);
@@ -92,6 +94,8 @@ export async function applyTrips(vehicleId: string, trips: IncomingTrip[]): Prom
         fare,
         commission,
         distanceKm: t.distanceKm,
+        pickupKm: t.pickupKm ?? null,
+        tip: t.tip != null && t.tip > 0 ? t.tip : 0,
         durationMin: t.durationMin ?? null,
         endTime: t.durationMin != null && t.durationMin > 0 ? new Date(t.startTime.getTime() + t.durationMin * 60_000) : null,
         paymentType: t.isCash ? "CASH" : "CARD",

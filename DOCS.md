@@ -255,8 +255,11 @@ supports four ways to get trip data in, all converging on the same
 dedupe/merge logic in `lib/importApply.ts`:
 
 ### 6.1 Manual entry (`/trips`, `/fuel`, etc.)
-Net-first form: "Your earnings (net)" + "Cash collected" (only shown for cash
-trips) — exactly the two numbers the platform itself shows the driver.
+Net-first form: "Your earnings (net)" plus cash/card, tip, trip km, km to the
+rider and minutes. No "cash collected" anywhere (cash settlement is Uber's
+ledger, §5). The screenshot-import review table (§6.3) offers the same
+extras per row — tip, km to rider and minutes are not on the earnings screen,
+so the driver types them there before importing — and a Cash/Card toggle.
 
 ### 6.2 Shift-from-photos (`/import`, default tab)
 Drop the shift's start and end odometer photos. Pipeline per photo:

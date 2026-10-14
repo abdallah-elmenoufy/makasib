@@ -480,7 +480,6 @@ const en: Record<string, string> = {
   "im.colDate": "Date",
   "im.colTime": "Time",
   "im.colEarnings": "Earnings",
-  "im.colCash": "Cash collected",
   "im.colKm": "km",
   "im.colProduct": "Type",
   "im.created": "{n} new trips",
@@ -755,6 +754,7 @@ const en: Record<string, string> = {
   "veh.trans.AUTOMATIC": "Automatic",
   "veh.trans.MANUAL": "Manual",
   "veh.trans.CVT": "CVT",
+  "im.ocrExtrasHint": "Tip, km to rider and minutes are not on the earnings screen — type them here if you know them. Tap Cash/Card to fix the payment type.",
 };
 
 const ar: Record<string, string> = {
@@ -1216,7 +1216,6 @@ const ar: Record<string, string> = {
   "im.colDate": "التاريخ",
   "im.colTime": "الوقت",
   "im.colEarnings": "الأرباح",
-  "im.colCash": "الكاش المحصّل",
   "im.colKm": "كم",
   "im.colProduct": "النوع",
   "im.created": "{n} رحلة جديدة",
@@ -1476,6 +1475,7 @@ const ar: Record<string, string> = {
   "veh.trans.AUTOMATIC": "أوتوماتيك",
   "veh.trans.MANUAL": "مانيوال",
   "veh.trans.CVT": "CVT",
+  "im.ocrExtrasHint": "البقشيش وكم للراكب والدقائق مش موجودين في شاشة الأرباح — اكتبهم هنا لو عارفهم. اضغط كاش/كارت لتصحيح نوع الدفع.",
 };
 
 export const messages: Record<Locale, Record<string, string>> = { en, ar };

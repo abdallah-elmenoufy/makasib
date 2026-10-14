@@ -28,7 +28,11 @@ export type ActivityTrip = {
   date: string | null; // yyyy-mm-dd, null when no day header seen yet
   time: string | null; // HH:mm (24h)
   earnings: number; // NaN = orphan card whose amount line the OCR missed
-  cashCollected: number | null;
+  cashCollected: number | null; // only used to detect a cash trip
+  isCash: boolean;
+  /** Not on the screenshot — typed by the driver in the review table. */
+  tip: number | null;
+  pickupKm: number | null;
   product: string | null;
   durationMin: number | null;
   distanceKm: number | null;
@@ -97,6 +101,9 @@ export function parseEarningsActivityText(text: string, refYear: number): Activi
     time: null,
     earnings,
     cashCollected: null,
+    isCash: false,
+    tip: null,
+    pickupKm: null,
     product: null,
     durationMin: null,
     distanceKm: null,
@@ -122,6 +129,7 @@ export function parseEarningsActivityText(text: string, refYear: number): Activi
     const cash = line.match(CASH_RE);
     if (cash && current && current.cashCollected == null) {
       current.cashCollected = money(cash[1]);
+      current.isCash = true;
       continue;
     }
 

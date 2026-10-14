@@ -7,6 +7,8 @@ export type TripFormState = {
   startTime: string;
   earnings: string;
   distanceKm: string;
+  pickupKm: string;
+  durationMin: string;
   paymentType: string;
   tip: string;
   notes: string;
@@ -18,6 +20,8 @@ export function emptyTripForm(): TripFormState {
     startTime: toLocalInput(),
     earnings: "",
     distanceKm: "",
+    pickupKm: "",
+    durationMin: "",
     paymentType: "CASH",
     tip: "",
     notes: "",
@@ -35,6 +39,8 @@ export function toTripData(form: TripFormState) {
     fare: earnings,
     commission: 0,
     distanceKm: form.distanceKm,
+    pickupKm: form.pickupKm,
+    durationMin: form.durationMin,
     paymentType: form.paymentType,
     tip: form.tip,
     notes: form.notes,

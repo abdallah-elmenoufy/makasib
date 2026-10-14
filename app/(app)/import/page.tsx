@@ -141,10 +141,16 @@ function ManualTripImport({ vehicleId }: { vehicleId: string }) {
           </Select>
         </Field>
         <Field label={t("tr.distance")}>
-          <Input type="number" step="0.1" value={form.distanceKm} onChange={(e) => set("distanceKm", e.target.value)} />
+          <Input type="number" step="0.1" inputMode="decimal" value={form.distanceKm} onChange={(e) => set("distanceKm", e.target.value)} />
+        </Field>
+        <Field label={t("be.pickupKm")}>
+          <Input type="number" step="0.1" inputMode="decimal" value={form.pickupKm} onChange={(e) => set("pickupKm", e.target.value)} />
+        </Field>
+        <Field label={t("be.minutes")}>
+          <Input type="number" step="1" inputMode="numeric" value={form.durationMin} onChange={(e) => set("durationMin", e.target.value)} />
         </Field>
         <Field label={t("tr.tip")}>
-          <Input type="number" step="0.01" value={form.tip} onChange={(e) => set("tip", e.target.value)} />
+          <Input type="number" step="0.01" inputMode="decimal" value={form.tip} onChange={(e) => set("tip", e.target.value)} />
         </Field>
         <div className="col-span-2 md:col-span-3">
           <Field label={`${t("c.notes")} (${t("c.optional")})`}>
@@ -512,6 +518,9 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
           startTime: new Date(`${r.date}T${r.time}:00`).toISOString(),
           earnings: r.earnings,
           cashCollected: r.cashCollected,
+          isCash: r.isCash,
+          tip: r.tip,
+          pickupKm: r.pickupKm,
           distanceKm: r.distanceKm,
           durationMin: r.durationMin,
           product: r.product,
@@ -559,7 +568,7 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
     if (parts.length > 0) setTimeout(() => router.push("/trips"), 600);
   };
 
-  const inputCls = "w-full rounded border border-line px-1.5 py-1 text-xs bg-paper";
+  const inputCls = "w-full rounded-lg border border-line px-2 h-8 text-xs bg-sheet tnum";
 
   return (
     <Card className="space-y-4">
@@ -611,8 +620,8 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
       {rows.length > 0 && (
         <>
           <p className="text-xs text-muted">{t("im.ocrReview")}</p>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+          <div className="overflow-x-auto -mx-4 px-4">
+            <table className="w-full text-xs min-w-[720px]">
               <thead>
                 <tr className="text-start text-muted border-b border-line">
                   {[
@@ -620,11 +629,14 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
                     t("im.colTime"),
                     t("im.colProduct"),
                     t("im.colEarnings"),
-                    t("im.colCash"),
-                    t("im.colKm"),
+                    t("tr.payment"),
+                    t("tr.tip"),
+                    t("be.tripKm"),
+                    t("be.pickupKm"),
+                    t("be.minutes"),
                     "",
                   ].map((h, i) => (
-                    <th key={i} className="text-start py-1.5 px-1 font-semibold whitespace-nowrap">
+                    <th key={i} className="text-start py-1.5 px-1 font-bold whitespace-nowrap">
                       {h}
                     </th>
                   ))}
@@ -634,69 +646,48 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
                 {rows.map((r, i) => (
                   <tr key={i} className={!r.date || !r.time || !Number.isFinite(r.earnings) ? "bg-warn-soft" : ""}>
                     <td className="py-1 px-1">
-                      <input
-                        type="date"
-                        value={r.date ?? ""}
-                        onChange={(e) => setRow(i, { date: e.target.value })}
-                        className={inputCls}
-                      />
+                      <input type="date" value={r.date ?? ""} onChange={(e) => setRow(i, { date: e.target.value })} className={`${inputCls} min-w-[8.5rem]`} />
                     </td>
                     <td className="py-1 px-1">
-                      <input
-                        type="time"
-                        value={r.time ?? ""}
-                        onChange={(e) => setRow(i, { time: e.target.value })}
-                        className={inputCls}
-                      />
+                      <input type="time" value={r.time ?? ""} onChange={(e) => setRow(i, { time: e.target.value })} className={`${inputCls} min-w-[6rem]`} />
                     </td>
                     <td className="py-1 px-1">
-                      <input
-                        value={r.product ?? ""}
-                        onChange={(e) => setRow(i, { product: e.target.value })}
-                        className={inputCls}
-                      />
+                      <input value={r.product ?? ""} onChange={(e) => setRow(i, { product: e.target.value })} className={`${inputCls} min-w-[6rem]`} />
                     </td>
                     <td className="py-1 px-1">
                       <input
                         type="number"
                         step="0.01"
+                        inputMode="decimal"
                         value={Number.isFinite(r.earnings) ? r.earnings : ""}
                         placeholder="?"
                         onChange={(e) => setRow(i, { earnings: Number(e.target.value) })}
-                        className={inputCls}
-                      />
-                    </td>
-                    <td className="py-1 px-1">
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={r.cashCollected ?? ""}
-                        onChange={(e) =>
-                          setRow(i, {
-                            cashCollected: e.target.value === "" ? null : Number(e.target.value),
-                          })
-                        }
-                        className={inputCls}
-                      />
-                    </td>
-                    <td className="py-1 px-1">
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={r.distanceKm ?? ""}
-                        onChange={(e) =>
-                          setRow(i, {
-                            distanceKm: e.target.value === "" ? null : Number(e.target.value),
-                          })
-                        }
-                        className={inputCls}
+                        className={`${inputCls} font-bold min-w-[5rem]`}
                       />
                     </td>
                     <td className="py-1 px-1">
                       <button
-                        onClick={() => setRows(rows.filter((_, j) => j !== i))}
-                        className="text-loss"
+                        type="button"
+                        onClick={() => setRow(i, { isCash: !r.isCash })}
+                        className={`h-8 px-2.5 rounded-lg text-xs font-bold whitespace-nowrap ${r.isCash ? "bg-warn-soft text-warn-ink" : "bg-surface-2 text-ink-500"}`}
                       >
+                        {r.isCash ? t("tr.CASH") : t("tr.CARD")}
+                      </button>
+                    </td>
+                    <td className="py-1 px-1">
+                      <input type="number" step="1" min="0" inputMode="decimal" value={r.tip ?? ""} placeholder="0" onChange={(e) => setRow(i, { tip: e.target.value === "" ? null : Number(e.target.value) })} className={`${inputCls} min-w-[4rem]`} />
+                    </td>
+                    <td className="py-1 px-1">
+                      <input type="number" step="0.1" min="0" inputMode="decimal" value={r.distanceKm ?? ""} onChange={(e) => setRow(i, { distanceKm: e.target.value === "" ? null : Number(e.target.value) })} className={`${inputCls} min-w-[4.5rem]`} />
+                    </td>
+                    <td className="py-1 px-1">
+                      <input type="number" step="0.1" min="0" inputMode="decimal" value={r.pickupKm ?? ""} placeholder="0" onChange={(e) => setRow(i, { pickupKm: e.target.value === "" ? null : Number(e.target.value) })} className={`${inputCls} min-w-[4.5rem]`} />
+                    </td>
+                    <td className="py-1 px-1">
+                      <input type="number" step="1" min="0" inputMode="numeric" value={r.durationMin ?? ""} onChange={(e) => setRow(i, { durationMin: e.target.value === "" ? null : Number(e.target.value) })} className={`${inputCls} min-w-[4rem]`} />
+                    </td>
+                    <td className="py-1 px-1">
+                      <button onClick={() => setRows(rows.filter((_, j) => j !== i))} className="text-loss w-8 h-8 rounded-lg hover:bg-loss-soft" aria-label={t("c.delete")}>
                         ✕
                       </button>
                     </td>
@@ -705,6 +696,7 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
               </tbody>
             </table>
           </div>
+          <p className="text-[11px] text-muted">{t("im.ocrExtrasHint")}</p>
         </>
       )}
 
