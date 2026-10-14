@@ -750,6 +750,11 @@ const en: Record<string, string> = {
   "now.nextBest": "Best coming hour: {h} (≈ {v} per trip).",
   "wk.export": "CSV",
   "st.flyerOpen": "Open the flyer",
+  "veh.color": "Colour",
+  "veh.transmission": "Transmission",
+  "veh.trans.AUTOMATIC": "Automatic",
+  "veh.trans.MANUAL": "Manual",
+  "veh.trans.CVT": "CVT",
 };
 
 const ar: Record<string, string> = {
@@ -1466,6 +1471,11 @@ const ar: Record<string, string> = {
   "now.nextBest": "أفضل ساعة جاية: {h} (≈ {v} للرحلة).",
   "wk.export": "CSV",
   "st.flyerOpen": "افتح الإعلان",
+  "veh.color": "اللون",
+  "veh.transmission": "ناقل الحركة",
+  "veh.trans.AUTOMATIC": "أوتوماتيك",
+  "veh.trans.MANUAL": "مانيوال",
+  "veh.trans.CVT": "CVT",
 };
 
 export const messages: Record<Locale, Record<string, string>> = { en, ar };

@@ -15,7 +15,7 @@ const C = {
   s4: "#eda100",
   neutral: "var(--muted-2)",
   neg: "#e34948",
-  ink: "var(--ink)",
+  ink: "var(--action)",
   grid: "var(--line)",
   muted: "var(--muted)",
 };
@@ -78,7 +78,7 @@ function WeeksInner() {
   if (!vehicle) {
     return (
       <Empty>
-        <Link href="/cars" className="text-ink underline font-bold">
+        <Link href="/cars" className="text-action underline font-bold">
           {t("veh.createFirst")}
         </Link>
       </Empty>
@@ -131,7 +131,7 @@ function WeeksInner() {
             <button
               key={w.key}
               onClick={() => select(w.key)}
-              className={`shrink-0 rounded-2xl px-3.5 py-2 text-start transition-colors ${active ? "bg-ink text-background" : "bg-surface hover:bg-surface-2"}`}
+              className={`shrink-0 rounded-2xl px-3.5 py-2 text-start transition-colors ${active ? "bg-action text-action-fg" : "bg-surface hover:bg-surface-2"}`}
             >
               <span className={`block text-[11px] font-bold ${active ? "text-hero-fg/60" : "text-muted"}`}>
                 {w.isCurrent ? t("wk.current") : w.key === report.best.byProfit ? `🏆 ${t("wk.best")}` : fmtDate(w.start, locale)}
@@ -627,7 +627,7 @@ function WeekBars({ weeks, selected, onSelect, valueOf, fmt, locale }: { weeks: 
         })}
       </svg>
       {hover != null && (
-        <div className="absolute top-0 -translate-x-1/2 bg-paper border border-line shadow-md rounded-lg px-2.5 py-1.5 text-xs pointer-events-none z-10 whitespace-nowrap" style={{ left: `${((PAD.left + bw * hover + bw / 2) / W) * 100}%` }}>
+        <div className="absolute top-0 -translate-x-1/2 bg-sheet border border-line shadow-md rounded-lg px-2.5 py-1.5 text-xs pointer-events-none z-10 whitespace-nowrap" style={{ left: `${((PAD.left + bw * hover + bw / 2) / W) * 100}%` }}>
           <div className="text-muted tnum">{fmtDate(weeks[hover].start, locale)}</div>
           <div className="font-bold tnum">{fmt(vals[hover])}</div>
         </div>

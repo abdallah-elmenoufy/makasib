@@ -102,7 +102,7 @@ export function QuickExpense({
               onClick={() => pick(cat)}
               className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition-colors ${
                 active
-                  ? "bg-ink border-line text-background"
+                  ? "bg-action border-action text-action-fg"
                   : "bg-paper border-[var(--border)] text-ink-700 hover:bg-surface"
               }`}
             >

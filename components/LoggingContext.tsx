@@ -57,7 +57,7 @@ export function LoggingContext({ vehicleId, onChanged }: { vehicleId: string; on
   return (
     <div className="mb-4 space-y-2">
       {open && (
-        <div className="rounded-2xl border border-line bg-ink px-4 py-3 flex items-center gap-3 flex-wrap">
+        <div className="rounded-2xl border border-line bg-action-soft px-4 py-3 flex items-center gap-3 flex-wrap">
           <span className="relative flex h-2.5 w-2.5 shrink-0">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-money opacity-70" />
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-money" />
@@ -68,7 +68,7 @@ export function LoggingContext({ vehicleId, onChanged }: { vehicleId: string; on
           </div>
           <Link
             href="/shifts"
-            className="ms-auto text-xs font-semibold text-ink hover:text-ink underline underline-offset-2"
+            className="ms-auto text-xs font-semibold text-ink hover:text-action underline underline-offset-2"
           >
             {t("lc.endShift")} →
           </Link>
@@ -91,12 +91,12 @@ export function LoggingContext({ vehicleId, onChanged }: { vehicleId: string; on
                       <button
                         disabled={busy}
                         onClick={() => attach(o.id, o.nearestShiftId)}
-                        className="ms-auto font-semibold text-ink hover:text-ink underline underline-offset-2 disabled:opacity-50"
+                        className="ms-auto font-semibold text-ink hover:text-action underline underline-offset-2 disabled:opacity-50"
                       >
                         {t("lc.attachTo", { when: fmtDateTime(o.nearestShiftLabel, locale) })}
                       </button>
                     ) : (
-                      <Link href="/shifts" className="ms-auto font-semibold text-ink underline underline-offset-2">
+                      <Link href="/shifts" className="ms-auto font-semibold text-action underline underline-offset-2">
                         {t("lc.createShift")}
                       </Link>
                     )}

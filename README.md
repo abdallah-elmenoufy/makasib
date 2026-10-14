@@ -99,6 +99,7 @@ is the only documentation an actual driver ever reads.
 ## Tests
 
 ```bash
+npm run db:sync   # upgrade a database to the current schema without dropping anything
 npm test          # vitest: pay-week boundaries, depreciation, weekly zones/best trip, OCR parsers, GPS lookup, geocoding
 npm run typecheck
 ```
@@ -115,35 +116,43 @@ npm run typecheck
 
 ## Quick start (local, on your Mac)
 
-```bash
-npm install
-npx prisma migrate dev     # creates data/app.db (SQLite) + data/uploads/
-npm run dev                # http://localhost:3000
-```
-
-Open `http://localhost:3000`, set a passphrase on first launch (this is your
-local login — there's no email/username in phase 1), then create your
-vehicle profile under **السيارة / Vehicle**.
-
-Production-style run on the same machine:
-```bash
-npm run build
-npm start
-```
-
-### Environment variables
-
-Only one, already set in `.env` (created for you, not committed):
-```
-DATABASE_URL="file:../data/app.db"
-```
-
-### Resetting all data
+Requirements: Node 20 or newer. Everything else comes from `npm ci`.
 
 ```bash
-rm -rf data/app.db data/uploads
-npx prisma migrate dev
+git clone <this repo> && cd <repo>
+npm ci                      # installs the EXACT versions in package-lock.json (Prisma 6, Next 16.2)
+cp .env.example .env        # DATABASE_URL="file:../data/app.db"  → the database lives at ./data/app.db
+npm run db:sync             # creates data/app.db (or upgrades an existing one) — never drops anything
+npm run dev                 # http://localhost:3000
 ```
+
+> Use `npm ci`, not `npm install`, and do **not** upgrade Prisma or Next on
+> your own. The code is written for Prisma 6 (`lib/db.ts` is a plain
+> `new PrismaClient()`); a Prisma 7 install needs a different `db.ts`, a
+> `prisma.config.ts`, and an adapter package, and will not match this repo.
+
+### Running it with your own existing database
+
+Your real data is a single SQLite file. To run this version on it:
+
+1. **Back it up first.** Copy the original `app.db` somewhere safe and never
+   point the app at the only copy.
+2. Put a copy at `./data/app.db` inside the repo (create the `data` folder if
+   it is missing — it is gitignored).
+3. Make sure `.env` says `DATABASE_URL="file:../data/app.db"` (that path is
+   relative to the `prisma/` folder, which is why it starts with `../`).
+4. Run `npm run db:sync`. It adds the new columns and tables this version
+   needs, keeps every column that already exists, and records the migrations.
+5. `npm run dev`.
+
+**Never run `prisma db push` against a database that has data.** It compares
+the live database with the schema and *drops* any column the schema does not
+list — that is exactly how a copied production database lost its
+colour/transmission values once. `db:sync` and `prisma migrate deploy` only
+ever add.
+
+If a `db:sync` ever reports a problem, run `npx prisma migrate status` and
+send the output; nothing has been changed at that point.
 
 ## Running it on your iPhone (for real-world UAT)
 

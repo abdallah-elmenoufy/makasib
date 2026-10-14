@@ -143,7 +143,7 @@ function TripsInner() {
   if (!vehicle) {
     return (
       <Empty>
-        <Link href="/cars" className="text-ink underline">
+        <Link href="/cars" className="text-action underline">
           {t("veh.createFirst")}
         </Link>
       </Empty>
@@ -208,7 +208,7 @@ function TripsInner() {
       {focusShiftId && (
         <div className="mb-3 flex items-center gap-2 text-sm">
           <span className="text-muted">{t("tr.filteredByShift")}</span>
-          <Link href="/trips" className="text-ink underline font-semibold">
+          <Link href="/trips" className="text-action underline font-semibold">
             {t("tr.clearFilter")}
           </Link>
         </div>

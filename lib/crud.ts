@@ -23,6 +23,8 @@ export const ENTITIES: Record<string, EntityConfig> = {
       carModelId: "string",
       year: "int",
       plate: "string",
+      color: "string",
+      transmission: "string",
       fuelSetup: "string",
       ownership: "string",
       purchasePrice: "number",

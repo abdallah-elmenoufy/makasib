@@ -116,7 +116,7 @@ export default function FuelPage() {
   if (!vehicle) {
     return (
       <Empty>
-        <Link href="/cars" className="text-ink underline">
+        <Link href="/cars" className="text-action underline">
           {t("veh.createFirst")}
         </Link>
       </Empty>
@@ -445,7 +445,7 @@ function FuelShockCard({
               onClick={() => setPrice(Math.round((latestPrice + step) * 100) / 100)}
               className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors ${
                 Math.abs(price - (latestPrice + step)) < 0.001
-                  ? "bg-ink border-line text-background"
+                  ? "bg-action border-action text-action-fg"
                   : "bg-paper border-[var(--border)] text-ink-500 hover:bg-surface"
               }`}
             >

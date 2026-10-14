@@ -162,18 +162,18 @@ export function TripBatchEntry({
   return (
     <div>
       {existingCount > 0 && (
-        <p className="text-xs text-muted mb-3 bg-surface rounded-lg px-3 py-2">{t("be.alreadyLogged", { n: existingCount })}</p>
+        <p className="text-xs text-muted mb-3 bg-paper rounded-lg px-3 py-2">{t("be.alreadyLogged", { n: existingCount })}</p>
       )}
       <div className="space-y-3">
         {rows.map((r, i) => (
-          <div key={r.id} className="rounded-2xl bg-surface p-3 animate-pop-in">
+          <div key={r.id} className="rounded-2xl bg-paper border border-line p-3 animate-pop-in">
             <div className="flex items-center gap-2 mb-2 flex-wrap">
-              <span className="w-7 h-7 rounded-full bg-ink text-background text-xs font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+              <span className="w-7 h-7 rounded-full bg-action text-action-fg text-xs font-bold flex items-center justify-center shrink-0">{i + 1}</span>
               <input
                 type="time"
                 value={r.time}
                 onChange={(e) => set(r.id, { time: e.target.value })}
-                className="h-9 rounded-lg bg-paper px-2 text-sm font-bold tnum border border-transparent focus:border-ink focus:outline-none"
+                className="h-9 rounded-lg bg-sheet px-2 text-sm font-bold tnum border border-transparent focus:border-action focus:outline-none"
               />
               <Segmented
                 size="sm"
@@ -187,7 +187,7 @@ export function TripBatchEntry({
               <select
                 value={r.platform}
                 onChange={(e) => set(r.id, { platform: e.target.value })}
-                className="h-9 rounded-lg bg-paper px-2 text-xs font-bold border border-transparent focus:border-ink focus:outline-none ms-auto max-w-[6.5rem]"
+                className="h-9 rounded-lg bg-sheet px-2 text-xs font-bold border border-transparent focus:border-action focus:outline-none ms-auto max-w-[6.5rem]"
               >
                 {PLATFORMS.map((p) => (
                   <option key={p} value={p}>
@@ -196,7 +196,7 @@ export function TripBatchEntry({
                 ))}
               </select>
               {rows.length > 1 && (
-                <button type="button" onClick={() => removeRow(r.id)} className="w-9 h-9 rounded-full flex items-center justify-center text-muted hover:text-loss hover:bg-paper" aria-label={t("c.delete")}>
+                <button type="button" onClick={() => removeRow(r.id)} className="w-9 h-9 rounded-full flex items-center justify-center text-muted hover:text-loss hover:bg-sheet" aria-label={t("c.delete")}>
                   <Icon name="close" size={16} />
                 </button>
               )}
@@ -220,7 +220,7 @@ export function TripBatchEntry({
         ))}
       </div>
 
-      <button type="button" onClick={add} className="mt-3 w-full h-12 rounded-2xl border-2 border-dashed border-line-strong text-sm font-bold text-ink-500 hover:bg-surface flex items-center justify-center gap-2">
+      <button type="button" onClick={add} className="mt-3 w-full h-12 rounded-2xl border-2 border-dashed border-action/40 text-sm font-bold text-action hover:bg-action-soft flex items-center justify-center gap-2">
         <Icon name="plus" size={18} strokeWidth={2.25} /> {t("be.addAnother")}
       </button>
 
@@ -275,7 +275,7 @@ function Num({
         autoFocus={autoFocus}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className={`w-full rounded-xl bg-paper border border-transparent focus:border-ink focus:outline-none px-3 tnum ${big ? "h-14 text-2xl font-bold" : "h-11 text-[15px] font-semibold"}`}
+        className={`w-full rounded-xl bg-sheet border border-line focus:border-action focus:outline-none px-3 tnum ${big ? "h-14 text-2xl font-bold" : "h-11 text-[15px] font-semibold"}`}
       />
     </label>
   );

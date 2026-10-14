@@ -146,7 +146,7 @@ export default function ShiftsPage() {
   if (!vehicle) {
     return (
       <Empty>
-        <Link href="/cars" className="text-ink underline">
+        <Link href="/cars" className="text-action underline">
           {t("veh.createFirst")}
         </Link>
       </Empty>
@@ -254,7 +254,7 @@ export default function ShiftsPage() {
                                   ts.count > 0 ? (
                                     <button
                                       onClick={() => router.push(`/trips?shiftId=${s.id}`)}
-                                      className="text-ink underline underline-offset-2 font-bold"
+                                      className="text-action underline underline-offset-2 font-bold"
                                       title={t("sh.viewTrips")}
                                     >
                                       {ts.count}
@@ -458,10 +458,10 @@ function ActiveShiftCard({
         </span>
       </div>
       <div className="grid grid-cols-2 gap-2 mt-4">
-        <Link href="/trips?add=1" className="h-12 rounded-xl bg-hero-fg/10 hover:bg-hero-fg/15 text-hero-fg font-bold text-sm flex items-center justify-center gap-2">
+        <Link href="/trips?add=1" className="h-12 rounded-xl bg-surface-2 hover:bg-line text-ink font-bold text-sm flex items-center justify-center gap-2">
           <Icon name="plus" size={18} strokeWidth={2.25} /> {t("tr.add")}
         </Link>
-        <button onClick={onEndClick} className="h-12 rounded-xl bg-hero-fg text-hero font-bold text-sm flex items-center justify-center gap-2 hover:opacity-90">
+        <button onClick={onEndClick} className="h-12 rounded-xl bg-action text-action-fg font-bold text-sm flex items-center justify-center gap-2 hover:bg-action-700">
           <Icon name="stop" size={18} /> {t("sh.end")}
         </button>
       </div>

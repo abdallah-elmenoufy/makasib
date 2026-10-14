@@ -92,7 +92,7 @@ export function EndShiftFlow({
           const active = step === n;
           return (
             <div key={label} className="flex items-center gap-2 flex-1 min-w-0">
-              <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${active ? "bg-ink text-background" : done ? "bg-money text-background" : "bg-surface-2 text-muted"}`}>
+              <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${active ? "bg-action text-action-fg" : done ? "bg-money text-background" : "bg-surface-2 text-muted"}`}>
                 {done ? <Icon name="check" size={14} strokeWidth={2.5} /> : n}
               </span>
               <span className={`text-xs font-bold truncate ${active ? "text-ink" : "text-muted"}`}>{label}</span>
@@ -221,7 +221,7 @@ export function EndShiftFlow({
 
 function Recap({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-2xl bg-surface p-3.5">
+    <div className="rounded-2xl bg-paper p-3.5">
       <div className="text-[11px] font-bold uppercase tracking-wide text-muted">{label}</div>
       <div className="text-xl font-bold display mt-0.5">{value}</div>
       {sub && <div className="text-xs text-muted mt-0.5">{sub}</div>}

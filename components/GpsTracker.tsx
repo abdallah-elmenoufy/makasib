@@ -87,7 +87,7 @@ export function GpsTracker({ shiftId, initialKm }: { shiftId: string; initialKm:
         onClick={on ? stop : start}
         className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
           on
-            ? "bg-ink text-background border-line"
+            ? "bg-action text-action-fg border-line"
             : "bg-paper text-ink-500 border-line hover:bg-surface"
         }`}
       >

@@ -46,6 +46,9 @@ model Vehicle {
   model              String?
   year               Int?
   plate              String?
+  // free-text car specs (kept optional so an older database loses nothing)
+  color              String?
+  transmission       String? // AUTOMATIC | MANUAL | CVT …
   carModelId         String?
   carModel           CarModel? @relation(fields: [carModelId], references: [id], onDelete: SetNull)
   // PETROL | CNG | DUAL — DUAL unlocks per-fuel tracking (common in Egypt)

@@ -8,7 +8,8 @@
     "start": "next start",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p .",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "db:sync": "node scripts/db-sync.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

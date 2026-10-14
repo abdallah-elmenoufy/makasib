@@ -84,7 +84,7 @@ function WeekdayHeatGrid({ cells, locale, t }: { cells: any[]; locale: string; t
       </div>
       {tip && (
         <div
-          className="absolute -translate-x-1/2 -translate-y-full bg-paper border border-line shadow-md rounded-lg px-2.5 py-1.5 text-xs pointer-events-none z-10 whitespace-nowrap"
+          className="absolute -translate-x-1/2 -translate-y-full bg-sheet border border-line shadow-md rounded-lg px-2.5 py-1.5 text-xs pointer-events-none z-10 whitespace-nowrap"
           style={{ left: tip.x, top: tip.y - 4 }}
         >
           <div className="text-muted">
@@ -129,7 +129,7 @@ export default function PlanPage() {
   if (!vehicle) {
     return (
       <Empty>
-        <Link href="/cars" className="text-ink underline">
+        <Link href="/cars" className="text-action underline">
           {t("veh.createFirst")}
         </Link>
       </Empty>

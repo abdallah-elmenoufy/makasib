@@ -37,7 +37,7 @@ function ImportInner() {
   if (!vehicle) {
     return (
       <Empty>
-        <Link href="/cars" className="text-ink underline">
+        <Link href="/cars" className="text-action underline">
           {t("veh.createFirst")}
         </Link>
       </Empty>
@@ -61,7 +61,7 @@ function ImportInner() {
             key={x.id}
             onClick={() => setTab(x.id)}
             className={`px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
-              tab === x.id ? "bg-ink text-background" : "text-muted hover:bg-surface-2"
+              tab === x.id ? "bg-action text-action-fg" : "text-muted hover:bg-surface-2"
             }`}
           >
             {x.label}

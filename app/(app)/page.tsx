@@ -105,7 +105,7 @@ export default function DashboardPage() {
   if (!vehicle) {
     return (
       <Empty>
-        <Link href="/cars" className="text-ink underline font-bold">
+        <Link href="/cars" className="text-action underline font-bold">
           {t("db.noVehicle")}
         </Link>
       </Empty>
@@ -235,7 +235,7 @@ export default function DashboardPage() {
               <span className="tnum">{fmtCountdown(weeks.msUntilClose, t)}</span>
             </div>
             <div className="h-1.5 rounded-full bg-hero-fg/15 overflow-hidden">
-              <div className="h-full bg-paper rounded-full" style={{ width: `${Math.round(cur.progress * 100)}%` }} />
+              <div className="h-full bg-action rounded-full" style={{ width: `${Math.round(cur.progress * 100)}%` }} />
             </div>
             {weeks.projection && (
               <div className="text-xs text-hero-fg/70 mt-2">
@@ -564,7 +564,7 @@ function WhereNowCard({ hint, t, locale }: { hint: any; t: (k: string, v?: Recor
             <div className="rows">
               {hint.zones.map((z: any, i: number) => (
                 <div key={z.key} className="flex items-center gap-3 py-2.5">
-                  <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${i === 0 ? "bg-ink text-background" : "bg-surface-2 text-muted"}`}>{i + 1}</span>
+                  <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${i === 0 ? "bg-action text-action-fg" : "bg-surface-2 text-muted"}`}>{i + 1}</span>
                   <span className="flex-1 min-w-0">
                     <span className="block text-sm font-bold truncate">{z.label}</span>
                     <span className="block text-xs text-muted">{t("pl.tripsN", { n: z.trips })}</span>
@@ -592,11 +592,13 @@ function QuickAction({ href, icon, label, tone = "ink" }: { href: string; icon: 
   return (
     <Link
       href={href}
-      className={`flex flex-col md:flex-row items-center justify-center gap-1.5 md:gap-2 rounded-2xl px-2 py-3 md:py-4 text-[13px] md:text-sm font-bold transition-colors active:scale-[0.98] ${
-        tone === "warn" ? "bg-warn text-ink hover:brightness-95" : "bg-surface text-ink hover:bg-surface-2"
+      className={`flex flex-col md:flex-row items-center justify-center gap-1.5 md:gap-2 rounded-2xl px-2 py-3 md:py-3.5 text-[13px] md:text-sm font-bold transition-colors active:scale-[0.98] border ${
+        tone === "warn" ? "bg-warn border-warn text-ink hover:brightness-95" : "bg-sheet border-line text-ink hover:border-action"
       }`}
     >
-      <Icon name={icon} size={22} strokeWidth={2} />
+      <span className={`w-9 h-9 rounded-full flex items-center justify-center ${tone === "warn" ? "bg-ink/10" : "bg-action-soft text-action"}`}>
+        <Icon name={icon} size={20} strokeWidth={2.2} />
+      </span>
       <span className="truncate max-w-full">{label}</span>
     </Link>
   );
@@ -755,7 +757,7 @@ function StreakCard({
           <button
             onClick={save}
             disabled={saving}
-            className="rounded-lg font-semibold bg-ink hover:bg-ink-700 text-background px-4 py-2 text-sm disabled:opacity-50"
+            className="rounded-lg font-semibold bg-action hover:bg-action-700 text-action-fg px-4 py-2 text-sm disabled:opacity-50"
           >
             {t("c.save")}
           </button>
@@ -1144,7 +1146,7 @@ function ProfitBars({ data, locale }: { data: { date: string; profit: number; gr
       </svg>
       {tip && (
         <div
-          className="absolute top-0 -translate-x-1/2 bg-paper border border-line shadow-md rounded-lg px-2.5 py-1.5 text-xs pointer-events-none z-10"
+          className="absolute top-0 -translate-x-1/2 bg-sheet border border-line shadow-md rounded-lg px-2.5 py-1.5 text-xs pointer-events-none z-10"
           style={{ left: `${tip.x}%` }}
         >
           <div className="text-muted" style={{ fontVariantNumeric: "tabular-nums" }}>

@@ -152,7 +152,7 @@ export default function SettingsPage() {
             href="/manual-ar.html"
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-lg font-semibold transition-colors bg-ink hover:bg-ink-700 text-background px-4 py-2 text-sm"
+            className="rounded-lg font-semibold transition-colors bg-action hover:bg-action-700 text-action-fg px-4 py-2 text-sm"
           >
             📖 {t("st.manualOpen")}
           </a>
@@ -160,7 +160,7 @@ export default function SettingsPage() {
             href="/flyer.html"
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-lg font-semibold transition-colors bg-paper hover:bg-line text-ink-700 border border-line px-4 py-2 text-sm"
+            className="rounded-lg font-semibold transition-colors bg-sheet hover:bg-line text-ink-700 border border-line px-4 py-2 text-sm"
           >
             📣 {t("st.flyerOpen")}
           </a>

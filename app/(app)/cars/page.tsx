@@ -129,7 +129,7 @@ export default function CarsPage() {
                     ) : v.isActive ? (
                       <button
                         onClick={() => setDefaultVehicle(v.id)}
-                        className="text-xs text-ink underline"
+                        className="text-xs text-action underline"
                       >
                         {t("cars.setDefault")}
                       </button>
@@ -323,6 +323,17 @@ function CarForm({
         )}
         <Field label={t("veh.year")}>
           <Input type="number" value={form.year ?? ""} onChange={(e) => set("year", e.target.value)} />
+        </Field>
+        <Field label={t("veh.color")}>
+          <Input value={form.color ?? ""} onChange={(e) => set("color", e.target.value)} />
+        </Field>
+        <Field label={t("veh.transmission")}>
+          <Select value={form.transmission ?? ""} onChange={(e) => set("transmission", e.target.value)}>
+            <option value="">{t("c.optional")}</option>
+            <option value="AUTOMATIC">{t("veh.trans.AUTOMATIC")}</option>
+            <option value="MANUAL">{t("veh.trans.MANUAL")}</option>
+            <option value="CVT">{t("veh.trans.CVT")}</option>
+          </Select>
         </Field>
         <Field label={t("veh.initialOdometer")}>
           <Input

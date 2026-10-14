@@ -12,13 +12,14 @@
 :root {
   color-scheme: light;
 
-  --background: #ffffff;
+  /* a soft grey page so white cards and green buttons read as objects you can tap */
+  --background: #f4f4f2;
   --foreground: #000000;
 
   /* greys (Uber Base scale) */
-  --surface: #f6f6f6;
-  --surface-2: #eeeeee;
-  --line: #e2e2e2;
+  --surface: #ffffff;
+  --surface-2: #efefed;
+  --line: #e4e4e1;
   --line-strong: #cbcbcb;
   --ink: #000000;
   --ink-700: #333333;
@@ -37,10 +38,17 @@
   --info: #276ef1;
   --info-soft: #eff3fe;
 
-  /* white card / sheet surface, and the black "hero" card with its text */
-  --paper: #ffffff;
-  --hero: #000000;
-  --hero-fg: #ffffff;
+  /* inset blocks inside a card; sheets/nav; the dashboard hero card */
+  --paper: #f4f4f2;
+  --sheet: #ffffff;
+  --hero: #ffffff;
+  --hero-fg: #000000;
+
+  /* the one colour that means "tap me": green, never black */
+  --action: #0a8a4a;
+  --action-700: #086f3c;
+  --action-fg: #ffffff;
+  --action-soft: #e3f4ea;
 
   /* legacy aliases still referenced by a few components */
   --border: var(--line);
@@ -70,9 +78,9 @@
     color-scheme: dark;
     --background: #000000;
     --foreground: #ffffff;
-    --surface: #1a1a1a;
-    --surface-2: #2a2a2a;
-    --line: #333333;
+    --surface: #161616;
+    --surface-2: #262626;
+    --line: #2e2e2e;
     --line-strong: #4a4a4a;
     --ink: #ffffff;
     --ink-700: #e2e2e2;
@@ -88,9 +96,14 @@
     --warn-soft: #3a2e10;
     --info: #5a8ff5;
     --info-soft: #16233f;
-    --paper: #121212;
+    --paper: #1f1f1f;
+    --sheet: #141414;
     --hero: #161616;
     --hero-fg: #ffffff;
+    --action: #1fcf7a;
+    --action-700: #19b86b;
+    --action-fg: #06241a;
+    --action-soft: #0d2b1c;
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.6);
     --shadow-md: 0 4px 16px -4px rgba(0, 0, 0, 0.7);
     --shadow-lg: 0 16px 48px -12px rgba(0, 0, 0, 0.9);
@@ -100,9 +113,9 @@
   color-scheme: dark;
   --background: #000000;
   --foreground: #ffffff;
-  --surface: #1a1a1a;
-  --surface-2: #2a2a2a;
-  --line: #333333;
+  --surface: #161616;
+  --surface-2: #262626;
+  --line: #2e2e2e;
   --line-strong: #4a4a4a;
   --ink: #ffffff;
   --ink-700: #e2e2e2;
@@ -118,9 +131,14 @@
   --warn-soft: #3a2e10;
   --info: #5a8ff5;
   --info-soft: #16233f;
-  --paper: #121212;
+  --paper: #1f1f1f;
+  --sheet: #141414;
   --hero: #161616;
   --hero-fg: #ffffff;
+  --action: #1fcf7a;
+  --action-700: #19b86b;
+  --action-fg: #06241a;
+  --action-soft: #0d2b1c;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.6);
   --shadow-md: 0 4px 16px -4px rgba(0, 0, 0, 0.7);
   --shadow-lg: 0 16px 48px -12px rgba(0, 0, 0, 0.9);
@@ -148,6 +166,11 @@
   --color-info: var(--info);
   --color-info-soft: var(--info-soft);
   --color-paper: var(--paper);
+  --color-sheet: var(--sheet);
+  --color-action: var(--action);
+  --color-action-700: var(--action-700);
+  --color-action-fg: var(--action-fg);
+  --color-action-soft: var(--action-soft);
   --color-hero: var(--hero);
   --color-hero-fg: var(--hero-fg);
   --font-sans: "Uber Move Text", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto,

@@ -27,7 +27,7 @@ const emptyForm = (): OfferForm => ({
 });
 
 const VERDICT_BG: Record<string, string> = {
-  good: "bg-ink",
+  good: "bg-action",
   ok: "bg-warn-soft0",
   bad: "bg-loss",
   unknown: "bg-muted-2",
@@ -109,7 +109,7 @@ export default function ScorePage() {
   if (!vehicle) {
     return (
       <Empty>
-        <Link href="/cars" className="text-ink underline">
+        <Link href="/cars" className="text-action underline">
           {t("veh.createFirst")}
         </Link>
       </Empty>

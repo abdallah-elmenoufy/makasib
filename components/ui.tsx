@@ -20,8 +20,8 @@ export function Card({
   tone?: "tile" | "outline" | "ink" | "money" | "loss" | "warn";
 }) {
   const tones = {
-    tile: "bg-surface",
-    outline: "bg-paper border border-line",
+    tile: "bg-surface border border-line",
+    outline: "bg-sheet border border-line",
     ink: "bg-hero text-hero-fg ring-1 ring-hero-fg/10",
     money: "bg-money-soft",
     loss: "bg-loss-soft",
@@ -99,12 +99,12 @@ export function Btn({
 }) {
   const sizes = size === "sm" ? "px-3 h-9 text-[13px]" : "px-4 h-12 text-sm";
   const styles = {
-    primary: `bg-ink hover:bg-ink-700 active:bg-ink-500 text-background ${sizes}`,
+    primary: `bg-action hover:bg-action-700 active:bg-action-700 text-action-fg ${sizes}`,
     secondary: `bg-surface-2 hover:bg-line active:bg-line-strong text-ink ${sizes}`,
-    danger: `bg-paper hover:bg-loss-soft text-loss border border-line ${sizes}`,
+    danger: `bg-sheet hover:bg-loss-soft text-loss border border-line ${sizes}`,
     ghost: `bg-transparent hover:bg-surface-2 text-ink-500 ${sizes}`,
     money: `bg-money hover:brightness-95 text-white ${sizes}`,
-    big: "bg-ink hover:bg-ink-700 active:bg-ink-500 text-background px-6 h-14 text-base w-full",
+    big: "bg-action hover:bg-action-700 active:bg-action-700 text-action-fg px-6 h-14 text-base w-full",
   }[variant];
   return (
     <button
@@ -131,7 +131,7 @@ export function Field({ label, hint, children, className = "" }: { label: string
 
 const inputCls =
   "w-full rounded-xl bg-surface-2 border border-transparent px-3.5 h-12 text-[15px] text-ink placeholder:text-muted-2 " +
-  "focus:outline-none focus:bg-paper focus:border-ink focus:ring-2 focus:ring-ink/10 transition-colors";
+  "focus:outline-none focus:bg-sheet focus:border-action focus:ring-2 focus:ring-action/15 transition-colors";
 
 export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={`${inputCls} ${props.className ?? ""}`} />;
@@ -182,7 +182,7 @@ export function Toggle({
         aria-checked={checked}
         disabled={disabled}
         onClick={() => onChange(!checked)}
-        className={`relative shrink-0 w-[52px] h-8 rounded-full transition-colors ${checked ? "bg-money" : "bg-line-strong"}`}
+        className={`relative shrink-0 w-[52px] h-8 rounded-full transition-colors ${checked ? "bg-action" : "bg-line-strong"}`}
       >
         <span
           className="absolute top-1 w-6 h-6 rounded-full bg-[#fff] shadow transition-all"
@@ -218,7 +218,7 @@ export function Segmented<T extends string>({
           type="button"
           onClick={() => onChange(o.value)}
           className={`${size === "sm" ? "px-3 h-8 text-xs" : "px-4 h-9 text-sm"} ${fill ? "flex-1 px-1" : ""} rounded-full font-bold whitespace-nowrap transition-colors ${
-            value === o.value ? "bg-ink text-background" : "text-ink-500 hover:bg-paper"
+            value === o.value ? "bg-sheet text-ink shadow-sm" : "text-ink-500 hover:text-ink"
           }`}
         >
           {o.label}
@@ -242,8 +242,8 @@ export function Badge({
     good: "bg-money-soft text-money",
     warn: "bg-warn-soft text-warn-ink",
     bad: "bg-loss-soft text-loss",
-    brand: "bg-ink text-background",
-    ink: "bg-ink text-background",
+    brand: "bg-action text-action-fg",
+    ink: "bg-action text-action-fg",
   }[tone];
   return (
     <span title={title} className={`inline-flex items-center gap-1 text-xs font-bold rounded-full px-2.5 py-1 ${tones}`}>
@@ -367,7 +367,7 @@ export function ListRow({
   const body = (
     <>
       {(icon || emoji) && (
-        <span className="w-10 h-10 rounded-full bg-surface-2 flex items-center justify-center shrink-0 text-ink">
+        <span className="w-10 h-10 rounded-full bg-action-soft flex items-center justify-center shrink-0 text-action">
           {icon ? <Icon name={icon} size={20} /> : <span className="text-lg leading-none">{emoji}</span>}
         </span>
       )}
@@ -490,7 +490,7 @@ export function Modal({
       <div
         role="dialog"
         aria-modal="true"
-        className={`relative bg-paper text-ink w-full ${wide ? "md:max-w-3xl" : "md:max-w-xl"} max-h-[94vh] flex flex-col
+        className={`relative bg-sheet text-ink w-full ${wide ? "md:max-w-3xl" : "md:max-w-xl"} max-h-[94vh] flex flex-col
                     rounded-t-3xl md:rounded-2xl shadow-[var(--shadow-lg)] animate-sheet-in`}
       >
         <div className="md:hidden flex justify-center pt-2.5">
@@ -501,7 +501,7 @@ export function Modal({
           <IconButton name="close" onClick={onClose} label="Close" />
         </div>
         <div className="px-4 md:px-5 pb-4 md:pb-5 overflow-y-auto flex-1 safe-bottom">{children}</div>
-        {footer && <div className="px-4 md:px-5 py-3 border-t border-line bg-paper rounded-b-2xl safe-bottom">{footer}</div>}
+        {footer && <div className="px-4 md:px-5 py-3 border-t border-line bg-sheet rounded-b-2xl safe-bottom">{footer}</div>}
       </div>
     </div>
   );
@@ -549,7 +549,7 @@ export function RecordCard({
   className?: string;
 }) {
   const tones = {
-    plain: "bg-paper border-line",
+    plain: "bg-sheet border-line",
     warn: "bg-warn-soft border-warn/60",
   }[tone];
   return <div className={`rounded-xl border ${tones} px-3.5 py-3 ${className}`}>{children}</div>;
@@ -626,7 +626,7 @@ const METER_TONES = {
   good: "var(--money)",
   warn: "var(--warn)",
   bad: "var(--loss)",
-  brand: "var(--ink)",
+  brand: "var(--action)",
   neutral: "var(--muted-2)",
 } as const;
 
@@ -819,7 +819,7 @@ export function EditableNum({
       onChange={(e) => setDraft(e.target.value)}
       onBlur={commit}
       onKeyDown={(e) => e.key === "Enter" && commit()}
-      className="w-20 rounded-lg border border-ink px-1.5 h-8 text-sm bg-paper"
+      className="w-20 rounded-lg border border-action px-1.5 h-8 text-sm bg-sheet"
     />
   );
 }

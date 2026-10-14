@@ -136,6 +136,18 @@ session — enforced by `requireAuth()` from `lib/auth.ts`, which throws a
 | `POST /api/track` | Appends a batch of GPS points to a shift's track, recomputes `gpsKm` |
 | `GET/POST /api/settings` | Locale, photo retention days, `geocodeEnabled`, default vehicle (commission % is legacy — see §7) |
 
+### Upgrading a database: `npm run db:sync` (`scripts/db-sync.mjs`)
+
+Added 2026-10-14 after a copied production database lost two hand-added
+columns to `prisma db push`. The script reads every migration folder, checks
+which of its statements are already true in the live SQLite file (table /
+column / index exists), applies only the missing statements, marks the
+migration applied with `prisma migrate resolve`, then runs `prisma migrate
+deploy` and `prisma generate`. It never drops anything and leaves unknown
+extra columns alone. `Vehicle.color` and `Vehicle.transmission` were added to
+the schema as optional columns the same day so the Mac database's values are
+carried, not dropped. Rule: **`db push` is for throwaway databases only.**
+
 ### The generic CRUD system (`lib/crud.ts`)
 
 Rather than hand-writing eight near-identical CRUD route files, one dynamic
