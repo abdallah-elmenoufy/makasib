@@ -4,7 +4,7 @@ import { useI18n } from "./I18nProvider";
 import { Btn, Segmented } from "./ui";
 import { Icon } from "./icons";
 import { PLATFORMS } from "@/lib/tripForm";
-import { fmtMoney } from "@/lib/format";
+import { fmtInt, fmtMoney, sep } from "@/lib/format";
 
 /**
  * Logging a whole shift's trips in one go, for a driver who is parked, tired,
@@ -168,7 +168,7 @@ export function TripBatchEntry({
         {rows.map((r, i) => (
           <div key={r.id} className="rounded-2xl bg-paper border border-line p-3 animate-pop-in">
             <div className="flex items-center gap-2 mb-2 flex-wrap">
-              <span className="w-7 h-7 rounded-full bg-action text-action-fg text-xs font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+              <span className="w-7 h-7 rounded-full bg-action text-action-fg text-xs font-bold flex items-center justify-center shrink-0 tnum">{fmtInt(i + 1, locale)}</span>
               <input
                 type="time"
                 value={r.time}
@@ -227,7 +227,7 @@ export function TripBatchEntry({
       <div className="flex items-center gap-3 mt-4 flex-wrap">
         <Btn onClick={save} disabled={saving || valid.length === 0} className="flex-1 min-w-[12rem]">
           {saving ? "…" : saveLabel ?? t("be.saveN", { n: valid.length })}
-          {valid.length > 0 && <span className="opacity-70 font-semibold">· {fmtMoney(total, locale)}</span>}
+          {valid.length > 0 && <span className="opacity-70 font-semibold">{sep(locale)}{fmtMoney(total, locale)}</span>}
         </Btn>
         {onCancel && (
           <Btn variant="ghost" onClick={onCancel}>

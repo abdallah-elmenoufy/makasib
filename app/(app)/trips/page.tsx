@@ -11,7 +11,7 @@ import { useVehicle } from "@/components/VehicleProvider";
 import { RowEditor, type EditField } from "@/components/RowEditor";
 import { LoggingContext } from "@/components/LoggingContext";
 import { QuickAddTrip } from "@/components/QuickAddTrip";
-import { fmtDateTime, fmtMoney, fmtNum, hoursBetween, toLocalInput } from "@/lib/format";
+import { fmtDateTime, fmtMoney, fmtNum, hoursBetween, toLocalInput, sep } from "@/lib/format";
 
 const PLATFORMS = ["UBER", "CAREEM", "INDRIVE", "BOLT", "OTHER"];
 
@@ -294,7 +294,7 @@ function TripsInner() {
                     onToggle={() => toggle(g.key)}
                     tone={g.key === "__none__" ? "warn" : "plain"}
                     title={label}
-                    meta={`${sub ? sub + " · " : ""}${t("tr.tripCount", { n: g.trips.length })}`}
+                    meta={`${sub ? sub + sep(locale) : ""}${t("tr.tripCount", { n: g.trips.length })}`}
                     right={<span className="text-xs font-bold tnum text-money">{fmtMoney(revenue, locale)}</span>}
                   />
                   {isOpen && (
@@ -367,7 +367,7 @@ function TripsInner() {
                           {(tr.notes || tr.source) && (
                             <div className="flex items-center gap-2 mt-2.5 pt-2 border-t border-line text-xs text-muted">
                               {tr.source && <span className="shrink-0">{tr.source}</span>}
-                              {tr.notes && <span className="truncate">· {tr.notes}</span>}
+                              {tr.notes && <span className="truncate">{sep(locale)}{tr.notes}</span>}
                             </div>
                           )}
                         </RecordCard>

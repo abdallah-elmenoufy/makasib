@@ -1,33 +1,26 @@
 "use client";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useI18n } from "@/components/I18nProvider";
-import { Badge, Btn, Card, CardHead, Delta, Empty, Hero, ListRow, PageTitle, Segmented, StackedMeter, Table, Tile } from "@/components/ui";
+import { Badge, Btn, Card, CardHead, Delta, Empty, Hero, IconButton, Modal, PageTitle, Segmented, Select, StackedMeter, Table, Tile } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { useVehicle } from "@/components/VehicleProvider";
-import { fmtDate, fmtDateTime, fmtMoney, fmtNum } from "@/lib/format";
-
-// validated reference palette (light): series + sequential ramp
-const C = {
-  s1: "#2a78d6",
-  s2: "#eb6834",
-  s4: "#eda100",
-  neutral: "var(--muted-2)",
-  neg: "#e34948",
-  ink: "var(--action)",
-  grid: "var(--line)",
-  muted: "var(--muted)",
-};
-const RAMP = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#1c5cab", "#0d366b"];
+import { BarChart, CHART, HBars, HeatStrip } from "@/components/charts";
+import { fmtDate, fmtDateTime, fmtHourRange, fmtInt, fmtMoney, fmtNum, localizeDigits, sep } from "@/lib/format";
+import { weekKey, weekStartFor } from "@/lib/week";
 
 type T = (k: string, vars?: Record<string, string | number>) => string;
 
-function fmtDuration(min: number, t: T): string {
+/** How many weeks the page can load at once; 104 = the two years the API serves. */
+const SPANS = [12, 26, 52, 104] as const;
+type Span = (typeof SPANS)[number];
+
+function fmtDuration(min: number, t: T, locale: string): string {
   const h = Math.floor(min / 60);
   const m = Math.round(min % 60);
-  if (h <= 0) return `${m}${t("c.minShort")}`;
-  return `${h}${t("c.hours")} ${String(m).padStart(2, "0")}${t("c.minShort")}`;
+  if (h <= 0) return `${fmtInt(m, locale)}${t("c.minShort")}`;
+  return `${fmtInt(h, locale)}${t("c.hours")} ${localizeDigits(String(m).padStart(2, "0"), locale)}${t("c.minShort")}`;
 }
 
 function dayName(index: number, locale: string, style: "short" | "long" = "short"): string {
@@ -36,10 +29,33 @@ function dayName(index: number, locale: string, style: "short" | "long" = "short
   return new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { weekday: style }).format(d);
 }
 
+const intlLocale = (locale: string) => (locale === "ar" ? "ar-EG" : "en-GB");
+
 function weekLabel(w: any, locale: string): string {
   const end = new Date(new Date(w.end).getTime() - 1);
   return `${fmtDate(w.start, locale)} – ${fmtDate(end, locale)}`;
 }
+
+/** "5 – 12 Oct" or "28 Sep – 5 Oct" (Monday to Monday, like Uber's statement) — the compact form. */
+function shortRange(w: any, locale: string): string {
+  const s = new Date(w.start);
+  const e = new Date(new Date(w.end).getTime() - 1);
+  const dm = new Intl.DateTimeFormat(intlLocale(locale), { day: "numeric", month: "short" });
+  const d = new Intl.DateTimeFormat(intlLocale(locale), { day: "numeric" });
+  return s.getMonth() === e.getMonth() ? `${d.format(s)} – ${dm.format(e)}` : `${dm.format(s)} – ${dm.format(e)}`;
+}
+
+function monthKeyOf(w: any): string {
+  const s = new Date(w.start);
+  return `${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function monthLabel(key: string, locale: string): string {
+  const [y, m] = key.split("-").map(Number);
+  return new Intl.DateTimeFormat(intlLocale(locale), { month: "long", year: "numeric" }).format(new Date(y, m - 1, 1));
+}
+
+const hasData = (w: any) => w.counts.trips > 0 || w.counts.shifts > 0;
 
 export default function WeeksPage() {
   return (
@@ -55,10 +71,11 @@ function WeeksInner() {
   const params = useSearchParams();
   const router = useRouter();
   const [report, setReport] = useState<any>(null);
-  const [span, setSpan] = useState<12 | 26 | 52>(12);
+  const [span, setSpan] = useState<Span>(12);
   const [metric, setMetric] = useState<"profit" | "net" | "hours" | "perHour">("profit");
   const [zoneScope, setZoneScope] = useState<"week" | "all">("week");
   const [copied, setCopied] = useState(false);
+  const [picker, setPicker] = useState(false);
 
   useEffect(() => {
     if (!vehicle) return;
@@ -72,6 +89,17 @@ function WeeksInner() {
     if (!report) return null;
     return report.weeks.find((w: any) => w.key === selectedKey) ?? report.current;
   }, [report, selectedKey]);
+
+  // a deep link to a week older than what is loaded → load more, up to the cap
+  useEffect(() => {
+    if (!report || !selectedKey) return;
+    // wait for the report of the current span before widening again
+    if (report.weeks.length !== span) return;
+    if (report.weeks.some((w: any) => w.key === selectedKey)) return;
+    const next = SPANS.find((s) => s > span);
+    if (next) setSpan(next);
+  }, [report, selectedKey, span]);
+
   const select = (key: string) => router.replace(`/weeks?week=${key}`);
 
   if (loading) return null;
@@ -90,11 +118,12 @@ function WeeksInner() {
   const weeks: any[] = report.weeks;
   const idx = weeks.findIndex((w) => w.key === week.key);
   const prev = idx > 0 ? weeks[idx - 1] : null;
+  const next = idx >= 0 && idx < weeks.length - 1 ? weeks[idx + 1] : null;
   const bestKey = report.best.byProfit;
   const bestWeek = bestKey ? weeks.find((w) => w.key === bestKey) : null;
   const isBest = bestKey === week.key;
   const d = (f: (w: any) => number | null) => (prev ? (f(week) != null && f(prev) != null ? f(week)! - f(prev)! : null) : null);
-  const hasData = week.counts.trips > 0 || week.counts.shifts > 0;
+  const weekHasData = hasData(week);
   const costPerKm = report.rates.fuelCostPerKm + report.rates.maintCostPerKm + report.rates.depPerKm;
 
   const share = async () => {
@@ -119,47 +148,68 @@ function WeeksInner() {
     metric === "profit" ? w.trueProfit : metric === "net" ? w.earnings.netRevenue : metric === "hours" ? w.time.onlineMin / 60 : w.rates.profitPerHour;
   const metricFmt = (v: number) => (metric === "hours" ? `${fmtNum(v, locale)} ${t("c.hours")}` : money(v));
 
+  const trendBars = weeks.map((w) => ({
+    key: w.key,
+    label: w.key.slice(5).replace("-", "/"),
+    value: metricOf(w) ?? 0,
+    sub: hasData(w) ? `${t("pl.tripsN", { n: w.counts.trips })}${sep(locale)}${fmtDate(w.start, locale)}` : fmtDate(w.start, locale),
+    selected: w.key === week.key,
+    muted: w.isCurrent,
+  }));
+
   return (
     <div className="space-y-4">
       <PageTitle sub={t("wk.subtitle")}>{t("wk.title")}</PageTitle>
 
-      {/* week picker — newest first, scrolls sideways on a phone */}
-      <div className="flex gap-2 overflow-x-auto scroll-x [scrollbar-width:none] -mx-4 px-4 md:mx-0 md:px-0 pb-1">
-        {[...weeks].reverse().map((w) => {
-          const active = w.key === week.key;
-          return (
-            <button
-              key={w.key}
-              onClick={() => select(w.key)}
-              className={`shrink-0 rounded-2xl px-3.5 py-2 text-start transition-colors ${active ? "bg-action text-action-fg" : "bg-surface hover:bg-surface-2"}`}
-            >
-              <span className={`block text-[11px] font-bold ${active ? "text-hero-fg/60" : "text-muted"}`}>
-                {w.isCurrent ? t("wk.current") : w.key === report.best.byProfit ? `🏆 ${t("wk.best")}` : fmtDate(w.start, locale)}
-              </span>
-              <span className={`block text-sm font-bold tnum ${!active && w.trueProfit < 0 ? "text-loss" : ""}`}>{w.counts.trips > 0 || w.counts.shifts > 0 ? money(w.trueProfit) : "—"}</span>
-            </button>
-          );
-        })}
-        <Segmented
-          size="sm"
-          value={String(span) as "12" | "26" | "52"}
-          onChange={(v) => setSpan(Number(v) as 12 | 26 | 52)}
-          className="shrink-0 self-center ms-1"
-          options={[
-            { value: "12", label: "12" },
-            { value: "26", label: "26" },
-            { value: "52", label: "52" },
-          ]}
-        />
+      {/* week header: step with the arrows, or open the vertical picker */}
+      <div className="flex items-center gap-1.5">
+        <IconButton name="back" label={t("wk.prevWeek")} onClick={() => prev && select(prev.key)} className={`rtl:-scale-x-100 bg-surface border border-line ${prev ? "" : "opacity-30 pointer-events-none"}`} />
+        <button
+          type="button"
+          onClick={() => setPicker(true)}
+          className="flex-1 min-w-0 flex items-center gap-3 bg-surface border border-line rounded-2xl px-3.5 py-2 text-start hover:bg-surface-2 transition-colors"
+        >
+          <span className="w-9 h-9 rounded-xl bg-action-soft text-action flex items-center justify-center shrink-0">
+            <Icon name="calendar" size={18} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[11px] font-bold text-muted truncate">
+              {week.isCurrent ? t("wk.current") : isBest ? `🏆 ${t("wk.bestWeek")}` : t("wk.uberWeek")}
+              {sep(locale)}
+              {localizeDigits(new Date(week.start).getFullYear(), locale)}
+            </span>
+            <span className="block text-[15px] font-bold tnum truncate">{shortRange(week, locale)}</span>
+          </span>
+          <span className="text-xs font-bold text-action shrink-0 inline-flex items-center gap-0.5">
+            {t("wk.choose")} <Icon name="chevron" size={14} className="rtl:-scale-x-100" />
+          </span>
+        </button>
+        <IconButton name="chevron" label={t("wk.nextWeek")} onClick={() => next && select(next.key)} className={`rtl:-scale-x-100 bg-surface border border-line ${next ? "" : "opacity-30 pointer-events-none"}`} />
       </div>
+
+      <WeekPicker
+        open={picker}
+        onClose={() => setPicker(false)}
+        weeks={weeks}
+        selected={week.key}
+        bestKey={bestKey}
+        span={span}
+        onSpan={setSpan}
+        onSelect={(k) => {
+          select(k);
+          setPicker(false);
+        }}
+        locale={locale}
+        t={t}
+      />
 
       {/* hero */}
       <Card tone="ink">
         <div className="flex items-center gap-2 mb-3 flex-wrap">
-          <span className="text-sm font-bold">{weekLabel(week, locale)}</span>
+          <span className="text-sm font-bold tnum">{weekLabel(week, locale)}</span>
           {week.isCurrent ? (
             <Badge tone="neutral">
-              {t("wk.inProgress")} · {fmtNum(week.progress * 100, locale, 0)}%
+              {t("wk.inProgress")}{sep(locale)}{fmtNum(week.progress * 100, locale, 0)}%
             </Badge>
           ) : (
             <Badge tone="neutral">{t("wk.closed")}</Badge>
@@ -175,7 +225,7 @@ function WeeksInner() {
             </button>
           </span>
         </div>
-        {!hasData ? (
+        {!weekHasData ? (
           <Empty>
             <span className="text-hero-fg/60">{t("wk.noData")}</span>
           </Empty>
@@ -195,7 +245,7 @@ function WeeksInner() {
                   )}
                   {bestWeek && !isBest && (
                     <>
-                      · {t("wk.vsBest")} <Delta value={week.trueProfit - bestWeek.trueProfit} fmt={money} />
+                      {sep(locale)}{t("wk.vsBest")} <Delta value={week.trueProfit - bestWeek.trueProfit} fmt={money} />
                     </>
                   )}
                 </span>
@@ -211,7 +261,7 @@ function WeeksInner() {
                 {t("wk.onPace", { v: money(report.projection.trueProfit), n: report.projection.trips })}
                 {report.previousAtSamePoint && report.previousAtSamePoint.netRevenue > 0 && (
                   <>
-                    {" · "}
+                    {sep(locale)}
                     {t("wk.vsSamePoint")} <Delta value={week.earnings.netRevenue - report.previousAtSamePoint.netRevenue} fmt={money} />
                   </>
                 )}
@@ -221,11 +271,11 @@ function WeeksInner() {
         )}
       </Card>
 
-      {hasData && (
+      {weekHasData && (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Tile label={t("db.tripCount")} value={fmtNum(week.counts.trips, locale, 0)} delta={<Delta value={d((w) => w.counts.trips)} />} sub={week.rates.netPerTrip != null ? `${money(week.rates.netPerTrip)} ${t("wk.perTrip")}` : undefined} />
-            <Tile label={t("tm.online")} value={fmtDuration(week.time.onlineMin, t)} delta={<Delta value={d((w) => w.time.onlineMin / 60)} fmt={(n) => fmtNum(n, locale)} suffix={t("c.hours")} />} sub={t("sh.shiftCount", { n: week.counts.shifts })} />
+            <Tile label={t("db.tripCount")} value={fmtNum(week.counts.trips, locale, 0)} delta={<Delta value={d((w) => w.counts.trips)} fmt={(n) => fmtInt(n, locale)} />} sub={week.rates.netPerTrip != null ? `${money(week.rates.netPerTrip)} ${t("wk.perTrip")}` : undefined} />
+            <Tile label={t("tm.online")} value={fmtDuration(week.time.onlineMin, t, locale)} delta={<Delta value={d((w) => w.time.onlineMin / 60)} fmt={(n) => fmtNum(n, locale)} suffix={t("c.hours")} />} sub={t("sh.shiftCount", { n: week.counts.shifts })} />
             <Tile label={t("sh.km")} value={`${fmtNum(week.km.shiftKm, locale, 0)} ${t("c.km")}`} delta={<Delta value={d((w) => w.km.shiftKm)} fmt={(n) => fmtNum(n, locale, 0)} />} sub={week.rates.profitPerKm != null ? `${money(week.rates.profitPerKm)}/${t("c.km")}` : undefined} />
             <Tile label={t("tm.utilization")} value={week.time.utilizationPct != null ? `${fmtNum(week.time.utilizationPct, locale, 0)}%` : "—"} delta={<Delta value={d((w) => w.time.utilizationPct)} fmt={(n) => fmtNum(n, locale, 0)} suffix="%" />} sub={t("tm.utilizationSub")} />
           </div>
@@ -233,25 +283,48 @@ function WeeksInner() {
           {/* week-over-week chart */}
           <Card>
             <CardHead title={t("wk.trendTitle")} sub={t("wk.trendSub")} />
-            <Segmented
-              size="sm"
-              className="mb-3"
-              value={metric}
-              onChange={setMetric}
-              options={[
-                { value: "profit", label: t("db.trueProfit") },
-                { value: "net", label: t("db.gross") },
-                { value: "hours", label: t("c.hours") },
-                { value: "perHour", label: t("db.perHour") },
-              ]}
-            />
-            <WeekBars weeks={weeks} selected={week.key} onSelect={select} valueOf={metricOf} fmt={metricFmt} locale={locale} />
+            <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+              <Segmented
+                size="sm"
+                value={metric}
+                onChange={setMetric}
+                options={[
+                  { value: "profit", label: t("db.trueProfit") },
+                  { value: "net", label: t("db.gross") },
+                  { value: "hours", label: t("tm.online") },
+                  { value: "perHour", label: t("db.perHour") },
+                ]}
+              />
+              <Segmented
+                size="sm"
+                value={String(span) as `${Span}`}
+                onChange={(v) => setSpan(Number(v) as Span)}
+                options={SPANS.map((s) => ({ value: String(s) as `${Span}`, label: fmtInt(s, locale) }))}
+              />
+            </div>
+            <BarChart bars={trendBars} locale={locale} fmt={metricFmt} onSelect={select} labelEvery={weeks.length <= 14 ? 1 : weeks.length <= 30 ? 2 : weeks.length <= 60 ? 4 : 8} />
           </Card>
 
           {/* day by day */}
           <Card>
             <CardHead icon="calendar" title={t("wk.daysTitle")} sub={t("wk.daysSub")} />
-            <DayRows days={week.days} bestIndex={week.bestDay?.index ?? null} locale={locale} t={t} />
+            <HBars
+              locale={locale}
+              labelWidth="4rem"
+              valueWidth="5.5rem"
+              rows={week.days.map((day: any) => {
+                const active = day.trips > 0 || day.onlineMin > 0;
+                return {
+                  key: String(day.index),
+                  label: dayName(day.index, locale),
+                  value: active ? day.profit : 0,
+                  display: active ? money(day.profit) : "—",
+                  sub: active ? `${t("pl.tripsN", { n: day.trips })}${sep(locale)}${fmtNum(day.onlineMin / 60, locale)}${t("c.hours")}` : "",
+                  best: active && day.index === (week.bestDay?.index ?? null),
+                  muted: !active,
+                };
+              })}
+            />
           </Card>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -261,15 +334,15 @@ function WeeksInner() {
               <StackedMeter
                 height={14}
                 segments={[
-                  { key: "trip", value: week.time.tripMin, color: C.s1, label: t("tm.withRider") },
-                  { key: "pickup", value: week.time.pickupMin, color: C.s2, label: t("tm.toPickup") },
-                  { key: "idle", value: week.time.idleMin, color: C.neutral, label: t("tm.idle") },
+                  { key: "trip", value: week.time.tripMin, color: CHART.s1, label: t("tm.withRider") },
+                  { key: "pickup", value: week.time.pickupMin, color: CHART.s2, label: t("tm.toPickup") },
+                  { key: "idle", value: week.time.idleMin, color: CHART.neutral, label: t("tm.idle") },
                 ]}
               />
               <div className="mt-3 space-y-1 text-xs">
-                <Legend color={C.s1} label={t("tm.withRider")} value={fmtDuration(week.time.tripMin, t)} pct={week.time.onlineMin > 0 ? (week.time.tripMin / week.time.onlineMin) * 100 : null} locale={locale} />
-                <Legend color={C.s2} label={t("tm.toPickup")} value={fmtDuration(week.time.pickupMin, t)} pct={week.time.onlineMin > 0 ? (week.time.pickupMin / week.time.onlineMin) * 100 : null} locale={locale} />
-                <Legend color={C.neutral} label={t("tm.idle")} value={fmtDuration(week.time.idleMin, t)} pct={week.time.onlineMin > 0 ? (week.time.idleMin / week.time.onlineMin) * 100 : null} locale={locale} />
+                <Legend color={CHART.s1} label={t("tm.withRider")} value={fmtDuration(week.time.tripMin, t, locale)} pct={week.time.onlineMin > 0 ? (week.time.tripMin / week.time.onlineMin) * 100 : null} locale={locale} />
+                <Legend color={CHART.s2} label={t("tm.toPickup")} value={fmtDuration(week.time.pickupMin, t, locale)} pct={week.time.onlineMin > 0 ? (week.time.pickupMin / week.time.onlineMin) * 100 : null} locale={locale} />
+                <Legend color={CHART.neutral} label={t("tm.idle")} value={fmtDuration(week.time.idleMin, t, locale)} pct={week.time.onlineMin > 0 ? (week.time.idleMin / week.time.onlineMin) * 100 : null} locale={locale} />
               </div>
               <div className="grid grid-cols-2 gap-2 mt-4">
                 <Mini label={t("wk.avgTripMin")} value={week.time.avgTripMin != null ? `${fmtNum(week.time.avgTripMin, locale, 0)} ${t("c.minShort")}` : "—"} />
@@ -286,17 +359,17 @@ function WeeksInner() {
               <StackedMeter
                 height={14}
                 segments={[
-                  { key: "trip", value: week.km.tripKm, color: C.s1, label: t("db.tripKm") },
-                  { key: "pickup", value: week.km.pickupKm, color: C.s2, label: t("db.pickupSplit") },
-                  { key: "cruise", value: week.km.cruisingKm, color: C.s4, label: t("db.cruisingSplit") },
-                  { key: "personal", value: week.km.personalKm, color: C.neutral, label: t("db.personalKm") },
+                  { key: "trip", value: week.km.tripKm, color: CHART.s1, label: t("db.tripKm") },
+                  { key: "pickup", value: week.km.pickupKm, color: CHART.s2, label: t("db.pickupSplit") },
+                  { key: "cruise", value: week.km.cruisingKm, color: CHART.s3, label: t("db.cruisingSplit") },
+                  { key: "personal", value: week.km.personalKm, color: CHART.neutral, label: t("db.personalKm") },
                 ]}
               />
               <div className="mt-3 space-y-1 text-xs">
-                <Legend color={C.s1} label={t("db.tripKm")} value={`${fmtNum(week.km.tripKm, locale, 0)} ${t("c.km")}`} locale={locale} />
-                <Legend color={C.s2} label={t("tm.toPickup")} value={`${fmtNum(week.km.pickupKm, locale, 0)} ${t("c.km")}`} cost={money(week.km.pickupKm * costPerKm)} locale={locale} />
-                <Legend color={C.s4} label={t("db.cruisingSplit").replace("↳ ", "")} value={`${fmtNum(week.km.cruisingKm, locale, 0)} ${t("c.km")}`} cost={money(week.km.cruisingKm * costPerKm)} locale={locale} />
-                <Legend color={C.neutral} label={t("db.personalKm")} value={`${fmtNum(week.km.personalKm, locale, 0)} ${t("c.km")}`} locale={locale} />
+                <Legend color={CHART.s1} label={t("db.tripKm")} value={`${fmtNum(week.km.tripKm, locale, 0)} ${t("c.km")}`} locale={locale} />
+                <Legend color={CHART.s2} label={t("tm.toPickup")} value={`${fmtNum(week.km.pickupKm, locale, 0)} ${t("c.km")}`} cost={money(week.km.pickupKm * costPerKm)} locale={locale} />
+                <Legend color={CHART.s3} label={t("db.cruisingSplit").replace("↳ ", "")} value={`${fmtNum(week.km.cruisingKm, locale, 0)} ${t("c.km")}`} cost={money(week.km.cruisingKm * costPerKm)} locale={locale} />
+                <Legend color={CHART.neutral} label={t("db.personalKm")} value={`${fmtNum(week.km.personalKm, locale, 0)} ${t("c.km")}`} locale={locale} />
               </div>
               <div className="grid grid-cols-2 gap-2 mt-4">
                 <Mini label={t("wk.avgTripKm")} value={week.km.avgTripKm != null ? `${fmtNum(week.km.avgTripKm, locale, 1)} ${t("c.km")}` : "—"} />
@@ -318,7 +391,7 @@ function WeeksInner() {
                 <Row label={t("db.gross")} value={money(week.earnings.netRevenue)} bold />
                 <Row label={t("db.fuelCost")} value={`− ${money(week.costs.fuel)}`} muted />
                 <Row label={t("db.maintCost")} value={`− ${money(week.costs.maintenance)}`} muted />
-                <Row label={t("db.expenses")} value={`− ${money(week.costs.workExpenses)}`} muted sub={week.expensesByCategory.map((e: any) => `${t(`ex.cat.${e.category}`)} ${money(e.amount)}`).join(" · ") || undefined} />
+                <Row label={t("db.expenses")} value={`− ${money(week.costs.workExpenses)}`} muted sub={week.expensesByCategory.map((e: any) => `${t(`ex.cat.${e.category}`)} ${money(e.amount)}`).join(sep(locale)) || undefined} />
                 {week.costs.ownership > 0 && <Row label={t("db.rental")} value={`− ${money(week.costs.ownership)}`} muted />}
                 <Row label={t("db.depreciation")} value={report.rates.depreciationEnabled ? `− ${money(week.costs.depreciation)}` : t("dep.off")} muted />
                 <Row label={t("db.trueProfit")} value={money(week.trueProfit)} bold tone={week.trueProfit >= 0 ? "good" : "bad"} />
@@ -336,10 +409,10 @@ function WeeksInner() {
               </Card>
               <Card>
                 <CardHead icon="clock" title={t("wk.hoursTitle")} sub={t("wk.hoursSub")} />
-                <HourStrip hours={week.hours} locale={locale} t={t} />
+                <HeatStrip hours={week.hours.map((h: any) => ({ hour: h.hour, value: h.net, sub: t("pl.tripsN", { n: h.trips }) }))} locale={locale} fmt={money} t={t} />
                 {week.bestHour && (
                   <p className="text-xs text-muted mt-2">
-                    {t("wk.bestHour", { h: `${week.bestHour.hour}:00–${week.bestHour.hour + 1}:00`, v: money(week.bestHour.net), n: week.bestHour.trips })}
+                    {t("wk.bestHour", { h: fmtHourRange(week.bestHour.hour, locale), v: money(week.bestHour.net), n: week.bestHour.trips })}
                   </p>
                 )}
               </Card>
@@ -351,7 +424,7 @@ function WeeksInner() {
                       <div className="text-[10px] font-bold uppercase tracking-wide text-muted">{t(`wk.len.${b.bucket}`)}</div>
                       <div className="text-lg font-bold display mt-0.5">{b.perKm != null ? `${money(b.perKm)}` : "—"}</div>
                       <div className="text-[11px] text-muted">
-                        /{t("c.km")} · {t("pl.tripsN", { n: b.trips })}
+                        /{t("c.km")}{sep(locale)}{t("pl.tripsN", { n: b.trips })}
                       </div>
                     </div>
                   ))}
@@ -405,7 +478,7 @@ function WeeksInner() {
                   [t("db.trueProfit"), (w: any) => money(w.trueProfit)],
                   [t("db.gross"), (w: any) => money(w.earnings.netRevenue)],
                   [t("db.tripCount"), (w: any) => fmtNum(w.counts.trips, locale, 0)],
-                  [t("tm.online"), (w: any) => fmtDuration(w.time.onlineMin, t)],
+                  [t("tm.online"), (w: any) => fmtDuration(w.time.onlineMin, t, locale)],
                   [t("db.perHour"), (w: any) => (w.rates.profitPerHour != null ? money(w.rates.profitPerHour) : "—")],
                   [t("wk.perTrip"), (w: any) => (w.rates.netPerTrip != null ? money(w.rates.netPerTrip) : "—")],
                   [t("sh.km"), (w: any) => `${fmtNum(w.km.shiftKm, locale, 0)} ${t("c.km")}`],
@@ -416,7 +489,7 @@ function WeeksInner() {
                 <tr key={label}>
                   <td className="py-2 px-2 text-muted">{label}</td>
                   <td className="py-2 px-2 font-bold tnum">{f(week)}</td>
-                  <td className="py-2 px-2 tnum">{prev && (prev.counts.trips > 0 || prev.counts.shifts > 0) ? f(prev) : "—"}</td>
+                  <td className="py-2 px-2 tnum">{prev && hasData(prev) ? f(prev) : "—"}</td>
                   <td className="py-2 px-2 tnum">{bestWeek ? f(bestWeek) : "—"}</td>
                 </tr>
               ))}
@@ -428,11 +501,210 @@ function WeeksInner() {
   );
 }
 
+/* ---------------------------------------------------------------------------
+   Week picker — a bottom sheet with a vertical list of weeks, newest first,
+   grouped under sticky month headings. Filter by month, by year, or jump to
+   the week that contains a date. Older weeks load on demand (up to 2 years).
+--------------------------------------------------------------------------- */
+type Filter = "all" | "month" | "year" | "date";
+
+function WeekPicker({
+  open,
+  onClose,
+  weeks,
+  selected,
+  bestKey,
+  span,
+  onSpan,
+  onSelect,
+  locale,
+  t,
+}: {
+  open: boolean;
+  onClose: () => void;
+  weeks: any[];
+  selected: string;
+  bestKey: string | null;
+  span: Span;
+  onSpan: (s: Span) => void;
+  onSelect: (key: string) => void;
+  locale: string;
+  t: T;
+}) {
+  const [filter, setFilter] = useState<Filter>("all");
+  const [month, setMonth] = useState<string>("");
+  const [year, setYear] = useState<string>("");
+  const [date, setDate] = useState<string>("");
+  const [dateMsg, setDateMsg] = useState<string | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const newestFirst = useMemo(() => [...weeks].reverse(), [weeks]);
+  const months = useMemo(() => Array.from(new Set(newestFirst.map(monthKeyOf))), [newestFirst]);
+  const years = useMemo(() => Array.from(new Set(newestFirst.map((w) => monthKeyOf(w).slice(0, 4)))), [newestFirst]);
+  const maxAbs = Math.max(...weeks.filter(hasData).map((w) => Math.abs(w.trueProfit)), 1);
+
+  // defaults: the newest month / year once the list is known
+  useEffect(() => {
+    if (!month && months.length) setMonth(months[0]);
+    if (!year && years.length) setYear(years[0]);
+  }, [months, years, month, year]);
+
+  // scroll the selected week into view when the sheet opens
+  useEffect(() => {
+    if (!open) return;
+    const el = listRef.current?.querySelector<HTMLElement>("[data-selected='true']");
+    el?.scrollIntoView({ block: "center" });
+  }, [open, filter, month, year]);
+
+  const visible = newestFirst.filter((w) => {
+    if (filter === "month") return monthKeyOf(w) === month;
+    if (filter === "year") return monthKeyOf(w).slice(0, 4) === year;
+    return true;
+  });
+
+  const groups: { key: string; weeks: any[] }[] = [];
+  for (const w of visible) {
+    const k = monthKeyOf(w);
+    const g = groups[groups.length - 1];
+    if (g && g.key === k) g.weeks.push(w);
+    else groups.push({ key: k, weeks: [w] });
+  }
+
+  const nextSpan = SPANS.find((s) => s > span) ?? null;
+
+  const jump = (value: string) => {
+    setDate(value);
+    setDateMsg(null);
+    if (!value) return;
+    const dt = new Date(`${value}T12:00:00`);
+    if (isNaN(dt.getTime())) return;
+    const key = weekKey(weekStartFor(dt));
+    if (weeks.some((w) => w.key === key)) {
+      onSelect(key);
+      return;
+    }
+    if (dt.getTime() > Date.now()) {
+      setDateMsg(t("wk.dateFuture"));
+      return;
+    }
+    // older than what is loaded → load more and let the deep link pick it up
+    if (nextSpan) {
+      onSpan(nextSpan);
+      onSelect(key);
+    } else setDateMsg(t("wk.dateNotLoaded"));
+  };
+
+  return (
+    <Modal open={open} onClose={onClose} title={t("wk.pickTitle")}>
+      <div className="space-y-3 -mx-1">
+        <div className="px-1 space-y-2">
+          <Segmented
+            size="sm"
+            fill
+            value={filter}
+            onChange={setFilter}
+            options={[
+              { value: "all", label: t("wk.filterAll") },
+              { value: "month", label: t("wk.filterMonth") },
+              { value: "year", label: t("wk.filterYear") },
+              { value: "date", label: t("wk.filterDate") },
+            ]}
+          />
+          {filter === "month" && (
+            <Select value={month} onChange={(e) => setMonth(e.target.value)}>
+              {months.map((m) => (
+                <option key={m} value={m}>
+                  {monthLabel(m, locale)}
+                </option>
+              ))}
+            </Select>
+          )}
+          {filter === "year" && years.length > 0 && (
+            <Segmented size="sm" fill value={year} onChange={setYear} options={years.map((y) => ({ value: y, label: localizeDigits(y, locale) }))} />
+          )}
+          {filter === "date" && (
+            <div>
+              <label className="block text-xs text-muted mb-1">{t("wk.jumpDate")}</label>
+              <input type="date" value={date} onChange={(e) => jump(e.target.value)} className="w-full rounded-xl border border-line bg-sheet px-3 py-2.5 text-sm text-ink tnum" />
+              {dateMsg && <p className="text-xs text-warn-ink mt-1.5">{dateMsg}</p>}
+            </div>
+          )}
+        </div>
+
+        <div ref={listRef}>
+          {groups.length === 0 && <Empty>{t("wk.noWeeksMatch")}</Empty>}
+          {groups.map((g) => {
+            const withData = g.weeks.filter(hasData);
+            const total = withData.reduce((s, w) => s + w.trueProfit, 0);
+            return (
+              <div key={g.key}>
+                <div className="sticky top-0 z-10 bg-sheet/95 backdrop-blur px-1 py-1.5 flex items-baseline justify-between gap-2 border-b border-line">
+                  <span className="text-xs font-bold text-ink-500">{monthLabel(g.key, locale)}</span>
+                  <span className="text-[11px] text-muted tnum">
+                    {t("wk.weeksN", { n: g.weeks.length })}
+                    {withData.length > 0 && <>{sep(locale)}<b className={total >= 0 ? "text-money" : "text-loss"}>{fmtMoney(total, locale)}</b></>}
+                  </span>
+                </div>
+                <div className="py-1">
+                  {g.weeks.map((w) => {
+                    const active = w.key === selected;
+                    const data = hasData(w);
+                    const start = new Date(w.start);
+                    return (
+                      <button
+                        type="button"
+                        key={w.key}
+                        data-selected={active ? "true" : undefined}
+                        onClick={() => onSelect(w.key)}
+                        className={`w-full flex items-center gap-3 px-2 py-2 rounded-xl text-start transition-colors ${active ? "bg-action-soft" : "hover:bg-surface-2"} ${data ? "" : "opacity-60"}`}
+                      >
+                        <span className={`w-10 h-10 rounded-xl flex flex-col items-center justify-center shrink-0 leading-none ${active ? "bg-action text-action-fg" : "bg-paper text-ink"}`}>
+                          <span className="text-base font-bold tnum">{localizeDigits(start.getDate(), locale)}</span>
+                          <span className={`text-[9px] font-bold uppercase mt-0.5 ${active ? "text-action-fg/80" : "text-muted"}`}>{new Intl.DateTimeFormat(intlLocale(locale), { month: "short" }).format(start)}</span>
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-center gap-1.5 min-w-0">
+                            <span className="text-sm font-bold tnum truncate">{shortRange(w, locale)}</span>
+                            {w.isCurrent && <Badge tone="neutral">{t("wk.current")}</Badge>}
+                            {w.key === bestKey && <span title={t("wk.bestWeek")}>🏆</span>}
+                          </span>
+                          <span className="block text-[11px] text-muted tnum truncate mt-0.5">
+                            {data ? `${t("pl.tripsN", { n: w.counts.trips })}${sep(locale)}${fmtDuration(w.time.onlineMin, t, locale)}` : t("wk.noData")}
+                          </span>
+                          <span className="block h-[3px] rounded-full bg-line/60 mt-1.5 overflow-hidden" dir="ltr">
+                            {data && <span className="block h-full rounded-full" style={{ width: `${(Math.abs(w.trueProfit) / maxAbs) * 100}%`, background: w.trueProfit < 0 ? CHART.neg : active ? CHART.ink : CHART.s1 }} />}
+                          </span>
+                        </span>
+                        <span className={`text-sm font-bold tnum shrink-0 ${!data ? "text-muted" : w.trueProfit < 0 ? "text-loss" : ""}`}>{data ? fmtMoney(w.trueProfit, locale) : "—"}</span>
+                        <span className="w-4 shrink-0 text-action">{active && <Icon name="check" size={16} strokeWidth={2.5} />}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="px-1 pt-1">
+          {nextSpan ? (
+            <Btn variant="secondary" className="w-full" onClick={() => onSpan(nextSpan)}>
+              {t("wk.loadOlder")}{sep(locale)}{t("wk.weeksN", { n: nextSpan })}
+            </Btn>
+          ) : (
+            <p className="text-xs text-muted text-center">{t("wk.allLoaded", { n: weeks.length })}</p>
+          )}
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 function InkStat({ label, value, delta }: { label: string; value: string; delta?: React.ReactNode }) {
   return (
     <div className="min-w-0">
       <div className="text-[11px] font-bold text-hero-fg/60 uppercase tracking-wide truncate">{label}</div>
-      <div className="text-lg md:text-xl font-bold display text-hero-fg mt-0.5 truncate">{value}</div>
+      <div className="text-[15px] sm:text-lg md:text-xl font-bold display text-hero-fg mt-0.5 truncate">{value}</div>
       {delta && <div className="mt-0.5 [&_span]:!text-hero-fg/80">{delta}</div>}
     </div>
   );
@@ -482,8 +754,8 @@ function TripLine({ trip, locale, t }: { trip: any; locale: string; t: T }) {
           <div className="text-xs text-muted mt-1.5 tnum">{fmtDateTime(trip.startTime, locale)}</div>
         </div>
         <div className="text-end text-xs text-muted tnum">
-          {trip.distanceKm != null && <div>{fmtNum(trip.distanceKm, locale, 1)} {t("c.km")}{trip.perKm != null && ` · ${money(trip.perKm)}/${t("c.km")}`}</div>}
-          {trip.durationMin != null && <div>{fmtNum(trip.durationMin, locale, 0)} {t("c.minShort")}{trip.perMin != null && ` · ${money(trip.perMin)}/${t("c.minShort")}`}</div>}
+          {trip.distanceKm != null && <div>{fmtNum(trip.distanceKm, locale, 1)} {t("c.km")}{trip.perKm != null && `${sep(locale)}${money(trip.perKm)}/${t("c.km")}`}</div>}
+          {trip.durationMin != null && <div>{fmtNum(trip.durationMin, locale, 0)} {t("c.minShort")}{trip.perMin != null && `${sep(locale)}${money(trip.perMin)}/${t("c.minShort")}`}</div>}
         </div>
       </div>
       {(trip.pickupAddress || trip.dropoffAddress) && (
@@ -495,6 +767,7 @@ function TripLine({ trip, locale, t }: { trip: any; locale: string; t: T }) {
   );
 }
 
+/** Ranked areas: the top one is drawn in ink, the rest in the series green. */
 function ZoneList({ title, zones, locale, t }: { title: string; zones: any[]; locale: string; t: T }) {
   const money = (n: number) => fmtMoney(n, locale);
   if (zones.length === 0) return null;
@@ -502,20 +775,20 @@ function ZoneList({ title, zones, locale, t }: { title: string; zones: any[]; lo
   return (
     <div>
       <div className="text-xs font-bold text-ink-500 mb-2">{title}</div>
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         {zones.map((z, i) => (
           <div key={z.key} className="flex items-center gap-2.5">
-            <span className="w-5 text-center text-xs font-bold text-muted">{i + 1}</span>
+            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold tnum shrink-0 ${i === 0 ? "bg-ink text-background" : "bg-paper text-muted"}`}>{fmtInt(i + 1, locale)}</span>
             <div className="flex-1 min-w-0">
               <div className="flex items-baseline justify-between gap-2">
-                <span className="text-sm font-bold truncate">{z.label}</span>
+                <span dir="auto" className="text-sm font-bold truncate min-w-0">{z.label}</span>
                 <span className="text-xs text-muted tnum shrink-0">
-                  {t("pl.tripsN", { n: z.trips })} · {money(z.avgNet)} {t("wk.perTrip")}
-                  {z.perMin != null && ` · ${money(z.perMin)}/${t("c.minShort")}`}
+                  {t("pl.tripsN", { n: z.trips })}{sep(locale)}{money(z.avgNet)} {t("wk.perTrip")}
+                  {z.perMin != null && `${sep(locale)}${money(z.perMin)}/${t("c.minShort")}`}
                 </span>
               </div>
-              <div className="h-1.5 rounded-full bg-line overflow-hidden mt-1">
-                <div className="h-full rounded-full" style={{ width: `${(z.trips / max) * 100}%`, background: C.s1 }} />
+              <div className="h-1.5 rounded-full bg-line/60 overflow-hidden mt-1" dir="ltr">
+                <div className="h-full rounded-full" style={{ width: `${(z.trips / max) * 100}%`, background: i === 0 ? CHART.ink : CHART.s1 }} />
               </div>
             </div>
             {z.lat != null && (
@@ -526,112 +799,6 @@ function ZoneList({ title, zones, locale, t }: { title: string; zones: any[]; lo
           </div>
         ))}
       </div>
-    </div>
-  );
-}
-
-/** 7 pay days of the week as horizontal bars; the best day is flagged. */
-function DayRows({ days, bestIndex, locale, t }: { days: any[]; bestIndex: number | null; locale: string; t: T }) {
-  const max = Math.max(...days.map((d) => Math.abs(d.profit)), 1);
-  return (
-    <div className="space-y-2">
-      {days.map((d) => {
-        const active = d.trips > 0 || d.onlineMin > 0;
-        return (
-          <div key={d.index} className={`flex items-center gap-3 ${active ? "" : "opacity-40"}`}>
-            <span className="w-9 text-xs font-bold text-ink-500">{dayName(d.index, locale)}</span>
-            <div className="flex-1 h-5 rounded-md bg-line/60 overflow-hidden relative" dir="ltr">
-              {active && (
-                <div className="absolute inset-y-0 start-0 rounded-md" style={{ width: `${(Math.abs(d.profit) / max) * 100}%`, background: d.profit >= 0 ? (d.index === bestIndex ? C.ink : C.s1) : C.neg }} />
-              )}
-            </div>
-            <span className="w-20 text-end text-sm font-bold tnum">{active ? fmtMoney(d.profit, locale) : "—"}</span>
-            <span className="hidden sm:block w-28 text-end text-xs text-muted tnum">
-              {active ? `${t("pl.tripsN", { n: d.trips })} · ${fmtNum(d.onlineMin / 60, locale)}${t("c.hours")}` : ""}
-            </span>
-            <span className="w-4">{d.index === bestIndex && active ? "🏆" : ""}</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-/** Earnings by hour of day as a single-hue strip. */
-function HourStrip({ hours, locale, t }: { hours: { hour: number; trips: number; net: number }[]; locale: string; t: T }) {
-  const max = Math.max(...hours.map((h) => h.net), 0);
-  const [tip, setTip] = useState<number | null>(null);
-  if (max <= 0) return <Empty>{t("c.noData")}</Empty>;
-  return (
-    <div dir="ltr">
-      <div className="grid gap-[2px]" style={{ gridTemplateColumns: "repeat(24, 1fr)" }}>
-        {hours.map((h) => {
-          const f = h.net / max;
-          const color = h.net <= 0 ? "var(--line)" : RAMP[Math.min(RAMP.length - 1, Math.floor(f * RAMP.length))];
-          return <div key={h.hour} className="h-7 rounded-sm" style={{ background: color }} onMouseEnter={() => setTip(h.hour)} onMouseLeave={() => setTip(null)} onClick={() => setTip(h.hour)} title={`${h.hour}:00 · ${fmtMoney(h.net, locale)} · ${t("pl.tripsN", { n: h.trips })}`} />;
-        })}
-      </div>
-      <div className="flex justify-between text-[10px] text-muted tnum mt-1">
-        <span>00</span>
-        <span>06</span>
-        <span>12</span>
-        <span>18</span>
-        <span>24</span>
-      </div>
-      {tip != null && (
-        <div className="text-xs text-ink-500 mt-1 tnum">
-          {tip}:00–{tip + 1}:00 · <b>{fmtMoney(hours[tip].net, locale)}</b> · {t("pl.tripsN", { n: hours[tip].trips })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** One metric across the loaded weeks; tapping a bar selects that week. */
-function WeekBars({ weeks, selected, onSelect, valueOf, fmt, locale }: { weeks: any[]; selected: string; onSelect: (k: string) => void; valueOf: (w: any) => number | null; fmt: (v: number) => string; locale: string }) {
-  const vals = weeks.map((w) => valueOf(w) ?? 0);
-  const max = Math.max(...vals, 1);
-  const min = Math.min(...vals, 0);
-  const W = 480;
-  const H = 170;
-  const PAD = { top: 10, bottom: 22, left: 6, right: 6 };
-  const plotH = H - PAD.top - PAD.bottom;
-  const span = max - min || 1;
-  const y = (v: number) => PAD.top + ((max - v) / span) * plotH;
-  const zeroY = y(0);
-  const bw = (W - PAD.left - PAD.right) / weeks.length;
-  const barW = Math.min(bw * 0.6, 26);
-  const [hover, setHover] = useState<number | null>(null);
-  return (
-    <div className="relative" dir="ltr">
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
-        <line x1={PAD.left} x2={W - PAD.right} y1={zeroY} y2={zeroY} stroke={C.grid} />
-        {weeks.map((w, i) => {
-          const v = vals[i];
-          const cx = PAD.left + bw * i + bw / 2;
-          const yv = y(v);
-          const h = Math.abs(zeroY - yv);
-          const sel = w.key === selected;
-          const fill = v < 0 ? C.neg : sel ? C.ink : w.isCurrent ? C.s1 : "#9ec5f4";
-          return (
-            <g key={w.key} onClick={() => onSelect(w.key)} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} className="cursor-pointer">
-              <rect x={PAD.left + bw * i} y={PAD.top} width={bw} height={plotH} fill="transparent" />
-              {h > 0.5 && <rect x={cx - barW / 2} y={v >= 0 ? yv : zeroY} width={barW} height={h} rx={4} fill={fill} opacity={w.isCurrent && !sel ? 0.7 : 1} />}
-              {(weeks.length <= 14 || i % 4 === 0) && (
-                <text x={cx} y={H - 6} textAnchor="middle" fontSize="9" fill={sel ? C.ink : C.muted} fontWeight={sel ? 700 : 400}>
-                  {w.key.slice(5).replace("-", "/")}
-                </text>
-              )}
-            </g>
-          );
-        })}
-      </svg>
-      {hover != null && (
-        <div className="absolute top-0 -translate-x-1/2 bg-sheet border border-line shadow-md rounded-lg px-2.5 py-1.5 text-xs pointer-events-none z-10 whitespace-nowrap" style={{ left: `${((PAD.left + bw * hover + bw / 2) / W) * 100}%` }}>
-          <div className="text-muted tnum">{fmtDate(weeks[hover].start, locale)}</div>
-          <div className="font-bold tnum">{fmt(vals[hover])}</div>
-        </div>
-      )}
     </div>
   );
 }

@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useI18n } from "./I18nProvider";
 import { Badge, Btn, Input } from "./ui";
-import { fmtMoney } from "@/lib/format";
+import { fmtMoney, sep } from "@/lib/format";
 
 /**
  * One-tap running costs.
@@ -123,7 +123,7 @@ export function QuickExpense({
         <form onSubmit={save} className="flex items-end gap-2 mt-3">
           <div className="flex-1 max-w-40">
             <span className="block text-xs font-semibold text-ink-500 mb-1.5">
-              {t("ex.amount")} · {t(`ex.cat.${openCat}`)}
+              {t("ex.amount")}{sep(locale)}{t(`ex.cat.${openCat}`)}
             </span>
             <Input
               type="number"

@@ -1,20 +1,18 @@
 "use client";
-import { Fragment, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useI18n } from "@/components/I18nProvider";
 import { Card, Empty, PageTitle } from "@/components/ui";
 import { useVehicle } from "@/components/VehicleProvider";
-import { fmtMoney, fmtNum } from "@/lib/format";
+import { HBars, CHART, HeatGrid } from "@/components/charts";
+import { fmtHour, fmtHourRange, fmtInt, fmtMoney, fmtNum, sep } from "@/lib/format";
 
 // leaflet needs the DOM — never render it on the server
 const GpsHeatmap = dynamic(() => import("@/components/GpsHeatmap").then((m) => m.GpsHeatmap), {
   ssr: false,
 });
 
-// sequential blue ramp (validated reference palette) — light → dark = low → high
-const RAMP = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#1c5cab", "#0d366b"];
-const EMPTY_CELL = "var(--line)";
 // Monday first — the order of Uber's pay week (lib/week.ts)
 const DOW_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
@@ -22,86 +20,6 @@ function dayName(dow: number, locale: string, style: "short" | "long" = "short")
   // 2026-07-05 is a Sunday → +dow days lands on the right weekday
   const d = new Date(2026, 6, 5 + dow);
   return new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { weekday: style }).format(d);
-}
-
-function WeekdayHeatGrid({ cells, locale, t }: { cells: any[]; locale: string; t: (k: string, vars?: Record<string, string | number>) => string }) {
-  const [tip, setTip] = useState<{ x: number; y: number; cell: any } | null>(null);
-  const rates = cells.filter((c: any) => c.ratePerHour != null).map((c: any) => c.ratePerHour);
-  if (rates.length === 0) return <Empty>{t("pl.noData")}</Empty>;
-  const maxRate = Math.max(...rates);
-  const minRate = Math.min(...rates);
-  const color = (c: any) => {
-    if (c.ratePerHour == null) return EMPTY_CELL;
-    if (maxRate === minRate) return RAMP[3];
-    const f = (c.ratePerHour - minRate) / (maxRate - minRate);
-    return RAMP[Math.min(RAMP.length - 1, Math.floor(f * RAMP.length))];
-  };
-  const cellAt = (dow: number, hour: number) => cells[dow * 24 + hour];
-
-  return (
-    <div className="relative overflow-x-auto" dir="ltr">
-      <div className="min-w-[640px]">
-        <div className="grid" style={{ gridTemplateColumns: "3rem repeat(24, 1fr)", gap: 2 }}>
-          <div />
-          {Array.from({ length: 24 }, (_, h) => (
-            <div key={h} className="text-[9px] text-muted text-center" style={{ fontVariantNumeric: "tabular-nums" }}>
-              {h % 3 === 0 ? h : ""}
-            </div>
-          ))}
-          {DOW_ORDER.map((dow) => (
-            <Fragment key={dow}>
-              <div key={`d${dow}`} className="text-[10px] text-muted font-semibold flex items-center">
-                {dayName(dow, locale)}
-              </div>
-              {Array.from({ length: 24 }, (_, h) => {
-                const c = cellAt(dow, h);
-                return (
-                  <div
-                    key={`${dow}-${h}`}
-                    className="h-5 rounded-sm cursor-default"
-                    style={{ background: color(c) }}
-                    onMouseEnter={(e) => {
-                      const r = (e.target as HTMLElement).closest(".relative")!.getBoundingClientRect();
-                      const b = (e.target as HTMLElement).getBoundingClientRect();
-                      setTip({ x: b.left - r.left + b.width / 2, y: b.top - r.top, cell: c });
-                    }}
-                    onMouseLeave={() => setTip(null)}
-                  />
-                );
-              })}
-            </Fragment>
-          ))}
-        </div>
-        <div className="flex items-center gap-2 mt-3 text-[10px] text-muted">
-          <span>{fmtMoney(minRate, locale)}/{t("c.hours")}</span>
-          {RAMP.map((c) => (
-            <span key={c} className="inline-block w-6 h-2.5 rounded-sm" style={{ background: c }} />
-          ))}
-          <span>{fmtMoney(maxRate, locale)}/{t("c.hours")}</span>
-          <span className="ms-3 inline-block w-6 h-2.5 rounded-sm" style={{ background: EMPTY_CELL }} />
-          <span>{t("pl.noSample")}</span>
-        </div>
-      </div>
-      {tip && (
-        <div
-          className="absolute -translate-x-1/2 -translate-y-full bg-sheet border border-line shadow-md rounded-lg px-2.5 py-1.5 text-xs pointer-events-none z-10 whitespace-nowrap"
-          style={{ left: tip.x, top: tip.y - 4 }}
-        >
-          <div className="text-muted">
-            {dayName(tip.cell.dow, locale, "long")} {tip.cell.hour}:00–{tip.cell.hour + 1}:00
-          </div>
-          <div className="font-bold">
-            {tip.cell.ratePerHour != null
-              ? `${fmtMoney(tip.cell.ratePerHour, locale)}/${t("c.hours")}`
-              : t("pl.noSample")}
-          </div>
-          <div className="text-muted">
-            {t("pl.tripsN", { n: tip.cell.trips })} · {fmtNum(tip.cell.hours, locale)} {t("c.hours")}
-          </div>
-        </div>
-      )}
-    </div>
-  );
 }
 
 export default function PlanPage() {
@@ -138,7 +56,6 @@ export default function PlanPage() {
   if (!plan) return null;
 
   const gapRows = plan.gaps.filter((g: any) => g.medianGapMin != null && g.samples >= 3);
-  const maxGap = Math.max(...gapRows.map((g: any) => g.medianGapMin), 1);
 
   return (
     <div className="space-y-4">
@@ -155,7 +72,7 @@ export default function PlanPage() {
       {/* weekday × hour heatmap of EGP/hour */}
       <Card>
         <div className="text-sm font-semibold mb-3">{t("pl.heatTitle")}</div>
-        <WeekdayHeatGrid cells={plan.cells} locale={locale} t={t} />
+        <HeatGrid cells={plan.cells} dowOrder={DOW_ORDER} dayName={(dow, style) => dayName(dow, locale, style)} locale={locale} fmt={(v) => fmtMoney(v, locale)} t={t} />
       </Card>
 
       {/* community version — pooled across every other active vehicle,
@@ -167,7 +84,7 @@ export default function PlanPage() {
           <Empty>{t("pl.communityNotEnough")}</Empty>
         ) : (
           <>
-            <WeekdayHeatGrid cells={community.cells} locale={locale} t={t} />
+            <HeatGrid cells={community.cells} dowOrder={DOW_ORDER} dayName={(dow, style) => dayName(dow, locale, style)} locale={locale} fmt={(v) => fmtMoney(v, locale)} t={t} />
             <div className="text-xs text-muted mt-3 text-center">
               {t("bm.driverCount", { n: fmtNum(community.driverCount, locale, 0) })}
             </div>
@@ -184,15 +101,20 @@ export default function PlanPage() {
           ) : (
             <div className="space-y-2">
               {plan.topSlots.map((s: any, i: number) => (
-                <div key={i} className="flex items-center gap-3 text-sm">
-                  <span className="w-6 text-center font-black text-muted-2">{i + 1}</span>
-                  <span className="flex-1 font-semibold">
-                    {dayName(s.dow, locale, "long")} {s.hour}:00–{s.hour + 1}:00
+                <div key={i} className="flex items-center gap-3">
+                  <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold tnum shrink-0 ${i === 0 ? "bg-ink text-background" : "bg-paper text-muted"}`}>{fmtInt(i + 1, locale)}</span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-bold">{dayName(s.dow, locale, "long")}</span>
+                    <span className="block text-xs text-muted tnum">
+                      {fmtHourRange(s.hour, locale)}
+                      {sep(locale)}
+                      {t("pl.tripsN", { n: s.trips })}
+                    </span>
                   </span>
-                  <span className="font-bold" style={{ fontVariantNumeric: "tabular-nums" }}>
-                    {fmtMoney(s.ratePerHour, locale)}/{t("c.hours")}
+                  <span className="text-sm font-bold tnum shrink-0">
+                    {fmtMoney(s.ratePerHour, locale)}
+                    <span className="text-xs font-semibold text-muted">/{t("c.hours")}</span>
                   </span>
-                  <span className="text-xs text-muted">{t("pl.tripsN", { n: s.trips })}</span>
                 </div>
               ))}
             </div>
@@ -206,24 +128,20 @@ export default function PlanPage() {
           {gapRows.length === 0 ? (
             <Empty>{t("pl.noData")}</Empty>
           ) : (
-            <div className="space-y-1.5">
-              {gapRows.map((g: any) => (
-                <div key={g.hour} className="flex items-center gap-2 text-xs">
-                  <span className="w-14 text-muted" style={{ fontVariantNumeric: "tabular-nums" }}>
-                    {g.hour}:00
-                  </span>
-                  <div className="flex-1 h-2 rounded-full bg-surface-2 overflow-hidden" dir="ltr">
-                    <div
-                      className="h-full rounded-full"
-                      style={{ width: `${(g.medianGapMin / maxGap) * 100}%`, background: "#3987e5" }}
-                    />
-                  </div>
-                  <span className="w-16 font-semibold" style={{ fontVariantNumeric: "tabular-nums" }}>
-                    {g.medianGapMin} {t("pl.min")}
-                  </span>
-                </div>
-              ))}
-            </div>
+            <HBars
+              locale={locale}
+              labelWidth="3.2rem"
+              valueWidth="4.5rem"
+              rows={gapRows.map((g: any) => ({
+                key: String(g.hour),
+                label: fmtHour(g.hour, locale),
+                value: g.medianGapMin,
+                display: `${fmtInt(g.medianGapMin, locale)} ${t("pl.min")}`,
+                color: CHART.s2,
+                // the shortest wait is the busiest hour
+                best: g.medianGapMin === Math.min(...gapRows.map((x: any) => x.medianGapMin)),
+              }))}
+            />
           )}
         </Card>
       </div>
@@ -258,7 +176,7 @@ export default function PlanPage() {
                 )}
               </div>
               <div className="text-xs text-muted mt-1">
-                {t("pl.tripsN", { n: s.trips })} · {fmtNum(s.hours, locale)} {t("c.hours")}
+                {t("pl.tripsN", { n: s.trips })}{sep(locale)}{fmtNum(s.hours, locale)} {t("c.hours")}
               </div>
             </div>
           ))}

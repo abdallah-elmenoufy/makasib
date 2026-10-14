@@ -417,6 +417,7 @@ const en: Record<string, string> = {
   "db.tripCount": "Trips",
   "db.noVehicle": "Set up your vehicle first",
   "db.profitTrend": "Daily profit",
+  "db.profitTrend14": "Daily profit, last {n} days",
   "db.remindersDue": "Reminders needing attention",
   "db.streakTitle": "Streak & goals",
   "db.streakSetHint": "Set a weekly hours or profit target and Makasib will track your streak of weeks hitting it.",
@@ -598,6 +599,23 @@ const en: Record<string, string> = {
 
   // Uber week
   "wk.title": "Weeks",
+  "wk.choose": "Choose",
+  "wk.pickTitle": "Choose a week",
+  "wk.prevWeek": "Previous week",
+  "wk.nextWeek": "Next week",
+  "wk.filterAll": "All weeks",
+  "wk.filterMonth": "Month",
+  "wk.filterYear": "Year",
+  "wk.filterDate": "Date",
+  "wk.jumpDate": "Open the week that contains this date",
+  "wk.dateFuture": "That date is in the future.",
+  "wk.dateNotLoaded": "That date is older than the two years Makasib shows here.",
+  "wk.loadOlder": "Load older weeks",
+  "wk.allLoaded": "All {n} weeks loaded — the oldest Makasib shows here.",
+  "wk.weeksN": "{n} weeks",
+  "wk.noWeeksMatch": "No weeks match this filter.",
+  "ch.tapHour": "Tap an hour to see its figures.",
+  "ch.tapCell": "Tap a cell to see its figures.",
   "wk.subtitle": "Uber pay weeks: Monday 04:00 → Monday 03:59. Every trip — Uber or not — is booked to the week Uber would pay it in.",
   "wk.uberWeek": "Uber week",
   "wk.current": "This week",
@@ -622,7 +640,7 @@ const en: Record<string, string> = {
   "wk.noData": "Nothing logged in this week.",
   "wk.perTrip": "per trip",
   "wk.trendTitle": "Week over week",
-  "wk.trendSub": "Tap a bar to open that week. Black = selected, blue = the week in progress.",
+  "wk.trendSub": "Tap a bar to open that week. The selected week is drawn in black (white in dark mode); light green is the week still in progress.",
   "wk.daysTitle": "Day by day",
   "wk.daysSub": "Profit per pay day (a day runs 04:00 → 04:00). 🏆 marks the best day.",
   "wk.timeSub": "Where the online hours went: with a rider, driving to one, or waiting.",
@@ -1013,7 +1031,7 @@ const ar: Record<string, string> = {
   "mn.serviceLife": "عمر القطعة",
   "mn.serviceLifeTitle": "عمر القطع",
   "mn.serviceLifeSub": "مشيت كام من عمر كل قطعة من ساعة ما اتركبت.",
-  "mn.kmLeft": "فاضل {km} كم · مستهلك {pct}%",
+  "mn.kmLeft": "فاضل {km} كم، مستهلك {pct}%",
   "mn.overdueBy": "عدّيت {km} كم على الميعاد — وقتها تتغير",
   "mn.replaced": "اتغيّرت",
   "mn.replacedHint": "في بند أحدث في نفس النوع خد مكانه، فالبند ده مابقاش متتبَّع ولا بيتحسب على الكيلومتر.",
@@ -1100,7 +1118,7 @@ const ar: Record<string, string> = {
   "tg.hit": "وصلت ✓",
   "tg.perHourNeeded": "المطلوب في الساعة",
   "tg.ofDay": "من هدف اليوم",
-  "tg.costCaption": "{perHour} في الساعة تكلفة · {perKm} للكيلومتر",
+  "tg.costCaption": "{perHour} في الساعة تكلفة، {perKm} للكيلومتر",
   "tg.footnote": "محسوبة على {hours} ساعة بمعدلك {kmh} كم/س و{hourly} في الساعة، زائد {fixed} تكلفة ثابتة في اليوم.",
 
   "qx.title": "سجّل مصروف",
@@ -1146,7 +1164,7 @@ const ar: Record<string, string> = {
     "منهم {km} كم لفّة من غير راكب خالص، بتكلفك {cost}. إنك تستنى في مكان شغّال بدل ما تلف هي أرخص زيادة ممكنة.",
   "db.fuelEconomy": "استهلاك الوقود",
   "db.fuelEconomyHint": "بيتقاس بين تعبئتين كاملتين على كل الكيلومترات اللي مشيتها — دي الطريقة الوحيدة الصح لقياس الاستهلاك. بعدين تكلفة الوقود بتتحسب على شغلك بكيلومترات الورديات بس، فالقيادة الشخصية عمرها ما تتخصم من ربحك.",
-  "db.fuelMeasuredOver": "متقاسة على {km} كم · {pct}% منها شغل",
+  "db.fuelMeasuredOver": "متقاسة على {km} كم، {pct}% منها شغل",
   "db.cashProfit": "الكاش في جيبك",
   "db.cashProfitSub": "قبل الإهلاك (مش مصروف كاش)",
   "db.l100": "لكل ١٠٠ كم",
@@ -1157,6 +1175,7 @@ const ar: Record<string, string> = {
   "db.tripCount": "الرحلات",
   "db.noVehicle": "أنشئ ملف سيارتك أولاً",
   "db.profitTrend": "الربح اليومي",
+  "db.profitTrend14": "الربح اليومي، آخر {n} يوم",
   "db.remindersDue": "تذكيرات تحتاج انتباهك",
   "db.streakTitle": "التتابع والأهداف",
   "db.streakSetHint": "حدد هدف أسبوعي لعدد الساعات أو الربح، ومكاسب هيتابعلك عدد الأسابيع اللي حققت فيها الهدف ورا بعض.",
@@ -1326,6 +1345,23 @@ const ar: Record<string, string> = {
   "db.profitSubNoDep": "بعد الوقود والصيانة والمصاريف — إهلاك السيارة متوقّف",
 
   "wk.title": "الأسابيع",
+  "wk.choose": "اختيار",
+  "wk.pickTitle": "اختر أسبوعًا",
+  "wk.prevWeek": "الأسبوع السابق",
+  "wk.nextWeek": "الأسبوع التالي",
+  "wk.filterAll": "كل الأسابيع",
+  "wk.filterMonth": "الشهر",
+  "wk.filterYear": "السنة",
+  "wk.filterDate": "تاريخ",
+  "wk.jumpDate": "افتح الأسبوع الذي يحتوي هذا التاريخ",
+  "wk.dateFuture": "هذا التاريخ في المستقبل.",
+  "wk.dateNotLoaded": "هذا التاريخ أقدم من السنتين اللتين تعرضهما مكاسب هنا.",
+  "wk.loadOlder": "تحميل أسابيع أقدم",
+  "wk.allLoaded": "تم تحميل كل الأسابيع ({n}) — أقدم ما تعرضه مكاسب هنا.",
+  "wk.weeksN": "{n} أسبوع",
+  "wk.noWeeksMatch": "لا توجد أسابيع تطابق هذا الفلتر.",
+  "ch.tapHour": "المس ساعة لعرض أرقامها.",
+  "ch.tapCell": "المس خانة لعرض أرقامها.",
   "wk.subtitle": "أسبوع أوبر: من الاثنين ٠٤:٠٠ إلى الاثنين التالي ٠٣:٥٩. كل رحلة — أوبر أو غيرها — تُحسب في الأسبوع الذي تدفعه أوبر فيه.",
   "wk.uberWeek": "أسبوع أوبر",
   "wk.current": "هذا الأسبوع",
@@ -1346,11 +1382,11 @@ const ar: Record<string, string> = {
   "wk.closedTitle": "أسبوعك أُغلق",
   "wk.details": "التفاصيل",
   "wk.share": "مشاركة",
-  "wk.shareText": "مكاسب · أسبوع {range}: ربح حقيقي {profit} · دخل {net} · {trips} رحلة · {hours} س متصل · {perHour}/س · {km} كم",
+  "wk.shareText": "مكاسب، أسبوع {range}: ربح حقيقي {profit}، دخل {net}، {trips} رحلة، {hours} س متصل، {perHour}/س، {km} كم",
   "wk.noData": "لا يوجد شيء مسجّل في هذا الأسبوع.",
   "wk.perTrip": "للرحلة",
   "wk.trendTitle": "أسبوع بأسبوع",
-  "wk.trendSub": "اضغط على عمود لفتح أسبوعه. الأسود = المختار، الأزرق = الأسبوع الجاري.",
+  "wk.trendSub": "اضغط على عمود لفتح أسبوعه. الأسبوع المختار يظهر بالأسود (بالأبيض في الوضع الداكن)، والأخضر الفاتح هو الأسبوع الجاري.",
   "wk.daysTitle": "يوم بيوم",
   "wk.daysSub": "الربح لكل يوم (اليوم يبدأ ٠٤:٠٠ وينتهي ٠٤:٠٠). 🏆 أفضل يوم.",
   "wk.timeSub": "أين ذهبت ساعات الاتصال: مع راكب، في الطريق لراكب، أو انتظار.",
@@ -1365,7 +1401,7 @@ const ar: Record<string, string> = {
   "wk.moneyTitle": "الفلوس",
   "wk.cardNet": "رحلات الكارت (صافي)",
   "wk.cashNet": "رحلات الكاش (صافي)",
-  "wk.fuelThisWeek": "{n} تموين هذا الأسبوع · {q} لتر · {v}",
+  "wk.fuelThisWeek": "{n} تموين هذا الأسبوع، {q} لتر، {v}",
   "wk.bestTrip": "أفضل رحلة",
   "wk.bestTripSub": "الأعلى دخلاً مقابل دقائقها",
   "wk.hoursTitle": "الدخل حسب الساعة",
@@ -1431,7 +1467,7 @@ const ar: Record<string, string> = {
 
   "qa.moreDetails": "أضف تفاصيل (بقشيش، كم، دقائق)",
   "qa.lessDetails": "تفاصيل أقل",
-  "qa.addedLocated": "✓ أُضيفت · تم تحديد مكان التوصيل",
+  "qa.addedLocated": "✓ أُضيفت، تم تحديد مكان التوصيل",
   "qa.hintLocated": "تُسجَّل الآن على سيارتك الحالية، ويُحفظ مكانك كنقطة التوصيل. المسافة والباقي يُكمَلون عند استيراد اللقطات — بدون تكرار.",
 
   "sh.step1": "إغلاق الوردية",
@@ -1480,8 +1516,20 @@ const ar: Record<string, string> = {
 
 export const messages: Record<Locale, Record<string, string>> = { en, ar };
 
+const ARABIC_DIGITS = "٠١٢٣٤٥٦٧٨٩";
+
+/** Interpolated values take the UI's digits: an Arabic screen shows ٣ رحلات,
+ *  never 3. Strings already formatted with fmtNum/fmtMoney pass through
+ *  unchanged (they carry Arabic digits already); raw numbers and digit-bearing
+ *  text (a clock, a count, a date) are converted here, once, for every key. */
 export function translate(locale: Locale, key: string, vars?: Record<string, string | number>): string {
   let s = messages[locale][key] ?? messages.en[key] ?? key;
-  if (vars) for (const [k, v] of Object.entries(vars)) s = s.replace(`{${k}}`, String(v));
+  if (vars) {
+    for (const [k, v] of Object.entries(vars)) {
+      let val = String(v);
+      if (locale === "ar") val = val.replace(/[0-9]/g, (d) => ARABIC_DIGITS[Number(d)]);
+      s = s.replace(`{${k}}`, val);
+    }
+  }
   return s;
 }

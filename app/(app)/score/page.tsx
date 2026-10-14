@@ -7,7 +7,7 @@ import { useVehicle } from "@/components/VehicleProvider";
 import { useTrackedTask } from "@/components/ActivityIndicator";
 import { looksLikeTripRequest, parseTripRequestText } from "@/lib/tripRequest";
 import { scoreOffer, OfferBaseline } from "@/lib/offerScore";
-import { fmtMoney, fmtNum } from "@/lib/format";
+import { fmtMoney, fmtNum, sep } from "@/lib/format";
 
 type OfferForm = {
   fare: string;
@@ -178,7 +178,7 @@ export default function ScorePage() {
                 </div>
                 {score.ratioHour != null && baseline?.profitPerHour != null && (
                   <div className="text-xs opacity-80 mt-2">
-                    {t("score.vsAverage", { n: fmtMoney(baseline.profitPerHour, locale) })} ·{" "}
+                    {t("score.vsAverage", { n: fmtMoney(baseline.profitPerHour, locale) })}{sep(locale)}
                     {fmtNum(score.ratioHour * 100, locale, 0)}%
                   </div>
                 )}

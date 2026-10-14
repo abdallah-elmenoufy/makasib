@@ -6,20 +6,11 @@ import { Badge, Btn, Card, CardHead, Delta, Empty, Gauge, Hero, Meter, PageTitle
 import { Icon } from "@/components/icons";
 import { QuickExpense } from "@/components/QuickExpense";
 import { useVehicle } from "@/components/VehicleProvider";
-import { fmtMoney, fmtNum, fmtDate } from "@/lib/format";
+import { BarChart, CHART } from "@/components/charts";
+import { fmtDate, fmtInt, fmtMoney, fmtNum, localizeDigits, sep } from "@/lib/format";
 
-// chart chrome + series colours from the validated reference palette
+// semantic text colours; every series colour comes from components/charts (CSS tokens)
 const C = {
-  pos: "#2a78d6", // series-1 blue
-  neg: "#e34948", // diverging red pole
-  dead: "#eda100", // series-4 yellow (labelled — relief rule)
-  pickup: "#eb6834", // series-2 orange
-  personal: "var(--muted-2)", // neutral
-  idle: "var(--muted-2)",
-  trip: "#2a78d6",
-  grid: "var(--line)",
-  axis: "var(--muted-2)",
-  muted: "var(--muted)",
   goodText: "var(--money)",
   critical: "var(--loss)",
 };
@@ -34,11 +25,11 @@ const PERIOD_KEY: Record<PeriodKey, string> = {
   all: "c.allTime",
 };
 
-function fmtDuration(min: number, t: (k: string) => string): string {
+function fmtDuration(min: number, t: (k: string) => string, locale = "en"): string {
   const h = Math.floor(min / 60);
   const m = Math.round(min % 60);
-  if (h <= 0) return `${m}${t("c.minShort")}`;
-  return `${h}${t("c.hours")} ${m.toString().padStart(2, "0")}${t("c.minShort")}`;
+  if (h <= 0) return `${fmtInt(m, locale)}${t("c.minShort")}`;
+  return `${fmtInt(h, locale)}${t("c.hours")} ${localizeDigits(m.toString().padStart(2, "0"), locale)}${t("c.minShort")}`;
 }
 
 function fmtCountdown(ms: number, t: (k: string, v?: Record<string, string | number>) => string): string {
@@ -230,7 +221,7 @@ export default function DashboardPage() {
           <div className="mt-4 pt-4 border-t border-hero-fg/15">
             <div className="flex items-center justify-between text-xs text-hero-fg/70 mb-1.5">
               <span>
-                {t("wk.uberWeek")} · {fmtDate(cur.start, locale)} – {fmtDate(new Date(new Date(cur.end).getTime() - 1), locale)}
+                {t("wk.uberWeek")}{sep(locale)}{fmtDate(cur.start, locale)} – {fmtDate(new Date(new Date(cur.end).getTime() - 1), locale)}
               </span>
               <span className="tnum">{fmtCountdown(weeks.msUntilClose, t)}</span>
             </div>
@@ -242,7 +233,7 @@ export default function DashboardPage() {
                 {t("wk.onPace", { v: money(weeks.projection.trueProfit), n: weeks.projection.trips })}
                 {weeks.previous && weeks.previous.trueProfit !== 0 && (
                   <>
-                    {" · "}
+                    {sep(locale)}
                     {t("wk.vsLastWeek")} <Delta value={weeks.projection.trueProfit - weeks.previous.trueProfit} fmt={money} />
                   </>
                 )}
@@ -275,18 +266,18 @@ export default function DashboardPage() {
             <StackedMeter
               height={14}
               segments={[
-                { key: "trip", value: time.tripMin, color: C.trip, label: t("tm.withRider") },
-                { key: "pickup", value: time.pickupMin, color: C.pickup, label: t("tm.toPickup") },
-                { key: "idle", value: time.idleMin, color: C.idle, label: t("tm.idle") },
+                { key: "trip", value: time.tripMin, color: CHART.s1, label: t("tm.withRider") },
+                { key: "pickup", value: time.pickupMin, color: CHART.s2, label: t("tm.toPickup") },
+                { key: "idle", value: time.idleMin, color: CHART.neutral, label: t("tm.idle") },
               ]}
             />
             <div className="mt-3 space-y-1 text-xs">
-              <LegendRow color={C.trip} label={t("tm.withRider")} value={fmtDuration(time.tripMin, t)} cost={time.onlineMin > 0 ? `${fmtNum((time.tripMin / time.onlineMin) * 100, locale, 0)}%` : undefined} />
-              <LegendRow color={C.pickup} label={t("tm.toPickup")} value={fmtDuration(time.pickupMin, t)} cost={time.onlineMin > 0 ? `${fmtNum((time.pickupMin / time.onlineMin) * 100, locale, 0)}%` : undefined} />
-              <LegendRow color={C.idle} label={t("tm.idle")} value={fmtDuration(time.idleMin, t)} cost={time.onlineMin > 0 ? `${fmtNum((time.idleMin / time.onlineMin) * 100, locale, 0)}%` : undefined} />
+              <LegendRow color={CHART.s1} label={t("tm.withRider")} value={fmtDuration(time.tripMin, t, locale)} cost={time.onlineMin > 0 ? `${fmtNum((time.tripMin / time.onlineMin) * 100, locale, 0)}%` : undefined} />
+              <LegendRow color={CHART.s2} label={t("tm.toPickup")} value={fmtDuration(time.pickupMin, t, locale)} cost={time.onlineMin > 0 ? `${fmtNum((time.pickupMin / time.onlineMin) * 100, locale, 0)}%` : undefined} />
+              <LegendRow color={CHART.neutral} label={t("tm.idle")} value={fmtDuration(time.idleMin, t, locale)} cost={time.onlineMin > 0 ? `${fmtNum((time.idleMin / time.onlineMin) * 100, locale, 0)}%` : undefined} />
               <div className="flex justify-between pt-2 mt-1 border-t border-line font-bold">
                 <span>{t("tm.online")}</span>
-                <span className="tnum">{fmtDuration(time.onlineMin, t)}</span>
+                <span className="tnum">{fmtDuration(time.onlineMin, t, locale)}</span>
               </div>
             </div>
             {time.tripMin > 0 && (
@@ -310,7 +301,7 @@ export default function DashboardPage() {
       {/* daily profit + costs */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <Card>
-          <CardHead title={`${t("db.profitTrend")} (14d)`} />
+          <CardHead title={t("db.profitTrend14", { n: 14 })} />
           <ProfitBars data={a.trend} locale={locale} />
         </Card>
 
@@ -339,7 +330,7 @@ export default function DashboardPage() {
                     <span className="font-bold whitespace-nowrap tnum">{money(r.v)}</span>
                   </div>
                   <div className="h-2 rounded-full bg-line overflow-hidden">
-                    <div className="h-full rounded-full" style={{ width: `${(r.v / maxCost) * 100}%`, background: C.pos }} />
+                    <div className="h-full rounded-full" style={{ width: `${(r.v / maxCost) * 100}%`, background: CHART.s1 }} />
                   </div>
                 </div>
               ))}
@@ -383,21 +374,21 @@ export default function DashboardPage() {
           <StackedMeter
             height={14}
             segments={[
-              { key: "trip", value: km.tripKm, color: C.pos, label: t("db.tripKm") },
-              { key: "dead", value: km.deadKm, color: C.dead, label: t("db.deadKm") },
-              { key: "personal", value: km.personalKm, color: C.personal, label: t("db.personalKm") },
+              { key: "trip", value: km.tripKm, color: CHART.s1, label: t("db.tripKm") },
+              { key: "dead", value: km.deadKm, color: CHART.s2, label: t("db.deadKm") },
+              { key: "personal", value: km.personalKm, color: CHART.neutral, label: t("db.personalKm") },
             ]}
           />
           <div className="mt-3 space-y-1 text-xs">
-            <LegendRow color={C.pos} label={t("db.tripKm")} value={`${fmtNum(km.tripKm, locale)} ${t("c.km")}`} />
-            <LegendRow color={C.dead} label={t("db.deadKm")} value={`${fmtNum(km.deadKm, locale)} ${t("c.km")}`} cost={money(km.deadKm * costPerKm)} />
+            <LegendRow color={CHART.s1} label={t("db.tripKm")} value={`${fmtNum(km.tripKm, locale)} ${t("c.km")}`} />
+            <LegendRow color={CHART.s2} label={t("db.deadKm")} value={`${fmtNum(km.deadKm, locale)} ${t("c.km")}`} cost={money(km.deadKm * costPerKm)} />
             {km.pickupKm > 0 && (
               <>
                 <SubRow label={t("db.pickupSplit")} value={`${fmtNum(km.pickupKm, locale)} ${t("c.km")}`} cost={money(km.pickupKm * costPerKm)} />
                 <SubRow label={t("db.cruisingSplit")} value={`${fmtNum(km.cruisingKm, locale)} ${t("c.km")}`} cost={money(km.cruisingKm * costPerKm)} />
               </>
             )}
-            <LegendRow color={C.personal} label={t("db.personalKm")} value={`${fmtNum(km.personalKm, locale)} ${t("c.km")}`} />
+            <LegendRow color={CHART.neutral} label={t("db.personalKm")} value={`${fmtNum(km.personalKm, locale)} ${t("c.km")}`} />
           </div>
           {km.shiftKm > 0 && km.deadKm > 0 && (
             <div className="mt-4 pt-3 border-t border-line">
@@ -494,7 +485,7 @@ export default function DashboardPage() {
           <div className="space-y-1.5 mt-2">
             {leaderboard.entries.map((e: any, i: number) => (
               <div key={e.vehicleId} className={`flex items-center gap-3 text-sm rounded-lg px-2 py-1.5 ${e.isYou ? "bg-paper font-bold" : ""}`}>
-                <span className="w-6 text-center text-muted">{i + 1}</span>
+                <span className="w-6 text-center text-muted tnum">{fmtInt(i + 1, locale)}</span>
                 <span className="flex-1">{e.isYou ? t("db.leaderboardYou") : e.label}</span>
                 <span className="tnum">
                   {money(e.profitPerHour)}/{t("c.hours")}
@@ -564,7 +555,7 @@ function WhereNowCard({ hint, t, locale }: { hint: any; t: (k: string, v?: Recor
             <div className="rows">
               {hint.zones.map((z: any, i: number) => (
                 <div key={z.key} className="flex items-center gap-3 py-2.5">
-                  <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${i === 0 ? "bg-action text-action-fg" : "bg-surface-2 text-muted"}`}>{i + 1}</span>
+                  <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${i === 0 ? "bg-ink text-background" : "bg-paper text-muted"} tnum`}>{fmtInt(i + 1, locale)}</span>
                   <span className="flex-1 min-w-0">
                     <span className="block text-sm font-bold truncate">{z.label}</span>
                     <span className="block text-xs text-muted">{t("pl.tripsN", { n: z.trips })}</span>
@@ -647,7 +638,7 @@ function WeekClosedCard({ week, previous, t, locale }: { week: any; previous: an
             {money(week.trueProfit)}
           </div>
           <div className="text-xs text-muted mt-1.5">
-            {fmtNum(week.time.onlineMin / 60, locale)} {t("c.hours")} · {t("pl.tripsN", { n: week.counts.trips })} · {week.rates.profitPerHour != null ? `${money(week.rates.profitPerHour)}/${t("c.hours")}` : ""}
+            {fmtNum(week.time.onlineMin / 60, locale)} {t("c.hours")}{sep(locale)}{t("pl.tripsN", { n: week.counts.trips })}{sep(locale)}{week.rates.profitPerHour != null ? `${money(week.rates.profitPerHour)}/${t("c.hours")}` : ""}
             {previous && previous.counts.trips > 0 && (
               <span className="ms-2">
                 {t("wk.vsLastWeek")} <Delta value={week.trueProfit - previous.trueProfit} fmt={money} />
@@ -1076,87 +1067,15 @@ function TargetStat({
   );
 }
 
-/** 14-day profit bar chart: blue above zero, red below, hover tooltip per bar. */
+/** 14-day profit bars on the shared chart kit; the best day is labelled. */
 function ProfitBars({ data, locale }: { data: { date: string; profit: number; gross: number }[]; locale: string }) {
-  const [tip, setTip] = useState<{ x: number; y: number; d: (typeof data)[number] } | null>(null);
-  const W = 440;
-  const H = 160;
-  const PAD = { top: 8, bottom: 18, left: 6, right: 6 };
-  const max = Math.max(...data.map((d) => d.profit), 1);
-  const min = Math.min(...data.map((d) => d.profit), 0);
-  const span = max - min || 1;
-  const plotH = H - PAD.top - PAD.bottom;
-  const y = (v: number) => PAD.top + ((max - v) / span) * plotH;
-  const zeroY = y(0);
-  const bw = (W - PAD.left - PAD.right) / data.length;
-  const barW = Math.min(bw * 0.55, 18);
-
-  // rounded end away from the baseline, square end anchored at zero
-  const barPath = (cx: number, v: number) => {
-    const x0 = cx - barW / 2;
-    const r = Math.min(4, barW / 2);
-    const yv = y(v);
-    const h = Math.abs(zeroY - yv);
-    if (h < 0.5) return "";
-    if (v >= 0)
-      return `M${x0},${zeroY} L${x0},${yv + r} Q${x0},${yv} ${x0 + r},${yv} L${x0 + barW - r},${yv} Q${x0 + barW},${yv} ${x0 + barW},${yv + r} L${x0 + barW},${zeroY} Z`;
-    return `M${x0},${zeroY} L${x0},${yv - r} Q${x0},${yv} ${x0 + r},${yv} L${x0 + barW - r},${yv} Q${x0 + barW},${yv} ${x0 + barW},${yv - r} L${x0 + barW},${zeroY} Z`;
-  };
-
   return (
-    <div className="relative" dir="ltr">
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
-        {[max, max / 2].map(
-          (g, i) =>
-            g > 0 && (
-              <line key={i} x1={PAD.left} x2={W - PAD.right} y1={y(g)} y2={y(g)} stroke={C.grid} strokeWidth="1" />
-            )
-        )}
-        <line x1={PAD.left} x2={W - PAD.right} y1={zeroY} y2={zeroY} stroke={C.axis} strokeWidth="1" />
-        {data.map((d, i) => {
-          const cx = PAD.left + bw * i + bw / 2;
-          return (
-            <g key={d.date}>
-              <path d={barPath(cx, d.profit)} fill={d.profit >= 0 ? C.pos : C.neg} />
-              {/* hover hit target wider than the mark */}
-              <rect
-                x={PAD.left + bw * i}
-                y={PAD.top}
-                width={bw}
-                height={plotH}
-                fill="transparent"
-                onMouseEnter={() => setTip({ x: (cx / W) * 100, y: 0, d })}
-                onMouseLeave={() => setTip(null)}
-              />
-              {i % 2 === 0 && (
-                <text
-                  x={cx}
-                  y={H - 4}
-                  textAnchor="middle"
-                  fontSize="8"
-                  fill={C.muted}
-                  style={{ fontVariantNumeric: "tabular-nums" }}
-                >
-                  {d.date.slice(5).replace("-", "/")}
-                </text>
-              )}
-            </g>
-          );
-        })}
-      </svg>
-      {tip && (
-        <div
-          className="absolute top-0 -translate-x-1/2 bg-sheet border border-line shadow-md rounded-lg px-2.5 py-1.5 text-xs pointer-events-none z-10"
-          style={{ left: `${tip.x}%` }}
-        >
-          <div className="text-muted" style={{ fontVariantNumeric: "tabular-nums" }}>
-            {tip.d.date}
-          </div>
-          <div className="font-bold" style={{ color: tip.d.profit >= 0 ? C.goodText : C.critical }}>
-            {fmtMoney(tip.d.profit, locale)}
-          </div>
-        </div>
-      )}
-    </div>
+    <BarChart
+      height={160}
+      locale={locale}
+      fmt={(v) => fmtMoney(v, locale)}
+      labelEvery={2}
+      bars={data.map((d) => ({ key: d.date, label: d.date.slice(5).replace("-", "/"), value: d.profit, sub: fmtDate(d.date, locale) }))}
+    />
   );
 }

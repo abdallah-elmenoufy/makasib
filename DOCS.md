@@ -409,16 +409,38 @@ Uber-style tokens live in `app/globals.css` (`--ink`, `--surface`, `--money`,
 Light and dark palettes are both defined at the token level; dark applies
 through `prefers-color-scheme` unless `data-theme` is set on `<html>`, which
 Settings → Appearance writes to `localStorage.theme` (per device) and an
-inline script in `app/layout.tsx` applies before first paint. Chart colours
-in pages use `var(--…)` so SVGs follow the theme. Navigation
+inline script in `app/layout.tsx` applies before first paint. Navigation
 (`components/Nav.tsx`): bottom tab bar on phones (Home, Shifts, Trips, Weeks,
 More sheet), sidebar on desktop. Shared primitives in `components/ui.tsx`.
+
+**Chart kit** (`components/charts.tsx`, added 2026-10-14). Every chart in the
+app draws from one set of CSS tokens in `app/globals.css`: `--chart-1` (brand
+green, the single-series colour), `--chart-2` violet and `--chart-3` magenta
+for the 2nd/3rd parts of a split, `--chart-neutral` for "the rest",
+`--chart-neg` for losses, and a 7-step green ramp `--ramp-1…7` (+
+`--ramp-empty`) for heat maps. Light and dark values are both set by hand.
+The categorical set was checked with a colour-vision-deficiency validator;
+green next to orange failed for protanopia, which is why splits use violet
+and magenta instead. Components: `BarChart` (zero baseline, rounded data
+ends, selected bar in ink, max labelled, tooltip, measures its own width so
+labels never scale up on desktop), `HBars` (ranked rows that double as a
+chart; `best` row in ink + 🏆), `HeatStrip` (24 hours) and `HeatGrid`
+(weekday × hour, fits a 390 px phone without sideways scroll). Tap any mark
+for its figures; hover works on desktop.
+
+**Digits.** Arabic screens show Arabic-Indic digits everywhere: `fmtMoney`/
+`fmtNum`/`fmtDate` use `ar-EG`, `translate()` converts digits inside
+interpolated values, and `localizeDigits`, `fmtInt`, `fmtHour`,
+`fmtHourRange` (`lib/format.ts`) cover the rest (chart ticks, ranks, clock
+times). `sep(locale)` is the inline separator between facts: " · " in
+English, the Arabic comma "، " in Arabic — a middle dot sits at the height
+of the Arabic zero, so "· ٢٦" read as "٢٦٠".
 
 ## 7b. Weekly analytics (`lib/weekly.ts`, `/weeks`, `GET /api/weeks`)
 
 `getWeeklyReport(vehicleId, weeksBack)` returns one `WeekSummary` per Uber
 pay week (oldest → current) plus the comparisons the driver asks for. Per
-week: counts, net/cash/card earnings and cash owed to the platform, the
+week: counts, net/cash/card earnings and tips (no platform cash settlement), the
 amortized cost rows and true/cash profit, rates (profit and earnings per
 online hour, per trip hour, per km, per trip), the time split, the km split
 (trip / pickup / cruising / personal), per-pay-day and per-hour-of-day
@@ -429,7 +451,18 @@ split, fuel-ups and expenses in the week, and goal status. Report-level:
 `deltaVsBest`, a straight-line `projection` once ≥20% of the week has
 elapsed, and `previousAtSamePoint` — last week's figures at the same elapsed
 fraction, the honest "am I ahead?" answer. `lastClosed` feeds the dashboard's
-"Your week closed" recap for the first two days of a new week.
+"Your week closed" recap for the first two days of a new week. The API
+serves up to 104 weeks (`?weeks=12|26|52|104`).
+
+**Week picker** (`/weeks`): the header shows the selected week with
+previous/next arrows; tapping it opens a bottom sheet with a vertical list of
+weeks, newest first, under sticky month headings (each heading shows the
+month's week count and total profit). Each row: start-date badge, Monday-to-
+Monday range, "This week"/🏆 markers, trips and online time, true profit and
+a thin profit bar. Filters: all / month (dropdown) / year / date (native
+date input → opens the pay week containing that date, loading older weeks
+when needed). "Load older weeks" steps 12 → 26 → 52 → 104. A `?week=` deep
+link older than what is loaded widens the span automatically.
 
 **Where to go now** (`lib/now.ts`, `GET /api/now`, dashboard card): the
 trips of the last 8 weeks that started within ±1 h of the current hour on the
@@ -726,6 +759,66 @@ Reasoning and alternatives:
   appears.
 
 ---
+
+### Launch readiness (reviewed 2026-10-14)
+
+What still stands between this build and selling it, in order. §16 has the
+legal and payment background; this is the engineering checklist.
+
+**Blockers (must exist before the first paying driver)**
+1. *Accounts and data isolation.* A `User` model, `userId` on `Vehicle` (and
+   everything hanging off it), and every query scoped by the signed-in user.
+   Today one passphrase unlocks one install. Sign-in: phone number + OTP
+   (drivers all have a phone, few use email) with Google as a second option.
+   Add an automated test that user A can never read user B's rows.
+2. *Postgres + object storage.* Move off SQLite (§13 Phase 2 step 1) and put
+   photos in S3-compatible storage with signed URLs. Keep the 30-day photo
+   purge.
+3. *OCR on Linux.* Apple Vision/`sips` do not exist on a server. Use
+   tesseract (already the fallback) or on-device OCR in the browser, and
+   convert HEIC client-side.
+4. *Payments + entitlement.* Paymob (cards, Meeza, wallets) with a webhook
+   and a `requireActiveSubscription()` gate with a grace period (§16).
+5. *Legal.* Privacy policy and terms in Arabic and English, consent for
+   location data, data export and account deletion in Settings — Egypt's
+   PDPL (151/2020) applies once you hold other people's financial and
+   location data.
+6. *Security basics.* Rate limiting on auth/OCR/import routes, request-size
+   limits on uploads, secrets only in the host's env store, dependency
+   updates (Dependabot), HTTPS-only cookies, and a security review of every
+   API route for the new `userId` scoping.
+7. *Backups you have restored once.* Point-in-time recovery on the database
+   plus a nightly logical dump to separate storage; rehearse a restore.
+8. *Monitoring.* Error tracking (Sentry), uptime checks, and structured logs
+   with no personal data in them.
+
+**Strongly recommended before a public launch**
+- Onboarding: car setup → first shift → first import in under 3 minutes,
+  with sample data a new driver can explore.
+- Product analytics (PostHog, EU region) to see where drivers drop off.
+- In-app support link (WhatsApp Business) and an FAQ in Egyptian Arabic.
+- Community features (planner/benchmark) need a minimum-drivers threshold
+  per cell and must never expose an individual's trips.
+- CI: typecheck, Vitest, build and a Playwright smoke test on every push.
+
+**Suggested pricing (hypothesis to test, not research)**
+- Free: manual entry, dashboard, this week + last week, 1 car.
+- Pro weekly ≈ EGP 25–35, monthly ≈ EGP 99, yearly ≈ EGP 899: all weeks,
+  screenshot import, plan your day, where to go now, offer scoring, CSV.
+- 14-day full trial without a card; one free week per referred driver.
+- Fleet/rental owners later: per-car monthly price with a multi-car view.
+- Re-check prices against two or three weeks of real driver conversations
+  before launch; drivers compare against the cost of a tank of fuel.
+
+**Hosting for production**
+- Default: Vercel Pro (app) + a managed Postgres in an EU region close to
+  Egypt (Neon or Supabase Pro, Frankfurt), Cloudflare in front for DNS/WAF,
+  Sentry, and the provider's PITR backups. Least operations work.
+- Cheaper, more hands-on: one Hetzner/DigitalOcean VPS in Frankfurt running
+  Docker (Next.js + Postgres + Caddy) behind Cloudflare, with nightly dumps
+  to object storage. Lower monthly bill, but you own patching and restores.
+- Either way: keep production and staging separate, and confirm the
+  provider's current pricing at sign-up — tiers change often.
 
 ## 14. Development history (commit-level)
 

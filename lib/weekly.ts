@@ -502,7 +502,7 @@ const hasData = (w: WeekSummary) => w.counts.trips > 0 || w.counts.shifts > 0;
  * of where I was at this point last week?".
  */
 export async function getWeeklyReport(vehicleId: string, weeksBack = 12, now = new Date()): Promise<WeeklyReport> {
-  const n = Math.max(1, Math.min(52, Math.round(weeksBack)));
+  const n = Math.max(1, Math.min(104, Math.round(weeksBack)));
   const oldest = weekRange(-(n - 1), now);
   const current = weekRange(0, now);
 

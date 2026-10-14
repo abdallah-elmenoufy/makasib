@@ -23,7 +23,7 @@ import {
 import { useCrud } from "@/components/useCrud";
 import { useVehicle } from "@/components/VehicleProvider";
 import { PhotoInput } from "@/components/PhotoInput";
-import { fmtDate, fmtMoney, fmtNum, toLocalInput } from "@/lib/format";
+import { fmtDate, fmtMoney, fmtNum, toLocalInput, sep } from "@/lib/format";
 
 const FUEL_TYPES = ["PETROL_80", "PETROL_92", "PETROL_95", "CNG"];
 
@@ -165,7 +165,7 @@ export default function FuelPage() {
               <div className="text-xs text-muted mt-1">
                 {t("fu.fillUps", { n: fmtNum(totals.count, locale, 0) })}
                 {totals.petrolCount > 0 &&
-                  ` · ${t("fu.avgPerFill", {
+                  `${sep(locale)}${t("fu.avgPerFill", {
                     q: `${fmtNum(totals.petrolQty / totals.petrolCount, locale)} ${t("c.liters")}`,
                   })}`}
               </div>
@@ -184,7 +184,7 @@ export default function FuelPage() {
                     p: money(totals.petrolSpend / totals.petrolQty),
                     unit: t("c.liters"),
                   })}
-                {totals.latest && ` · ${t("fu.lastFill", { v: money(totals.latest.totalCost) })}`}
+                {totals.latest && `${sep(locale)}${t("fu.lastFill", { v: money(totals.latest.totalCost) })}`}
               </div>
             </div>
 

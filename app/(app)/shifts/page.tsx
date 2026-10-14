@@ -11,7 +11,7 @@ import { GpsTracker } from "@/components/GpsTracker";
 import { EndShiftFlow } from "@/components/EndShiftFlow";
 import { Icon } from "@/components/icons";
 import { RowEditor, type EditField } from "@/components/RowEditor";
-import { fmtDate, fmtDateTime, fmtMoney, fmtNum, toLocalInput, hoursBetween } from "@/lib/format";
+import { fmtDate, fmtDateTime, fmtInt, fmtMoney, fmtNum, toLocalInput, hoursBetween, sep } from "@/lib/format";
 
 type T = (k: string, vars?: Record<string, string | number>) => string;
 
@@ -205,7 +205,7 @@ export default function ShiftsPage() {
                     open={isOpen}
                     onToggle={() => toggleDay(dg.key)}
                     title={fmtDate(dg.key, locale)}
-                    meta={`${t("sh.shiftCount", { n: dg.shifts.length })} · ${t("tr.tripCount", { n: dayTrips })}`}
+                    meta={`${t("sh.shiftCount", { n: dg.shifts.length })}${sep(locale)}${t("tr.tripCount", { n: dayTrips })}`}
                     right={<span className="text-xs font-bold tnum text-money">{fmtMoney(dayRevenue, locale)}</span>}
                   />
                   {isOpen && (
@@ -257,10 +257,10 @@ export default function ShiftsPage() {
                                       className="text-action underline underline-offset-2 font-bold"
                                       title={t("sh.viewTrips")}
                                     >
-                                      {ts.count}
+                                      {fmtInt(ts.count, locale)}
                                     </button>
                                   ) : (
-                                    0
+                                    fmtInt(0, locale)
                                   )
                                 }
                               />

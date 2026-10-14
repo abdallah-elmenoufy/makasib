@@ -5,7 +5,7 @@ import { Btn, Card, Empty, Field, Input, PageTitle, Segmented, Select, Table, Te
 import { DEFAULT_MILEAGE_SENSITIVITY_PCT, DEFAULT_LIFETIME_KM, RESIDUAL_RATIO, ANNUAL_DEPRECIATION_RATE, VALUE_FLOOR_RATIO } from "@/lib/depreciation";
 import { useCrud } from "@/components/useCrud";
 import { useVehicle } from "@/components/VehicleProvider";
-import { fmtMoney, fmtNum } from "@/lib/format";
+import { fmtMoney, fmtNum, sep } from "@/lib/format";
 
 const FUEL_SETUPS = ["PETROL", "CNG", "DUAL"];
 const OWNERSHIPS = ["OWNED", "INSTALLMENT", "RENTED", "TARGET"];
@@ -483,7 +483,7 @@ function DepreciationSection({ form, set }: { form: any; set: (k: string, v: unk
             <div className="text-2xl font-bold display mt-0.5">{activePerKm != null ? `${money(activePerKm)} / ${t("c.km")}` : "—"}</div>
             <div className="text-xs text-muted mt-1 leading-relaxed">
               {currentValue != null ? t("dep.previewValue", { v: money(currentValue) }) : t("dep.previewNeedValue")}
-              {activePerKm != null && <> · {t("dep.previewWeek", { v: money(activePerKm * 500) })}</>}
+              {activePerKm != null && <>{sep(locale)}{t("dep.previewWeek", { v: money(activePerKm * 500) })}</>}
             </div>
             <div className="text-[11px] text-muted mt-2 space-y-0.5 tnum">
               <div>{t("dep.m.MILEAGE")}: {mileagePerKm != null ? money(mileagePerKm) : "—"}</div>

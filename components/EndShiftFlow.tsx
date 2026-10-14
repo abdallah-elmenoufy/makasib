@@ -6,7 +6,7 @@ import { Btn, Field, Input, Modal, Textarea } from "./ui";
 import { Icon } from "./icons";
 import { PhotoInput } from "./PhotoInput";
 import { TripBatchEntry } from "./TripBatchEntry";
-import { fmtDateTime, fmtMoney, fmtNum, hoursBetween, toLocalInput } from "@/lib/format";
+import { fmtDateTime, fmtInt, fmtMoney, fmtNum, hoursBetween, toLocalInput, sep } from "@/lib/format";
 
 /**
  * End-of-shift, in three short steps a tired driver can finish one-handed:
@@ -93,7 +93,7 @@ export function EndShiftFlow({
           return (
             <div key={label} className="flex items-center gap-2 flex-1 min-w-0">
               <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${active ? "bg-action text-action-fg" : done ? "bg-money text-background" : "bg-surface-2 text-muted"}`}>
-                {done ? <Icon name="check" size={14} strokeWidth={2.5} /> : n}
+                {done ? <Icon name="check" size={14} strokeWidth={2.5} /> : fmtInt(n, locale)}
               </span>
               <span className={`text-xs font-bold truncate ${active ? "text-ink" : "text-muted"}`}>{label}</span>
               {i < steps.length - 1 && <span className="flex-1 h-px bg-line min-w-2" />}
@@ -111,7 +111,7 @@ export function EndShiftFlow({
           className="space-y-3"
         >
           <p className="text-sm text-muted">
-            {t("sh.startedAt")} {fmtDateTime(shift.startTime, locale)} · {fmtNum(shift.startOdometer, locale, 0)} {t("c.km")}
+            {t("sh.startedAt")} {fmtDateTime(shift.startTime, locale)}{sep(locale)}{fmtNum(shift.startOdometer, locale, 0)} {t("c.km")}
           </p>
           <Field label={t("sh.endOdo")} hint={ocrHint ? `📷 ${t("sh.ocrDetected")}` : undefined}>
             <Input
@@ -164,7 +164,7 @@ export function EndShiftFlow({
             <div className="text-sm">
               <span className="font-bold">{t("sh.closedOk")}</span>{" "}
               <span className="text-muted">
-                {fmtNum(km, locale, 0)} {t("c.km")} · {fmtNum(hours, locale)} {t("c.hours")}
+                {fmtNum(km, locale, 0)} {t("c.km")}{sep(locale)}{fmtNum(hours, locale)} {t("c.hours")}
               </span>
             </div>
           </div>

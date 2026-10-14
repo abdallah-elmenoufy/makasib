@@ -9,7 +9,7 @@ import { useTrackedTask } from "@/components/ActivityIndicator";
 import { parseEarningsActivityText, ActivityTrip } from "@/lib/earningsActivity";
 import { looksLikeTripRequest, parseTripRequestText, TripRequest } from "@/lib/tripRequest";
 import { emptyTripForm, toTripData, TripFormState, PLATFORMS as TRIP_PLATFORMS } from "@/lib/tripForm";
-import { fmtDate, toLocalInput } from "@/lib/format";
+import { fmtDate, fmtInt, fmtNum, localizeDigits, toLocalInput, sep } from "@/lib/format";
 
 const PLATFORMS = ["UBER", "CAREEM", "INDRIVE", "BOLT", "OTHER"];
 const TARGET_FIELDS = ["startTime", "fare", "distanceKm", "paymentType", "tip"] as const;
@@ -25,7 +25,7 @@ export default function ImportPage() {
 }
 
 function ImportInner() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { vehicle, loading } = useVehicle();
   const params = useSearchParams();
   const requested = params.get("tab") as Tab | null;
@@ -80,7 +80,7 @@ function ImportInner() {
 /* ---------------- Manual trip entry ---------------- */
 
 function ManualTripImport({ vehicleId }: { vehicleId: string }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [form, setForm] = useState<TripFormState>(emptyTripForm());
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState("");
@@ -179,7 +179,7 @@ type ShiftPhoto = {
 };
 
 function ShiftPhotosImport({ vehicle }: { vehicle: any }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const track = useTrackedTask();
   const router = useRouter();
   const [photos, setPhotos] = useState<ShiftPhoto[]>([]);
@@ -409,9 +409,9 @@ function PdfImport({ vehicleId }: { vehicleId: string }) {
       t("im.feesN", { n: d.fees }),
     ];
     const week = d.week
-      ? `${t("im.weekLabel")}: ${fmtDate(d.week.start, locale)} – ${fmtDate(d.week.end, locale)} · `
+      ? `${t("im.weekLabel")}: ${fmtDate(d.week.start, locale)} – ${fmtDate(d.week.end, locale)}${sep(locale)}`
       : "";
-    setResult(`✓ ${week}${parts.join(" · ")}`);
+    setResult(`✓ ${week}${parts.join(sep(locale))}`);
   };
 
   return (
@@ -433,7 +433,7 @@ function PdfImport({ vehicleId }: { vehicleId: string }) {
 /* ---------------- Earnings Activity screenshots (OCR) ---------------- */
 
 function OcrImport({ vehicleId }: { vehicleId: string }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const track = useTrackedTask();
   const router = useRouter();
   const [year, setYear] = useState(new Date().getFullYear());
@@ -560,7 +560,7 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
     }
 
     setBusy(false);
-    setResult(`✓ ${parts.join(" · ")}`);
+    setResult(`✓ ${parts.join(sep(locale))}`);
     setRows([]);
     setReqs([]);
     setFiles([]);
@@ -606,7 +606,7 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
         />
         <div className="text-3xl mb-1">📸</div>
         <div className="text-sm font-semibold">
-          {t("im.dropZone")} {files.length > 0 ? `(${files.length})` : ""}
+          {t("im.dropZone")} {files.length > 0 ? `(${fmtInt(files.length, locale)})` : ""}
         </div>
       </label>
       {progress && <p className="text-sm text-muted animate-pulse">🔎 {progress}</p>}
@@ -727,12 +727,12 @@ function OcrImport({ vehicleId }: { vehicleId: string }) {
               <tbody className="divide-y divide-line">
                 {reqs.map((r, i) => (
                   <tr key={i}>
-                    <td className="py-1.5 px-1">{r.clock ?? "—"}</td>
+                    <td className="py-1.5 px-1 tnum">{r.clock ? localizeDigits(r.clock, locale) : "—"}</td>
                     <td className="py-1.5 px-1">{r.product ?? "—"}</td>
-                    <td className="py-1.5 px-1 font-semibold">{r.fare.toFixed(2)}</td>
+                    <td className="py-1.5 px-1 font-semibold tnum">{fmtNum(r.fare, locale, 2)}</td>
                     <td className="py-1.5 px-1">{r.isCash ? t("tr.CASH") : t("tr.CARD")}</td>
-                    <td className="py-1.5 px-1">{r.pickupKm}</td>
-                    <td className="py-1.5 px-1">{r.tripKm ?? "—"}</td>
+                    <td className="py-1.5 px-1 tnum">{r.pickupKm != null ? fmtNum(r.pickupKm, locale, 1) : "—"}</td>
+                    <td className="py-1.5 px-1 tnum">{r.tripKm != null ? fmtNum(r.tripKm, locale, 1) : "—"}</td>
                     <td className="py-1.5 px-1">
                       <button
                         onClick={() => setReqs(reqs.filter((_, j) => j !== i))}
@@ -808,7 +808,7 @@ function guessMapping(headers: string[]): Record<string, number> {
 }
 
 function CsvImport({ vehicleId }: { vehicleId: string }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [platform, setPlatform] = useState("UBER");
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<string[][]>([]);
@@ -904,7 +904,7 @@ function CsvImport({ vehicleId }: { vehicleId: string }) {
 
           <div>
             <div className="font-semibold text-sm mb-2">
-              {t("im.preview")} ({rows.length})
+              {t("im.preview")} ({fmtInt(rows.length, locale)})
             </div>
             <div className="overflow-x-auto max-h-48 overflow-y-auto border border-line rounded-lg">
               <table className="w-full text-xs">

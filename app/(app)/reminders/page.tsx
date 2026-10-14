@@ -18,7 +18,7 @@ import {
 } from "@/components/ui";
 import { useCrud } from "@/components/useCrud";
 import { useVehicle } from "@/components/VehicleProvider";
-import { fmtDate, fmtNum } from "@/lib/format";
+import { fmtDate, fmtNum, sep } from "@/lib/format";
 
 const empty = () => ({
   title: "",
@@ -128,7 +128,7 @@ export default function RemindersPage() {
                     {t(`mn.cat.${r.category}`)}
                     <span className="font-normal text-muted">
                       {" "}
-                      · {t("rm.dueAt", { km: fmtNum(r.dueOdometer, locale, 0) })}
+                      {sep(locale)}{t("rm.dueAt", { km: fmtNum(r.dueOdometer, locale, 0) })}
                     </span>
                   </>
                 }

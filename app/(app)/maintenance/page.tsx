@@ -22,7 +22,7 @@ import { useCrud } from "@/components/useCrud";
 import { useVehicle } from "@/components/VehicleProvider";
 import { PhotoInput } from "@/components/PhotoInput";
 import { RowEditor } from "@/components/RowEditor";
-import { fmtDate, fmtMoney, fmtNum, toLocalInput } from "@/lib/format";
+import { fmtDate, fmtMoney, fmtNum, toLocalInput, sep } from "@/lib/format";
 import { hasInterval, inServiceItems, serviceProgress, type ServiceState } from "@/lib/maintenance";
 
 const CATEGORIES = [
@@ -170,7 +170,7 @@ export default function MaintenancePage() {
                 label={
                   <>
                     {t(`mn.cat.${m.category}`)}
-                    <span className="font-normal text-muted"> · {fmtDate(m.date, locale)}</span>
+                    <span className="font-normal text-muted">{sep(locale)}{fmtDate(m.date, locale)}</span>
                   </>
                 }
                 value={`${fmtNum(p.kmUsed!, locale, 0)} / ${fmtNum(m.lifetimeKm, locale, 0)} ${t("c.km")}`}
@@ -392,7 +392,7 @@ function ServiceLifeCell({
     <div className="min-w-36">
       <div className="text-xs tnum whitespace-nowrap mb-1">
         {fmtNum(kmUsed!, locale, 0)} / {fmtNum(m.lifetimeKm, locale, 0)} {t("c.km")}
-        <span className="text-muted"> · {fmtNum(ratio * 100, locale, 0)}%</span>
+        <span className="text-muted">{sep(locale)}{fmtNum(ratio * 100, locale, 0)}%</span>
       </div>
       <Meter ratio={ratio} tone={STATE_TONE[state as keyof typeof STATE_TONE] ?? "neutral"} thin />
     </div>

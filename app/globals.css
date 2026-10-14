@@ -65,6 +65,26 @@
   --shadow-lg: 0 16px 48px -12px rgba(0, 0, 0, 0.28);
 
   --nav-h: 64px;
+
+  /* charts — one green for a single series; violet and magenta are its
+     colour-blind-safe neighbours for stacked splits; grey = "not counted" */
+  --chart-1: #0a8a4a;
+  --chart-1-soft: #cfe9da;
+  --chart-2: #6250d6;
+  --chart-3: #e87ba4;
+  --chart-neutral: #c3c2b7;
+  --chart-neg: #e34948;
+  --chart-grid: #e6e6e3;
+  --chart-axis: #c9c9c5;
+  --chart-text: #757575;
+  --ramp-1: #e3f4ea;
+  --ramp-2: #bfe6d0;
+  --ramp-3: #8fd1ad;
+  --ramp-4: #58b985;
+  --ramp-5: #2a9d64;
+  --ramp-6: #0a8a4a;
+  --ramp-7: #065f33;
+  --ramp-empty: #f0f0ee;
 }
 
 /* ---------------------------------------------------------------------------
@@ -104,6 +124,23 @@
     --action-700: #19b86b;
     --action-fg: #06241a;
     --action-soft: #0d2b1c;
+    --chart-1: #15a35b;
+    --chart-1-soft: #164d31;
+    --chart-2: #9085e9;
+    --chart-3: #d55181;
+    --chart-neutral: #7a7a76;
+    --chart-neg: #e66767;
+    --chart-grid: #2a2a2a;
+    --chart-axis: #3a3a3a;
+    --chart-text: #a0a0a0;
+    --ramp-1: #0d2b1c;
+    --ramp-2: #114b2f;
+    --ramp-3: #176a42;
+    --ramp-4: #1f8a56;
+    --ramp-5: #28ad6c;
+    --ramp-6: #3fcf84;
+    --ramp-7: #7fe4ab;
+    --ramp-empty: #222222;
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.6);
     --shadow-md: 0 4px 16px -4px rgba(0, 0, 0, 0.7);
     --shadow-lg: 0 16px 48px -12px rgba(0, 0, 0, 0.9);
@@ -139,6 +176,23 @@
   --action-700: #19b86b;
   --action-fg: #06241a;
   --action-soft: #0d2b1c;
+  --chart-1: #15a35b;
+  --chart-1-soft: #164d31;
+  --chart-2: #9085e9;
+  --chart-3: #d55181;
+  --chart-neutral: #7a7a76;
+  --chart-neg: #e66767;
+  --chart-grid: #2a2a2a;
+  --chart-axis: #3a3a3a;
+  --chart-text: #a0a0a0;
+  --ramp-1: #0d2b1c;
+  --ramp-2: #114b2f;
+  --ramp-3: #176a42;
+  --ramp-4: #1f8a56;
+  --ramp-5: #28ad6c;
+  --ramp-6: #3fcf84;
+  --ramp-7: #7fe4ab;
+  --ramp-empty: #222222;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.6);
   --shadow-md: 0 4px 16px -4px rgba(0, 0, 0, 0.7);
   --shadow-lg: 0 16px 48px -12px rgba(0, 0, 0, 0.9);

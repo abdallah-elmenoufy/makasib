@@ -30,7 +30,8 @@ quick-start.
   cruising / personal), day-by-day, earnings by hour, best trip, best day,
   best hour, which trip lengths pay, top pickup and drop-off areas, cash vs
   card, costs — and comparisons against last week, your best week, and the
-  same point last week, with 12/26/52-week history.
+  same point last week, with up to two years of history and a vertical week
+  picker (filter by month, year, or jump to a date).
 - **Shifts** — odometer start/end (manually, from photos with automatic
   time+reading extraction, or with live GPS tracking) — this is how the app
   tells ride-hailing km apart from personal km.
