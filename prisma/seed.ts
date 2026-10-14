@@ -1,6 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "../lib/db";
 
 // Curated, not exhaustive — the makes/models that actually show up on
 // Egyptian ride-hailing roads (Uber/Careem/inDrive), skewed toward compact

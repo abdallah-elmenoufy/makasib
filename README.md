@@ -120,16 +120,16 @@ Requirements: Node 20 or newer. Everything else comes from `npm ci`.
 
 ```bash
 git clone <this repo> && cd <repo>
-npm ci                      # installs the EXACT versions in package-lock.json (Prisma 6, Next 16.2)
-cp .env.example .env        # DATABASE_URL="file:../data/app.db"  → the database lives at ./data/app.db
+npm ci                      # installs the EXACT versions in package-lock.json (Prisma 7, Next 16.2)
+cp .env.example .env        # DATABASE_URL="file:./data/app.db"  → the database lives at ./data/app.db
 npm run db:sync             # creates data/app.db (or upgrades an existing one) — never drops anything
 npm run dev                 # http://localhost:3000
 ```
 
-> Use `npm ci`, not `npm install`, and do **not** upgrade Prisma or Next on
-> your own. The code is written for Prisma 6 (`lib/db.ts` is a plain
-> `new PrismaClient()`); a Prisma 7 install needs a different `db.ts`, a
-> `prisma.config.ts`, and an adapter package, and will not match this repo.
+> Use `npm ci`, not `npm install`, so you get the versions this code was
+> tested with. The project is on **Prisma 7**: the database URL lives in
+> `prisma.config.ts` / `.env` (not in `schema.prisma`), and `lib/db.ts`
+> opens SQLite through the `better-sqlite3` adapter.
 
 ### Running it with your own existing database
 
@@ -139,10 +139,12 @@ Your real data is a single SQLite file. To run this version on it:
    point the app at the only copy.
 2. Put a copy at `./data/app.db` inside the repo (create the `data` folder if
    it is missing — it is gitignored).
-3. Make sure `.env` says `DATABASE_URL="file:../data/app.db"` (that path is
+3. Make sure `.env` says `DATABASE_URL="file:./data/app.db"` (that path is
    relative to the `prisma/` folder, which is why it starts with `../`).
-4. Run `npm run db:sync`. It adds the new columns and tables this version
-   needs, keeps every column that already exists, and records the migrations.
+4. Run `npm run db:sync`. It backs the file up, adds the new columns and
+   tables this version needs, keeps every column that already exists, records
+   the migrations, and converts Prisma-6-era dates to the Prisma 7 format
+   (without that, weekly filters show nothing on an older database).
 5. `npm run dev`.
 
 **Never run `prisma db push` against a database that has data.** It compares
@@ -231,8 +233,10 @@ phone without the mkcert dance). The cheapest honest setup, all free tiers:
 Steps (one-time, ~20 minutes):
 
 1. **Switch Prisma to Postgres.** In `prisma/schema.prisma` change
-   `provider = "sqlite"` to `provider = "postgresql"`. Delete the
-   `prisma/migrations` folder (it is SQLite dialect) and run
+   `provider = "sqlite"` to `provider = "postgresql"`; in `lib/db.ts` swap
+   the better-sqlite3 adapter for `@prisma/adapter-pg` (`npm i
+   @prisma/adapter-pg pg`; `new PrismaPg({ connectionString })`). Delete
+   the `prisma/migrations` folder (it is SQLite dialect) and run
    `npx prisma migrate dev --name init` once against your Neon URL to
    generate Postgres migrations. Commit them.
 2. **Neon:** create a project → copy the pooled connection string.
@@ -262,7 +266,7 @@ unchanged. Full detail in DOCS.md §13.
 
 ## Tech stack (short version — full detail in DOCS.md §2)
 
-Next.js 16 + React 19 · Prisma 6 (SQLite now, Postgres-ready) · Tailwind 4 ·
+Next.js 16 + React 19 · Prisma 7 (SQLite via better-sqlite3 now, Postgres via @prisma/adapter-pg later) · Tailwind 4 ·
 tesseract.js + Apple Vision for OCR · custom en/ar i18n with RTL.
 
 ## Contributing / working on this codebase

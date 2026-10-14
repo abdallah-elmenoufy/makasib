@@ -43,7 +43,7 @@ install.
 |---|---|---|
 | Framework | Next.js 16 (App Router), React 19 | Single codebase for pages + API routes; same API layer will serve the future mobile app |
 | Language | TypeScript | Whole stack, incl. Prisma schema → typed client |
-| Database | SQLite (Prisma 6 ORM) | Zero-config for phase 1; schema is 100% portable to Postgres (no SQLite-only features used) — see §9 |
+| Database | SQLite via Prisma 7 + `@prisma/adapter-better-sqlite3` | Zero-config for phase 1; URL lives in `prisma.config.ts`/`.env` (Prisma 7 moved it out of the schema); Postgres later = swap the adapter for `@prisma/adapter-pg` (§13) |
 | Styling | Tailwind CSS 4 | |
 | Auth (phase 1) | Passphrase (bcryptjs) + signed session cookie (jose, HS256 JWT) | No external dependency for a single-user local app |
 | i18n | Custom (`lib/i18n/`) | Full English + Arabic dictionaries, RTL support; a library was unnecessary for ~150 keys |
@@ -136,6 +136,18 @@ session — enforced by `requireAuth()` from `lib/auth.ts`, which throws a
 | `POST /api/track` | Appends a batch of GPS points to a shift's track, recomputes `gpsKm` |
 | `GET/POST /api/settings` | Locale, photo retention days, `geocodeEnabled`, default vehicle (commission % is legacy — see §7) |
 
+### Prisma 7 (moved 2026-10-14)
+
+The repo is on Prisma 7.10: `prisma.config.ts` holds the datasource URL
+(`DATABASE_URL`, default `file:./data/app.db`, relative to the repo root),
+`schema.prisma` has no `url`, and every `PrismaClient` goes through
+`lib/db.ts`, which wraps `@prisma/adapter-better-sqlite3`. `prisma/seed.ts`
+and `scripts/db-sync.mjs` reuse the same adapter. Note the path rule: a
+relative SQLite path is resolved from the **repo root** by both the CLI and
+the app — the older `file:../data/app.db` (relative to `prisma/`) now points
+one folder above the repo, which is how a second, damaged copy of the
+production database came to exist on the Mac.
+
 ### Upgrading a database: `npm run db:sync` (`scripts/db-sync.mjs`)
 
 Added 2026-10-14 after a copied production database lost two hand-added
@@ -144,9 +156,23 @@ which of its statements are already true in the live SQLite file (table /
 column / index exists), applies only the missing statements, marks the
 migration applied with `prisma migrate resolve`, then runs `prisma migrate
 deploy` and `prisma generate`. It never drops anything and leaves unknown
-extra columns alone. `Vehicle.color` and `Vehicle.transmission` were added to
+extra columns alone. It writes a timestamped backup (`app.db.bak-…`) next to
+the file before touching it.
+
+**Prisma 6 → 7 date format.** Prisma 6's engine stored SQLite `DateTime` as
+integer unix milliseconds; Prisma 7's `better-sqlite3` adapter writes and
+binds ISO text (`2026-10-14T12:39:00.000+00:00`). SQLite orders every integer
+below every text, so on an un-converted database every range filter
+(`startTime >= …`) silently matched nothing — "this week" showed zero trips
+while "all time" (no filter) looked fine. `db:sync` converts every DateTime
+column of every model (read from `schema.prisma`) with
+`strftime('%Y-%m-%dT%H:%M:%f+00:00', col/1000.0, 'unixepoch') WHERE
+typeof(col)='integer'`; idempotent, verified on the production copy (560
+values) and the synthetic set (819). `Vehicle.color` and `Vehicle.transmission` were added to
 the schema as optional columns the same day so the Mac database's values are
-carried, not dropped. Rule: **`db push` is for throwaway databases only.**
+carried, not dropped; the migration is named
+`20260910120703_vehicle_transmission_and_color`, the same name the Mac's
+database already records, so `migrate deploy` sees it as done. Rule: **`db push` is for throwaway databases only.**
 
 ### The generic CRUD system (`lib/crud.ts`)
 

@@ -16,17 +16,24 @@
 // applies only the missing statements, records the migration as applied, and
 // finishes with `prisma migrate deploy` so Prisma's own bookkeeping agrees.
 // Nothing is ever dropped; unknown extra columns are left alone.
+//
+// It also converts date columns written by Prisma 6 (SQLite integers, unix
+// milliseconds) to the ISO text Prisma 7's driver adapter writes and
+// compares against. Without this, every "this week" filter on an older
+// database silently matches nothing. A timestamped backup of the file is
+// made before anything is touched.
 
-import { readdirSync, readFileSync, existsSync } from "node:fs";
+import { readdirSync, readFileSync, existsSync, copyFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { PrismaClient } from "@prisma/client";
+import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const migrationsDir = join(root, "prisma", "migrations");
 
-// --- resolve DATABASE_URL the way Prisma does (from .env, relative to prisma/) ---
+// --- resolve DATABASE_URL the way prisma.config.ts does (from .env, relative to the repo root) ---
 if (!process.env.DATABASE_URL) {
   const envFile = join(root, ".env");
   if (existsSync(envFile)) {
@@ -36,12 +43,9 @@ if (!process.env.DATABASE_URL) {
     }
   }
 }
-if (!process.env.DATABASE_URL) {
-  console.error("DATABASE_URL is not set. Copy .env.example to .env first.");
-  process.exit(1);
-}
-const dbPath = process.env.DATABASE_URL.replace(/^file:/, "");
-const absDb = dbPath.startsWith("/") ? dbPath : resolve(root, "prisma", dbPath);
+const dbPath = (process.env.DATABASE_URL ?? "file:./data/app.db").replace(/^file:/, "");
+const absDb = dbPath.startsWith("/") ? dbPath : resolve(root, dbPath);
+process.env.DATABASE_URL = `file:${absDb}`;
 console.log(`Database: ${absDb}`);
 if (!existsSync(absDb)) {
   console.log("No database file yet — creating it with prisma migrate deploy.");
@@ -49,7 +53,41 @@ if (!existsSync(absDb)) {
   process.exit(0);
 }
 
-const prisma = new PrismaClient();
+const stamp = new Date().toISOString().replace(/[-:]/g, "").slice(0, 15);
+const backup = `${absDb}.bak-${stamp}`;
+copyFileSync(absDb, backup);
+console.log(`Backup written: ${backup}`);
+
+const prisma = new PrismaClient({ adapter: new PrismaBetterSqlite3({ url: `file:${absDb}` }) });
+
+/** Every DateTime column per model, read from schema.prisma. */
+function dateColumns() {
+  const schema = readFileSync(join(root, "prisma", "schema.prisma"), "utf8");
+  const out = [];
+  let model = null;
+  for (const line of schema.split("\n")) {
+    const m = /^model\s+(\w+)\s*\{/.exec(line);
+    if (m) { model = m[1]; continue; }
+    if (/^\}/.test(line)) { model = null; continue; }
+    const f = /^\s+(\w+)\s+DateTime\??/.exec(line);
+    if (model && f) out.push([model, f[1]]);
+  }
+  return out;
+}
+
+/** Prisma 6 stored DateTime as integer ms; Prisma 7 writes "YYYY-MM-DDTHH:MM:SS.mmm+00:00". */
+async function convertLegacyDates() {
+  let total = 0;
+  for (const [table, col] of dateColumns()) {
+    if (!(await columnExists(table, col))) continue;
+    const n = await prisma.$executeRawUnsafe(
+      `UPDATE "${table}" SET "${col}" = strftime('%Y-%m-%dT%H:%M:%f+00:00', "${col}" / 1000.0, 'unixepoch') WHERE typeof("${col}") = 'integer'`
+    );
+    if (n > 0) console.log(`  ${table}.${col}: ${n} date value(s) converted to Prisma 7 text format`);
+    total += n;
+  }
+  return total;
+}
 
 async function tableExists(name) {
   const rows = await prisma.$queryRawUnsafe(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`, name);
@@ -126,6 +164,9 @@ async function main() {
   await prisma.$disconnect();
   if (touched === 0) console.log("No partially-applied migrations; running prisma migrate deploy.");
   run("npx", ["prisma", "migrate", "deploy"]);
+  const converted = await convertLegacyDates();
+  console.log(converted > 0 ? `Converted ${converted} legacy date value(s).` : "Dates already in Prisma 7 format.");
+  await prisma.$disconnect();
   run("npx", ["prisma", "generate"]);
   console.log("\nDatabase is in sync. Nothing was dropped.");
 }
