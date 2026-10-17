@@ -3,9 +3,48 @@ import { useEffect, useState } from "react";
 import { Icon, type IconName } from "./icons";
 
 /* ---------------------------------------------------------------------------
-   Primitives. Uber-style: grey tiles on a white page, hairline dividers,
-   black buttons, one green for money in and one red for money out.
+   Primitives — Makasib v2. White cards with soft shadows on a green-grey
+   page, a brand-gradient hero, tinted icon chips per topic, green buttons,
+   and big Readex Pro numerals. Tokens live in app/globals.css.
 --------------------------------------------------------------------------- */
+
+/** Which colour chip a card icon gets — one hue per topic, everywhere. */
+export const ICON_TINT: Partial<Record<IconName, string>> = {
+  calendar: "tint-sky",
+  clock: "tint-sky",
+  timer: "tint-sky",
+  map: "tint-sky",
+  road: "tint-violet",
+  wrench: "tint-violet",
+  download: "tint-violet",
+  camera: "tint-violet",
+  wallet: "tint-green",
+  chart: "tint-green",
+  car: "tint-green",
+  flag: "tint-green",
+  trophy: "tint-amber",
+  fuel: "tint-amber",
+  bolt: "tint-amber",
+  bell: "tint-amber",
+  pin: "tint-rose",
+  receipt: "tint-rose",
+  sparkle: "tint-green",
+  info: "tint-slate",
+  settings: "tint-slate",
+};
+
+/** A rounded square in a topic colour holding an icon or an emoji. */
+export function IconChip({ icon, tint, size = "md", className = "" }: { icon: string | IconName; tint?: string; size?: "sm" | "md" | "lg"; className?: string }) {
+  const isIcon = /^[a-zA-Z]+$/.test(icon);
+  const dims = { sm: "w-7 h-7 rounded-lg", md: "w-9 h-9 rounded-xl", lg: "w-11 h-11 rounded-2xl" }[size];
+  const iconSize = { sm: 15, md: 18, lg: 22 }[size];
+  const cls = tint ?? (isIcon ? ICON_TINT[icon as IconName] ?? "tint-slate" : "tint-slate");
+  return (
+    <span className={`${dims} ${cls} flex items-center justify-center shrink-0 ${className}`}>
+      {isIcon ? <Icon name={icon as IconName} size={iconSize} strokeWidth={2.1} /> : <span className="text-base leading-none">{icon}</span>}
+    </span>
+  );
+}
 
 export function Card({
   children,
@@ -20,14 +59,14 @@ export function Card({
   tone?: "tile" | "outline" | "ink" | "money" | "loss" | "warn";
 }) {
   const tones = {
-    tile: "bg-surface border border-line",
+    tile: "bg-sheet border border-line/70 shadow-[var(--shadow-card)]",
     outline: "bg-sheet border border-line",
-    ink: "bg-hero text-hero-fg ring-1 ring-hero-fg/10",
-    money: "bg-money-soft",
-    loss: "bg-loss-soft",
-    warn: "bg-warn-soft",
+    ink: "hero-surface",
+    money: "bg-money-soft border border-money/15",
+    loss: "bg-loss-soft border border-loss/15",
+    warn: "bg-warn-soft border border-warn/30",
   }[tone];
-  return <div className={`rounded-2xl ${tones} ${padded ? "p-4 md:p-5" : ""} ${className}`}>{children}</div>;
+  return <div className={`rounded-[22px] ${tones} ${padded ? "p-4 md:p-5" : ""} ${className}`}>{children}</div>;
 }
 
 /** Card header: title, optional subtitle and a right-aligned action. */
@@ -42,15 +81,14 @@ export function CardHead({
   sub?: string;
   actions?: React.ReactNode;
 }) {
-  const isIcon = icon != null && /^[a-zA-Z]+$/.test(icon);
   return (
-    <div className="flex items-start justify-between gap-3 mb-3">
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          {icon && (isIcon ? <Icon name={icon as IconName} size={18} className="text-ink-500" /> : <span className="text-base leading-none">{icon}</span>)}
-          <h2 className="text-[15px] font-bold tracking-tight">{title}</h2>
+    <div className="flex items-start justify-between gap-3 mb-4">
+      <div className="min-w-0 flex items-start gap-3">
+        {icon && <IconChip icon={icon} />}
+        <div className="min-w-0 pt-0.5">
+          <h2 className="text-[17px] font-bold tracking-tight leading-snug">{title}</h2>
+          {sub && <p className="text-xs text-muted mt-0.5 leading-relaxed">{sub}</p>}
         </div>
-        {sub && <p className="text-xs text-muted mt-1 leading-relaxed">{sub}</p>}
       </div>
       {actions && <div className="shrink-0">{actions}</div>}
     </div>
@@ -70,10 +108,10 @@ export function PageTitle({ children, actions, sub }: { children: React.ReactNod
   return (
     <div className="flex items-start justify-between mb-4 gap-3 flex-wrap">
       <div className="min-w-0">
-        <h1 className="text-[28px] md:text-[32px] font-bold tracking-tight leading-tight display">{children}</h1>
+        <h1 className="text-[30px] md:text-[36px] font-bold tracking-tight leading-tight display">{children}</h1>
         {sub && <p className="text-sm text-muted mt-1">{sub}</p>}
       </div>
-      {actions && <div className="shrink-0 flex items-center gap-2">{actions}</div>}
+      {actions && <div className="max-w-full flex items-center gap-2 flex-wrap">{actions}</div>}
     </div>
   );
 }
@@ -97,14 +135,14 @@ export function Btn({
   title?: string;
   size?: "sm" | "md";
 }) {
-  const sizes = size === "sm" ? "px-3 h-9 text-[13px]" : "px-4 h-12 text-sm";
+  const sizes = size === "sm" ? "px-3.5 h-9 text-[13px]" : "px-5 h-12 text-[15px]";
   const styles = {
-    primary: `bg-action hover:bg-action-700 active:bg-action-700 text-action-fg ${sizes}`,
-    secondary: `bg-surface-2 hover:bg-line active:bg-line-strong text-ink ${sizes}`,
+    primary: `bg-action hover:bg-action-700 active:bg-action-700 text-action-fg shadow-[var(--shadow-btn)] ${sizes}`,
+    secondary: `bg-sheet border border-line hover:bg-surface-2 active:bg-line text-ink ${sizes}`,
     danger: `bg-sheet hover:bg-loss-soft text-loss border border-line ${sizes}`,
     ghost: `bg-transparent hover:bg-surface-2 text-ink-500 ${sizes}`,
     money: `bg-money hover:brightness-95 text-white ${sizes}`,
-    big: "bg-action hover:bg-action-700 active:bg-action-700 text-action-fg px-6 h-14 text-base w-full",
+    big: "brand-gradient hover:brightness-105 text-white shadow-[var(--shadow-btn)] px-6 h-16 text-lg w-full !rounded-2xl",
   }[variant];
   return (
     <button
@@ -130,7 +168,7 @@ export function Field({ label, hint, children, className = "" }: { label: string
 }
 
 const inputCls =
-  "w-full rounded-xl bg-surface-2 border border-transparent px-3.5 h-12 text-[15px] text-ink placeholder:text-muted-2 " +
+  "w-full rounded-xl bg-paper border border-line/60 px-3.5 h-12 text-base text-ink placeholder:text-muted-2 " +
   "focus:outline-none focus:bg-sheet focus:border-action focus:ring-2 focus:ring-action/15 transition-colors";
 
 export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
@@ -211,14 +249,14 @@ export function Segmented<T extends string>({
   fill?: boolean;
 }) {
   return (
-    <div className={`${fill ? "flex w-full" : "inline-flex max-w-full overflow-x-auto scroll-x [scrollbar-width:none]"} gap-1 bg-surface-2 rounded-full p-1 ${className}`}>
+    <div className={`${fill ? "flex w-full" : "inline-flex max-w-full overflow-x-auto scroll-x [scrollbar-width:none]"} gap-1 bg-sheet border border-line rounded-full p-1 shadow-[var(--shadow-sm)] ${className}`}>
       {options.map((o) => (
         <button
           key={o.value}
           type="button"
           onClick={() => onChange(o.value)}
           className={`${size === "sm" ? "px-3 h-8 text-xs" : "px-4 h-9 text-sm"} ${fill ? "flex-1 px-1" : ""} rounded-full font-bold whitespace-nowrap transition-colors ${
-            value === o.value ? "bg-sheet text-ink shadow-sm" : "text-ink-500 hover:text-ink"
+            value === o.value ? "bg-action text-action-fg shadow-[var(--shadow-btn)]" : "text-ink-500 hover:text-ink hover:bg-surface-2"
           }`}
         >
           {o.label}
@@ -242,11 +280,11 @@ export function Badge({
     good: "bg-money-soft text-money",
     warn: "bg-warn-soft text-warn-ink",
     bad: "bg-loss-soft text-loss",
-    brand: "bg-action text-action-fg",
-    ink: "bg-action text-action-fg",
+    brand: "brand-gradient text-white",
+    ink: "brand-gradient text-white",
   }[tone];
   return (
-    <span title={title} className={`inline-flex items-center gap-1 text-xs font-bold rounded-full px-2.5 py-1 ${tones}`}>
+    <span title={title} className={`badge inline-flex items-center gap-1 text-xs font-bold rounded-full px-2.5 py-1 ${tones}`}>
       {children}
     </span>
   );
@@ -258,8 +296,8 @@ export function Delta({ value, fmt, invert = false, suffix = "" }: { value: numb
   const good = invert ? value < 0 : value > 0;
   const text = `${value > 0 ? "+" : "−"}${fmt ? fmt(Math.abs(value)) : Math.abs(value)}${suffix}`;
   return (
-    <span className={`inline-flex items-center gap-0.5 text-xs font-bold tnum ${good ? "text-money" : "text-loss"}`}>
-      <Icon name={value > 0 ? "arrowUp" : "arrowDown"} size={12} strokeWidth={2.5} />
+    <span className={`delta-pill ${good ? "is-up bg-money-soft text-money" : "is-down bg-loss-soft text-loss"} inline-flex items-center gap-0.5 text-xs font-bold tnum rounded-full px-2 py-0.5`}>
+      <Icon name={value > 0 ? "arrowUp" : "arrowDown"} size={12} strokeWidth={2.6} />
       {text}
     </span>
   );
@@ -290,11 +328,11 @@ export function Hero({
   return (
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <div className="text-xs font-bold opacity-60 uppercase tracking-wide">{label}</div>
-        <div className={`${size === "xl" ? "text-[44px] md:text-[52px]" : "text-[34px] md:text-[40px]"} font-bold display leading-none mt-1.5 ${color}`}>
+        <div className="text-sm font-bold opacity-75">{label}</div>
+        <div className={`${size === "xl" ? "text-[52px] md:text-[64px]" : "text-[40px] md:text-[48px]"} font-bold display leading-[1.02] mt-2 ${color}`}>
           {value}
         </div>
-        {sub && <div className="text-sm text-muted mt-2 leading-relaxed">{sub}</div>}
+        {sub && <div className="text-sm text-muted mt-2.5 leading-relaxed">{sub}</div>}
       </div>
       {right && <div className="shrink-0">{right}</div>}
     </div>
@@ -321,14 +359,14 @@ export function Tile({
 }) {
   const inv = tone === "ink";
   return (
-    <Card tone={tone} className={`!p-3.5 md:!p-4 ${className}`}>
-      <div className={`flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide ${inv ? "text-hero-fg/60" : "text-muted"}`}>
-        {icon && <Icon name={icon} size={13} />}
+    <Card tone={tone} className={`!p-4 md:!p-5 ${className}`}>
+      <div className={`flex items-center gap-2 text-[13px] font-bold ${inv ? "text-hero-fg/70" : "text-ink-500"}`}>
+        {icon && <IconChip icon={icon} size="sm" />}
         <span className="truncate">{label}</span>
       </div>
-      <div className={`text-[22px] md:text-2xl font-bold display mt-1 leading-tight ${inv ? "text-hero-fg" : ""}`}>{value}</div>
+      <div className={`text-[28px] md:text-[32px] font-bold display mt-2 leading-none truncate ${inv ? "text-hero-fg" : ""}`}>{value}</div>
       {(sub || delta) && (
-        <div className={`flex items-center gap-2 mt-1 text-xs ${inv ? "text-hero-fg/60" : "text-muted"}`}>
+        <div className={`flex items-center gap-2 mt-2 text-xs ${inv ? "text-hero-fg/70" : "text-muted"}`}>
           {delta}
           {sub && <span className="truncate">{sub}</span>}
         </div>
@@ -367,9 +405,7 @@ export function ListRow({
   const body = (
     <>
       {(icon || emoji) && (
-        <span className="w-10 h-10 rounded-full bg-action-soft flex items-center justify-center shrink-0 text-action">
-          {icon ? <Icon name={icon} size={20} /> : <span className="text-lg leading-none">{emoji}</span>}
-        </span>
+        <IconChip icon={icon ?? emoji ?? ""} size="lg" />
       )}
       <span className="flex-1 min-w-0 text-start">
         <span className="block text-[15px] font-bold truncate">{title}</span>
@@ -491,13 +527,13 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         className={`relative bg-sheet text-ink w-full ${wide ? "md:max-w-3xl" : "md:max-w-xl"} max-h-[94vh] flex flex-col
-                    rounded-t-3xl md:rounded-2xl shadow-[var(--shadow-lg)] animate-sheet-in`}
+                    rounded-t-[28px] md:rounded-[24px] shadow-[var(--shadow-lg)] animate-sheet-in`}
       >
         <div className="md:hidden flex justify-center pt-2.5">
           <span className="w-10 h-1 rounded-full bg-line-strong" />
         </div>
         <div className="px-4 md:px-5 pt-3 pb-3 flex items-center justify-between">
-          <h3 className="font-bold text-lg tracking-tight">{title}</h3>
+          <h3 className="font-bold text-xl tracking-tight">{title}</h3>
           <IconButton name="close" onClick={onClose} label="Close" />
         </div>
         <div className="px-4 md:px-5 pb-4 md:pb-5 overflow-y-auto flex-1 safe-bottom">{children}</div>
@@ -549,10 +585,10 @@ export function RecordCard({
   className?: string;
 }) {
   const tones = {
-    plain: "bg-sheet border-line",
+    plain: "bg-sheet border-line shadow-[var(--shadow-sm)]",
     warn: "bg-warn-soft border-warn/60",
   }[tone];
-  return <div className={`rounded-xl border ${tones} px-3.5 py-3 ${className}`}>{children}</div>;
+  return <div className={`rounded-2xl border ${tones} px-4 py-3.5 ${className}`}>{children}</div>;
 }
 
 /** A labelled value inside a RecordCard. */
@@ -576,8 +612,8 @@ export function StatCell({
   }[tone];
   return (
     <div className="min-w-0" title={title}>
-      <div className="text-[10px] uppercase tracking-wide text-muted font-bold truncate">{label}</div>
-      <div className={`text-sm font-bold tnum truncate ${tones}`}>{value}</div>
+      <div className="text-[11px] text-muted font-bold truncate">{label}</div>
+      <div className={`text-[17px] font-bold tnum truncate mt-0.5 ${tones}`}>{value}</div>
     </div>
   );
 }
@@ -589,7 +625,7 @@ export function StatGrid({ children, cols = 4 }: { children: React.ReactNode; co
     5: "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5",
     6: "grid-cols-2 sm:grid-cols-3 lg:grid-cols-6",
   }[cols];
-  return <div className={`grid ${colCls} gap-x-4 gap-y-2.5 mt-2.5`}>{children}</div>;
+  return <div className={`grid ${colCls} gap-x-4 gap-y-3 mt-3 pt-3 border-t border-line`}>{children}</div>;
 }
 
 /** Collapsible group header (a shift, a day) above its record cards. */
@@ -609,13 +645,13 @@ export function GroupHeader({
   tone?: "plain" | "warn";
 }) {
   const tones = {
-    plain: "bg-surface hover:bg-surface-2",
+    plain: "bg-paper hover:bg-surface-2",
     warn: "bg-warn-soft hover:brightness-[0.98]",
   }[tone];
   return (
-    <button onClick={onToggle} className={`w-full flex items-center gap-2.5 rounded-xl px-3.5 min-h-12 py-2.5 text-start transition-colors ${tones}`}>
+    <button onClick={onToggle} className={`w-full flex items-center gap-2.5 rounded-2xl px-4 min-h-14 py-3 text-start transition-colors ${tones}`}>
       <Icon name="chevron" size={16} className={`text-muted transition-transform shrink-0 rtl:rotate-180 ${open ? "rotate-90 rtl:rotate-90" : ""}`} />
-      <span className="font-bold text-sm truncate">{title}</span>
+      <span className="font-bold text-[15px] truncate">{title}</span>
       {meta && <span className="text-xs text-muted truncate hidden sm:inline">{meta}</span>}
       {right && <span className="ms-auto shrink-0">{right}</span>}
     </button>
@@ -656,11 +692,11 @@ export function Meter({
     <div>
       {(label || value) && (
         <div className="flex items-baseline justify-between gap-2 mb-1">
-          {label && <span className="text-xs font-bold text-ink-500 truncate">{label}</span>}
-          {value && <span className="text-xs font-bold tnum whitespace-nowrap">{value}</span>}
+          {label && <span className="text-[13px] font-bold text-ink-500 truncate">{label}</span>}
+          {value && <span className="text-[13px] font-bold tnum whitespace-nowrap">{value}</span>}
         </div>
       )}
-      <div className={`relative ${thin ? "h-1.5" : "h-2.5"} rounded-full bg-line overflow-hidden`}>
+      <div className={`relative ${thin ? "h-2" : "h-3"} rounded-full overflow-hidden`} style={{ background: `color-mix(in srgb, ${METER_TONES[tone]} 16%, var(--surface-2))` }}>
         <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${filled * 100}%`, background: METER_TONES[tone] }} />
         {markAt != null && (
           <span title={marker!.label} className="absolute top-0 bottom-0 w-0.5 bg-ink/70 rounded-full" style={{ insetInlineStart: `calc(${markAt * 100}% - 1px)` }} />
@@ -688,11 +724,11 @@ export function Meter({
 export type MeterSegment = { key: string; value: number; color: string; label: string };
 
 /** Proportional bar: several parts of one honest total, 2px surface gaps. */
-export function StackedMeter({ segments, height = 10 }: { segments: MeterSegment[]; height?: number }) {
+export function StackedMeter({ segments, height = 12 }: { segments: MeterSegment[]; height?: number }) {
   const total = segments.reduce((s, x) => s + Math.max(0, x.value), 0);
   if (total <= 0) return null;
   return (
-    <div className="flex rounded-full overflow-hidden bg-line" style={{ gap: 2, height }}>
+    <div className="flex rounded-full overflow-hidden" style={{ gap: 2, height }}>
       {segments
         .filter((s) => s.value > 0)
         .map((s) => (
@@ -725,14 +761,14 @@ export function Gauge({
   const filled = Math.max(0, Math.min(1, Number.isFinite(ratio) ? ratio : 0));
   return (
     <div className="flex flex-col items-center">
-      <div className="relative w-[160px]">
+      <div className="relative w-[180px]">
         <svg viewBox="0 0 160 92" className="w-full" role="img" aria-label={caption ?? value}>
-          <path d="M 12 80 A 68 68 0 0 1 148 80" fill="none" stroke="var(--line)" strokeWidth={12} strokeLinecap="round" />
+          <path d="M 12 80 A 68 68 0 0 1 148 80" fill="none" stroke={`color-mix(in srgb, ${METER_TONES[tone]} 16%, var(--surface-2))`} strokeWidth={14} strokeLinecap="round" />
           <path
             d="M 12 80 A 68 68 0 0 1 148 80"
             fill="none"
             stroke={METER_TONES[tone]}
-            strokeWidth={12}
+            strokeWidth={14}
             strokeLinecap="round"
             strokeDasharray={GAUGE_ARC_LENGTH}
             strokeDashoffset={GAUGE_ARC_LENGTH * (1 - filled)}
@@ -740,12 +776,12 @@ export function Gauge({
           />
         </svg>
         <div className="absolute inset-x-0 bottom-1 text-center">
-          <div className="text-2xl font-bold display leading-none">{value}</div>
+          <div className="text-[32px] font-bold display leading-none">{value}</div>
           {unit && <div className="text-[10px] font-bold text-muted mt-0.5">{unit}</div>}
         </div>
       </div>
       {(minLabel || maxLabel) && (
-        <div className="flex justify-between w-[160px] -mt-1 text-[10px] text-muted-2 tnum">
+        <div className="flex justify-between w-[180px] -mt-1 text-[10px] text-muted-2 tnum">
           <span>{minLabel}</span>
           <span>{maxLabel}</span>
         </div>
@@ -758,17 +794,17 @@ export function Gauge({
 export function Table({ head, children }: { head: string[]; children: React.ReactNode }) {
   return (
     <div className="scroll-x -mx-4 md:-mx-5 px-4 md:px-5">
-      <table className="w-full text-sm">
+      <table className="tbl w-full text-[15px]">
         <thead>
-          <tr className="text-start text-xs text-muted border-b border-line">
+          <tr className="text-start text-xs text-ink-500">
             {head.map((h, i) => (
-              <th key={i} className="text-start py-2.5 px-2 font-bold whitespace-nowrap">
+              <th key={i} className="text-start py-2.5 px-3 font-bold whitespace-nowrap bg-paper first:rounded-s-xl last:rounded-e-xl">
                 {h}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-line">{children}</tbody>
+        <tbody>{children}</tbody>
       </table>
     </div>
   );

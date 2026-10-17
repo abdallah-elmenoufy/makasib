@@ -15,6 +15,24 @@ quick-start.
 
 ## What it does
 
+- **One Drive button** — the green button in the middle of the tab bar does
+  the right thing for the moment. No shift running: start one with just the
+  odometer (one tap uses the reading where the car was parked, or read it
+  from a photo of the dash). Shift running: log a trip with one number and
+  Cash/Card, add several at once, or jump to the screenshot import; a live
+  strip above the tab bar shows time on shift, trips and earnings on every
+  screen. End shift: odometer (the app suggests it), then — if you logged
+  trips while driving — a single "That's all" tap to the recap.
+- **Simple or Detailed** — every analysis screen opens in **Simple**: the
+  profit hero, today's target, weekly goal rings, where to go now and the
+  14-day bars. **Detailed** adds every breakdown (time and km splits, costs,
+  benchmarks, comparison tables). Switch at the top of Home, Weeks and Plan,
+  or in Settings; the choice is saved on the phone.
+- **A designed look** — a deep-to-bright emerald brand gradient on the hero
+  card and the Drive button, white cards with soft shadows, a colour chip per
+  topic (fuel amber, maintenance violet, expenses rose, planning sky), ring
+  gauges for goals, gradient bars, roomy tables, big numerals in Readex Pro
+  (self-hosted, Arabic + Latin), and a hand-tuned dark mode.
 - **Vehicle profile** — fuel setup (petrol/CNG/dual), ownership model
   (owned/installment/rented/target-share), and depreciation you control: a
   **resale-per-km** model by default (only the extra resale loss your km
@@ -42,8 +60,8 @@ quick-start.
   statement PDF and/or Earnings Activity screenshots. Pickup and drop-off
   coordinates are read back from the shift's GPS track.
 - **End of shift in three steps** — close the shift (with the app's best
-  guess at the end odometer), log the night's trips or jump to the screenshot
-  import, see the recap.
+  guess at the end odometer), confirm the trips you logged while driving with
+  one tap (or add the missing ones / import screenshots), see the recap.
 - **Fuel** — every fill-up, plus an all-time summary: total litres/m³, total
   spent, a consumption gauge measured full-to-full, spend split by fuel type,
   and fuel as a share of net earnings. A **price-hike scenario** card answers
@@ -85,8 +103,8 @@ quick-start.
 - **Addresses on the map** — trips imported from screenshots carry an
   address but no position; Makasib looks each new label up once on
   OpenStreetMap (switchable off in Settings) so they count in "Where to go".
-- **Uber-style UI** — black/white, big numbers, bottom tab bar on the phone,
-  light and dark themes (per device, or follow the phone).
+- **Phone-first UI** — bottom tab bar with the Drive button in the middle,
+  big numbers, light and dark themes (per device, or follow the phone).
 - **Not in scope, on purpose** — cash settlement with Uber (what a cash trip
   collected vs. what Uber keeps). Uber's Wallet already does that exactly;
   Makasib only tracks your net earnings and the car's costs.

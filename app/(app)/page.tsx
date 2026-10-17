@@ -2,12 +2,15 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/components/I18nProvider";
-import { Badge, Btn, Card, CardHead, Delta, Empty, Gauge, Hero, Meter, PageTitle, Segmented, StackedMeter, Table, Tile } from "@/components/ui";
+import { Badge, Btn, Card, CardHead, Delta, Empty, Hero, IconChip, Meter, PageTitle, Segmented, StackedMeter, Table, Tile } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { QuickExpense } from "@/components/QuickExpense";
 import { useVehicle } from "@/components/VehicleProvider";
-import { BarChart, CHART } from "@/components/charts";
-import { fmtDate, fmtInt, fmtMoney, fmtNum, localizeDigits, sep } from "@/lib/format";
+import { BarChart, CHART, Ring } from "@/components/charts";
+import { DriveCard } from "@/components/Drive";
+import { Detailed, MoreDetailsButton, useViewMode, ViewModeToggle } from "@/components/ViewMode";
+import { useOnChanged } from "@/components/dataBus";
+import { fmtDate, fmtInt, fmtMoney, fmtMoneyShort, fmtNum, localizeDigits, sep } from "@/lib/format";
 
 // semantic text colours; every series colour comes from components/charts (CSS tokens)
 const C = {
@@ -43,6 +46,8 @@ function fmtCountdown(ms: number, t: (k: string, v?: Record<string, string | num
 export default function DashboardPage() {
   const { t, locale } = useI18n();
   const { vehicle, activeVehicles, loading: vLoading } = useVehicle();
+  const { mode } = useViewMode();
+  const simple = mode === "simple";
   const [period, setPeriod] = useState<PeriodKey>("week");
   const [viewAll, setViewAll] = useState(false);
   const [a, setA] = useState<any>(null);
@@ -60,6 +65,12 @@ export default function DashboardPage() {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [reloadKey, setReloadKey] = useState(0);
   const reload = () => setReloadKey((k) => k + 1);
+  // a trip or shift saved from the drive sheet refreshes every figure here
+  useOnChanged(reload);
+  // the simple view only offers today and this week
+  useEffect(() => {
+    if (simple && period !== "today" && period !== "week") setPeriod("week");
+  }, [simple, period]);
 
   useEffect(() => {
     if (viewAll) {
@@ -104,8 +115,20 @@ export default function DashboardPage() {
   }
 
   const money = (n: number) => fmtMoney(n, locale);
+  const moneyShort = (n: number) => fmtMoneyShort(n, locale);
   const periodPicker = (
-    <Segmented value={period} onChange={setPeriod} size="sm" options={PERIODS.map((p) => ({ value: p, label: t(PERIOD_KEY[p]) }))} />
+    <Segmented
+      value={period}
+      onChange={setPeriod}
+      size="sm"
+      options={PERIODS.filter((p) => !simple || p === "today" || p === "week").map((p) => ({ value: p, label: t(PERIOD_KEY[p]) }))}
+    />
+  );
+  const titleActions = (
+    <div className="flex items-center gap-2 flex-wrap justify-end">
+      <ViewModeToggle />
+      {!simple && activeVehicles.length > 1 && <ViewToggle viewAll={viewAll} setViewAll={setViewAll} t={t} />}
+    </div>
   );
 
   if (viewAll) {
@@ -113,7 +136,7 @@ export default function DashboardPage() {
     const p = profile.totals;
     return (
       <div className="space-y-4">
-        <PageTitle actions={activeVehicles.length > 1 && <ViewToggle viewAll={viewAll} setViewAll={setViewAll} t={t} />}>{t("db.title")}</PageTitle>
+        <PageTitle actions={titleActions}>{t("db.title")}</PageTitle>
         {periodPicker}
         <Card tone="ink">
           <Hero label={t("db.trueProfit")} value={money(p.trueProfit)} tone={p.trueProfit >= 0 ? "ink" : "loss"} sub={<span className="text-hero-fg/60">{t("cars.allCarsSub")}</span>} />
@@ -170,27 +193,16 @@ export default function DashboardPage() {
   const time = a.time;
 
   const cur = weeks?.current;
-  const openShift = integrity?.openShifts?.[0] ?? null;
   const showWeekClose = weeks?.lastClosed && cur && cur.progress < 2 / 7; // first two days of the new week
 
   return (
     <div className="space-y-4">
-      <PageTitle sub={fmtDate(new Date(), locale)} actions={activeVehicles.length > 1 && <ViewToggle viewAll={viewAll} setViewAll={setViewAll} t={t} />}>
+      <PageTitle sub={fmtDate(new Date(), locale)} actions={titleActions}>
         {t("db.title")}
       </PageTitle>
 
-      {/* quick actions — what a driver does constantly through a shift */}
-      <div className="grid grid-cols-3 gap-2 md:gap-3">
-        <QuickAction href="/shifts" icon={openShift ? "stop" : "play"} label={openShift ? t("sh.end") : t("sh.start")} tone={openShift ? "warn" : "ink"} />
-        <QuickAction href="/trips?add=1" icon="plus" label={t("tr.add")} />
-        <QuickAction href="/import?tab=ocr" icon="camera" label={t("nav.import")} />
-      </div>
-
-      {/* where to go right now — this hour, this kind of day, from the driver's own trips */}
-      {nowHint && <WhereNowCard hint={nowHint} t={t} locale={locale} />}
-
-      {/* week closed recap — the first days after Monday 04:00 */}
-      {showWeekClose && <WeekClosedCard week={weeks.lastClosed} previous={weeks.weeks[weeks.weeks.length - 3] ?? null} t={t} locale={locale} />}
+      {/* start / live shift / end — the one card a driver taps all day */}
+      <DriveCard />
 
       {periodPicker}
 
@@ -202,8 +214,8 @@ export default function DashboardPage() {
           tone={a.trueProfit >= 0 ? "ink" : "loss"}
           size="xl"
           sub={
-            <span className="text-hero-fg/60">
-              {dep.enabled ? t("db.profitSub") : t("db.profitSubNoDep")}
+            <span className="text-hero-fg/70">
+              {simple ? t("db.profitSubSimple") : dep.enabled ? t("db.profitSub") : t("db.profitSubNoDep")}
               {period === "week" && cur && weeks.previousAtSamePoint && weeks.previousAtSamePoint.netRevenue > 0 && (
                 <span className="block mt-1 text-hero-fg/80">
                   {t("wk.vsSamePoint")} <Delta value={a.earnings.netRevenue - weeks.previousAtSamePoint.netRevenue} fmt={money} />
@@ -213,9 +225,9 @@ export default function DashboardPage() {
           }
         />
         <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t border-hero-fg/15">
-          <InkStat label={t("db.gross")} value={money(a.earnings.netRevenue)} />
-          <InkStat label={t("db.cashProfit")} value={money(a.cashProfit)} />
-          <InkStat label={t("db.perHour")} value={a.perHour != null ? money(a.perHour) : "—"} />
+          <InkStat label={t("db.gross")} value={moneyShort(a.earnings.netRevenue)} />
+          {simple ? <InkStat label={t("db.tripCount")} value={fmtInt(a.counts.trips, locale)} /> : <InkStat label={t("db.cashProfit")} value={moneyShort(a.cashProfit)} />}
+          <InkStat label={t("db.perHour")} value={a.perHour != null ? moneyShort(a.perHour) : "—"} />
         </div>
         {period === "week" && cur && (
           <div className="mt-4 pt-4 border-t border-hero-fg/15">
@@ -225,8 +237,8 @@ export default function DashboardPage() {
               </span>
               <span className="tnum">{fmtCountdown(weeks.msUntilClose, t)}</span>
             </div>
-            <div className="h-1.5 rounded-full bg-hero-fg/15 overflow-hidden">
-              <div className="h-full bg-action rounded-full" style={{ width: `${Math.round(cur.progress * 100)}%` }} />
+            <div className="h-2 rounded-full bg-hero-fg/15 overflow-hidden">
+              <div className="h-full bg-[var(--hero-accent)] rounded-full" style={{ width: `${Math.round(cur.progress * 100)}%` }} />
             </div>
             {weeks.projection && (
               <div className="text-xs text-hero-fg/70 mt-2">
@@ -246,17 +258,27 @@ export default function DashboardPage() {
         )}
       </Card>
 
+      <Detailed>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Tile label={t("db.hoursWorked")} value={fmtNum(a.counts.hoursWorked, locale)} sub={`${t("db.shiftCount")} ${fmtNum(a.counts.shifts, locale, 0)}`} />
-        <Tile label={t("db.tripCount")} value={fmtNum(a.counts.trips, locale, 0)} sub={a.counts.trips > 0 ? `${money(a.earnings.netRevenue / a.counts.trips)} ${t("wk.perTrip")}` : undefined} />
-        <Tile label={t("db.perKm")} value={a.perKm != null ? money(a.perKm) : "—"} sub={`${fmtNum(km.shiftKm, locale, 0)} ${t("c.km")}`} />
-        <Tile label={t("tm.utilization")} value={time.utilizationPct != null ? `${fmtNum(time.utilizationPct, locale, 0)}%` : "—"} sub={t("tm.utilizationSub")} />
+        <Tile icon="clock" label={t("db.hoursWorked")} value={fmtNum(a.counts.hoursWorked, locale)} sub={`${t("db.shiftCount")} ${fmtNum(a.counts.shifts, locale, 0)}`} />
+        <Tile icon="car" label={t("db.tripCount")} value={fmtNum(a.counts.trips, locale, 0)} sub={a.counts.trips > 0 ? `${money(a.earnings.netRevenue / a.counts.trips)} ${t("wk.perTrip")}` : undefined} />
+        <Tile icon="road" label={t("db.perKm")} value={a.perKm != null ? money(a.perKm) : "—"} sub={`${fmtNum(km.shiftKm, locale, 0)} ${t("c.km")}`} />
+        <Tile icon="timer" label={t("tm.utilization")} value={time.utilizationPct != null ? `${fmtNum(time.utilizationPct, locale, 0)}%` : "—"} sub={t("tm.utilizationSub")} />
       </div>
+      </Detailed>
 
       {/* today's target */}
-      {target && <DailyTargetCard target={target} onHours={setPlannedHours} t={t} locale={locale} />}
+      {target && <DailyTargetCard target={target} onHours={setPlannedHours} t={t} locale={locale} simple={simple} />}
+
+      {/* where to go right now — this hour, this kind of day, from the driver's own trips */}
+      {nowHint && <WhereNowCard hint={nowHint} t={t} locale={locale} />}
+
+      {/* week closed recap — the first days after Monday 04:00 */}
+      {showWeekClose && <WeekClosedCard week={weeks.lastClosed} previous={weeks.weeks[weeks.weeks.length - 3] ?? null} t={t} locale={locale} />}
+
 
       {/* time split */}
+      <Detailed>
       <Card>
         <CardHead icon="timer" title={t("tm.title")} sub={t("tm.sub")} />
         {time.onlineMin <= 0 ? (
@@ -289,6 +311,7 @@ export default function DashboardPage() {
           </>
         )}
       </Card>
+      </Detailed>
 
       {/* running costs in one tap */}
       <Card>
@@ -299,14 +322,16 @@ export default function DashboardPage() {
       {streak && vehicle && <StreakCard streak={streak} vehicleId={vehicle.id} t={t} locale={locale} />}
 
       {/* daily profit + costs */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div className={`grid grid-cols-1 ${simple ? "" : "md:grid-cols-2"} gap-3`}>
         <Card>
-          <CardHead title={t("db.profitTrend14", { n: 14 })} />
+          <CardHead icon="chart" title={t("db.profitTrend14", { n: 14 })} />
           <ProfitBars data={a.trend} locale={locale} />
         </Card>
 
+        <Detailed>
         <Card>
           <CardHead
+            icon="receipt"
             title={t("db.costs")}
             actions={
               !dep.enabled && (
@@ -322,15 +347,15 @@ export default function DashboardPage() {
             <div className="space-y-2.5">
               {costRows.map((r) => (
                 <div key={r.key}>
-                  <div className="flex justify-between text-xs mb-1 gap-2">
+                  <div className="flex justify-between text-[13px] mb-1.5 gap-2">
                     <span className="text-ink-500 min-w-0 truncate">
                       {t(r.key)}
                       {r.note && <span className="text-muted-2 ms-1.5">{r.note}</span>}
                     </span>
                     <span className="font-bold whitespace-nowrap tnum">{money(r.v)}</span>
                   </div>
-                  <div className="h-2 rounded-full bg-line overflow-hidden">
-                    <div className="h-full rounded-full" style={{ width: `${(r.v / maxCost) * 100}%`, background: CHART.s1 }} />
+                  <div className="h-2.5 rounded-full bg-surface-2 overflow-hidden">
+                    <div className="h-full rounded-full" style={{ width: `${(r.v / maxCost) * 100}%`, background: `linear-gradient(90deg, ${CHART.s1}, ${CHART.top})` }} />
                   </div>
                 </div>
               ))}
@@ -349,12 +374,14 @@ export default function DashboardPage() {
             </div>
           )}
         </Card>
+        </Detailed>
       </div>
 
+      <Detailed>
       {/* platform */}
       {platformStats && platformStats.length > 1 && (
         <Card>
-          <CardHead title={t("db.platformTitle")} sub={t("db.platformSub")} />
+          <CardHead icon="car" title={t("db.platformTitle")} sub={t("db.platformSub")} />
           <div className="space-y-2">
             {platformStats.map((p: any) => (
               <div key={p.platform} className="flex items-center gap-3 text-sm">
@@ -420,7 +447,7 @@ export default function DashboardPage() {
                 return (
                   <div key={f.fuelGroup} className="bg-paper rounded-xl p-3">
                     <div className="text-xs font-bold text-ink-500 mb-2">{f.fuelGroup === "CNG" ? t("fu.CNG") : t("veh.fuel.PETROL").split(" ")[0]}</div>
-                    <div className="text-2xl font-bold display">
+                    <div className="text-[30px] font-bold display leading-none">
                       {fmtNum(f.per100, locale)}
                       <span className="text-xs font-bold text-muted">
                         {" "}
@@ -444,7 +471,7 @@ export default function DashboardPage() {
 
       {bench && (
         <Card>
-          <CardHead title={t("bm.title")} />
+          <CardHead icon="bolt" title={t("bm.title")} />
           {bench.others.driverCount === 0 ? (
             <Empty>{t("bm.notEnough")}</Empty>
           ) : (
@@ -461,7 +488,7 @@ export default function DashboardPage() {
 
       {carBench && carBench.carModel && carBench.others.driverCount > 0 && (
         <Card>
-          <CardHead title={t("cbm.title", { car: `${carBench.carModel.make} ${carBench.carModel.model}` })} />
+          <CardHead icon="wrench" title={t("cbm.title", { car: `${carBench.carModel.make} ${carBench.carModel.model}` })} />
           <div className="grid grid-cols-2 gap-4 mt-2">
             <BenchMetric
               label={carBench.others.fuelUnit === "m3" ? `${t("cbm.fuelPer100")} (${t("c.m3")})` : `${t("cbm.fuelPer100")} (${t("c.liters")})`}
@@ -484,7 +511,7 @@ export default function DashboardPage() {
           <CardHead icon="trophy" title={t("db.leaderboardTitle")} />
           <div className="space-y-1.5 mt-2">
             {leaderboard.entries.map((e: any, i: number) => (
-              <div key={e.vehicleId} className={`flex items-center gap-3 text-sm rounded-lg px-2 py-1.5 ${e.isYou ? "bg-paper font-bold" : ""}`}>
+              <div key={e.vehicleId} className={`flex items-center gap-3 text-[15px] rounded-xl px-3 py-2 ${e.isYou ? "bg-action-soft font-bold" : ""}`}>
                 <span className="w-6 text-center text-muted tnum">{fmtInt(i + 1, locale)}</span>
                 <span className="flex-1">{e.isYou ? t("db.leaderboardYou") : e.label}</span>
                 <span className="tnum">
@@ -499,6 +526,8 @@ export default function DashboardPage() {
           <div className="text-xs text-muted mt-3 text-center">{t("bm.driverCount", { n: fmtNum(leaderboard.driverCount, locale, 0) })}</div>
         </Card>
       )}
+
+      </Detailed>
 
       {attention.length > 0 && (
         <Card tone="warn">
@@ -516,6 +545,8 @@ export default function DashboardPage() {
           </div>
         </Card>
       )}
+
+      <MoreDetailsButton />
     </div>
   );
 }
@@ -530,8 +561,8 @@ function WhereNowCard({ hint, t, locale }: { hint: any; t: (k: string, v?: Recor
         title={t("now.title")}
         sub={hint.enoughData ? t("now.sub", { slot, kind: t(hint.isWeekend ? "now.weekend" : "now.weekday") }) : t("now.learning", { n: hint.sampleTrips, min: 5 })}
         actions={
-          <Link href="/plan" className="text-xs font-bold underline">
-            {t("nav.plan")}
+          <Link href="/plan" className="inline-flex items-center gap-0.5 text-xs font-bold text-action">
+            {t("nav.plan")} <Icon name="chevron" size={14} className="rtl:rotate-180" />
           </Link>
         }
       />
@@ -540,12 +571,12 @@ function WhereNowCard({ hint, t, locale }: { hint: any; t: (k: string, v?: Recor
           <div className="flex items-baseline gap-3 flex-wrap mb-3">
             {hint.netPerTripHour != null && (
               <span className="text-sm">
-                <b className="text-xl display">{money(hint.netPerTripHour)}</b> <span className="text-muted">{t("now.perRiderHour")}</span>
+                <b className="text-[28px] display">{money(hint.netPerTripHour)}</b> <span className="text-muted">{t("now.perRiderHour")}</span>
               </span>
             )}
             {hint.avgNetPerTrip != null && (
               <span className="text-sm">
-                <b className="text-xl display">{money(hint.avgNetPerTrip)}</b> <span className="text-muted">{t("wk.perTrip")}</span>
+                <b className="text-[28px] display">{money(hint.avgNetPerTrip)}</b> <span className="text-muted">{t("wk.perTrip")}</span>
               </span>
             )}
           </div>
@@ -555,13 +586,13 @@ function WhereNowCard({ hint, t, locale }: { hint: any; t: (k: string, v?: Recor
             <div className="rows">
               {hint.zones.map((z: any, i: number) => (
                 <div key={z.key} className="flex items-center gap-3 py-2.5">
-                  <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${i === 0 ? "bg-ink text-background" : "bg-paper text-muted"} tnum`}>{fmtInt(i + 1, locale)}</span>
+                  <span className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold shrink-0 ${i === 0 ? "brand-gradient text-white" : "bg-paper text-muted"} tnum`}>{fmtInt(i + 1, locale)}</span>
                   <span className="flex-1 min-w-0">
-                    <span className="block text-sm font-bold truncate">{z.label}</span>
+                    <span dir="auto" className="block text-[15px] font-bold truncate">{z.label}</span>
                     <span className="block text-xs text-muted">{t("pl.tripsN", { n: z.trips })}</span>
                   </span>
                   <span className="text-end">
-                    <span className="block text-sm font-bold tnum text-money">{money(z.avgNet)}</span>
+                    <span className="block text-base font-bold tnum text-money">{money(z.avgNet)}</span>
                     <span className="block text-xs text-muted">{z.perMin != null ? `${money(z.perMin)}/${t("c.minShort")}` : t("wk.perTrip")}</span>
                   </span>
                 </div>
@@ -579,27 +610,11 @@ function WhereNowCard({ hint, t, locale }: { hint: any; t: (k: string, v?: Recor
   );
 }
 
-function QuickAction({ href, icon, label, tone = "ink" }: { href: string; icon: any; label: string; tone?: "ink" | "warn" }) {
-  return (
-    <Link
-      href={href}
-      className={`flex flex-col md:flex-row items-center justify-center gap-1.5 md:gap-2 rounded-2xl px-2 py-3 md:py-3.5 text-[13px] md:text-sm font-bold transition-colors active:scale-[0.98] border ${
-        tone === "warn" ? "bg-warn border-warn text-ink hover:brightness-95" : "bg-sheet border-line text-ink hover:border-action"
-      }`}
-    >
-      <span className={`w-9 h-9 rounded-full flex items-center justify-center ${tone === "warn" ? "bg-ink/10" : "bg-action-soft text-action"}`}>
-        <Icon name={icon} size={20} strokeWidth={2.2} />
-      </span>
-      <span className="truncate max-w-full">{label}</span>
-    </Link>
-  );
-}
-
 function InkStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
-      <div className="text-[11px] font-bold text-hero-fg/60 uppercase tracking-wide truncate">{label}</div>
-      <div className="text-lg md:text-xl font-bold display text-hero-fg mt-0.5 truncate">{value}</div>
+      <div className="text-xs font-bold text-hero-fg/70 truncate">{label}</div>
+      <div className="text-[19px] sm:text-2xl md:text-[28px] font-bold display text-hero-fg mt-1 truncate">{value}</div>
     </div>
   );
 }
@@ -634,7 +649,7 @@ function WeekClosedCard({ week, previous, t, locale }: { week: any; previous: an
       />
       <div className="flex items-end justify-between gap-3 flex-wrap">
         <div>
-          <div className="text-[34px] font-bold display leading-none" style={{ color: week.trueProfit >= 0 ? C.goodText : C.critical }}>
+          <div className="text-[44px] font-bold display leading-none" style={{ color: week.trueProfit >= 0 ? C.goodText : C.critical }}>
             {money(week.trueProfit)}
           </div>
           <div className="text-xs text-muted mt-1.5">
@@ -701,18 +716,16 @@ function StreakCard({
 
   if (!hasGoal && !editing) {
     return (
-      <Card className="border-line">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <div className="text-sm font-semibold">🔥 {t("db.streakTitle")}</div>
-            <p className="text-xs text-muted mt-1">{t("db.streakSetHint")}</p>
+      <Card>
+        <div className="flex items-center gap-3 flex-wrap">
+          <IconChip icon="🔥" tint="tint-amber" size="lg" />
+          <div className="flex-1 min-w-0">
+            <div className="text-[17px] font-bold">{t("db.streakTitle")}</div>
+            <p className="text-xs text-muted mt-0.5">{t("db.streakSetHint")}</p>
           </div>
-          <button
-            onClick={() => setEditing(true)}
-            className="text-xs font-semibold text-ink bg-surface-2 hover:bg-line border border-line rounded-lg px-3 py-2"
-          >
+          <Btn variant="secondary" size="sm" onClick={() => setEditing(true)}>
             {t("db.streakSetGoal")}
-          </button>
+          </Btn>
         </div>
       </Card>
     );
@@ -720,8 +733,8 @@ function StreakCard({
 
   if (editing) {
     return (
-      <Card className="border-line">
-        <div className="text-sm font-semibold mb-3">🔥 {t("db.streakSetGoal")}</div>
+      <Card>
+        <CardHead icon="🔥" title={t("db.streakSetGoal")} />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <label className="block">
             <span className="block text-xs font-semibold text-ink-500 mb-1">{t("db.streakHoursGoal")}</span>
@@ -763,53 +776,50 @@ function StreakCard({
     );
   }
 
-  const hoursPct = streak.weeklyHoursGoal ? Math.min(100, (streak.thisWeek.hours / streak.weeklyHoursGoal) * 100) : null;
-  const profitPct = streak.weeklyProfitGoal ? Math.min(100, (streak.thisWeek.profit / streak.weeklyProfitGoal) * 100) : null;
+  const hoursRatio = streak.weeklyHoursGoal ? streak.thisWeek.hours / streak.weeklyHoursGoal : null;
+  const profitRatio = streak.weeklyProfitGoal ? streak.thisWeek.profit / streak.weeklyProfitGoal : null;
 
   return (
-    <Card className="border-line">
-      <div className="flex items-center justify-between gap-2 mb-3">
-        <div className="text-sm font-semibold">🔥 {t("db.streakTitle")}</div>
-        <button onClick={() => setEditing(true)} className="text-xs text-muted underline">
-          {t("db.streakEditGoal")}
-        </button>
-      </div>
-      <div className="flex items-end gap-4 mb-3">
-        <div className="text-3xl font-black text-ink">{streak.currentStreak}</div>
-        <div className="text-xs text-muted mb-1">
-          {t("db.streakWeeks", { n: streak.currentStreak })}
-          {streak.longestStreak > streak.currentStreak && (
-            <div className="text-muted">{t("db.streakBest", { n: streak.longestStreak })}</div>
-          )}
+    <Card>
+      <CardHead
+        icon="🔥"
+        title={t("db.goalsTitle")}
+        actions={
+          <button onClick={() => setEditing(true)} className="text-xs font-bold text-ink-500 underline underline-offset-4">
+            {t("db.streakEditGoal")}
+          </button>
+        }
+      />
+      <div className="flex items-center justify-around gap-4 flex-wrap">
+        {profitRatio != null && (
+          <div className="flex flex-col items-center">
+            <Ring ratio={profitRatio} size={124} label={t("db.streakProfitGoal")}>
+              <span className="text-[26px] font-bold display leading-none">{fmtNum(Math.min(999, profitRatio * 100), locale, 0)}%</span>
+            </Ring>
+            <div className="text-[13px] font-bold mt-2">{t("db.streakProfitGoal")}</div>
+            <div className="text-xs text-muted tnum">
+              {money(streak.thisWeek.profit)} / {money(streak.weeklyProfitGoal)}
+            </div>
+          </div>
+        )}
+        {hoursRatio != null && (
+          <div className="flex flex-col items-center">
+            <Ring ratio={hoursRatio} size={124} label={t("db.streakHoursGoal")}>
+              <span className="text-[26px] font-bold display leading-none">{fmtNum(Math.min(999, hoursRatio * 100), locale, 0)}%</span>
+            </Ring>
+            <div className="text-[13px] font-bold mt-2">{t("db.streakHoursGoal")}</div>
+            <div className="text-xs text-muted tnum">
+              {fmtNum(streak.thisWeek.hours, locale)} / {fmtNum(streak.weeklyHoursGoal, locale)} {t("c.hours")}
+            </div>
+          </div>
+        )}
+        <div className="flex flex-col items-center justify-center min-w-[7rem]">
+          <div className="w-[88px] h-[88px] rounded-full tint-amber flex flex-col items-center justify-center">
+            <span className="text-[34px] font-bold display leading-none">{fmtInt(streak.currentStreak, locale)}</span>
+          </div>
+          <div className="text-[13px] font-bold mt-2 text-center">{t("db.streakWeeks", { n: streak.currentStreak })}</div>
+          {streak.longestStreak > streak.currentStreak && <div className="text-xs text-muted">{t("db.streakBest", { n: streak.longestStreak })}</div>}
         </div>
-      </div>
-      <div className="space-y-2">
-        {hoursPct != null && (
-          <div>
-            <div className="flex justify-between text-xs mb-0.5">
-              <span className="text-muted">{t("db.streakHoursGoal")}</span>
-              <span className="font-semibold">
-                {fmtNum(streak.thisWeek.hours, locale)} / {fmtNum(streak.weeklyHoursGoal, locale)} {t("c.hours")}
-              </span>
-            </div>
-            <div className="h-2 rounded-full bg-surface-2 overflow-hidden">
-              <div className="h-full rounded-full bg-money" style={{ width: `${hoursPct}%` }} />
-            </div>
-          </div>
-        )}
-        {profitPct != null && (
-          <div>
-            <div className="flex justify-between text-xs mb-0.5">
-              <span className="text-muted">{t("db.streakProfitGoal")}</span>
-              <span className="font-semibold">
-                {money(streak.thisWeek.profit)} / {money(streak.weeklyProfitGoal)}
-              </span>
-            </div>
-            <div className="h-2 rounded-full bg-surface-2 overflow-hidden">
-              <div className="h-full rounded-full bg-money" style={{ width: `${profitPct}%` }} />
-            </div>
-          </div>
-        )}
       </div>
     </Card>
   );
@@ -857,20 +867,20 @@ function BenchMetric({
     you != null && others != null && (lowerIsBetter ? you <= others : you >= others);
   return (
     <div>
-      <div className="text-xs text-muted mb-1 text-center">{label}</div>
+      <div className="text-[13px] font-bold text-ink-500 mb-2 text-center">{label}</div>
       <div className="grid grid-cols-2 gap-2">
         <div className="text-center">
-          <div className="text-[10px] text-muted">{youLabel}</div>
+          <div className="text-[11px] font-bold text-muted">{youLabel}</div>
           <div
-            className="text-lg font-bold"
+            className="text-2xl font-bold display"
             style={{ fontVariantNumeric: "tabular-nums", color: youWins ? "var(--money)" : undefined }}
           >
             {you != null ? fmt(you) : "—"}
           </div>
         </div>
         <div className="text-center">
-          <div className="text-[10px] text-muted">{othersLabel}</div>
-          <div className="text-lg font-bold text-ink-500" style={{ fontVariantNumeric: "tabular-nums" }}>
+          <div className="text-[11px] font-bold text-muted">{othersLabel}</div>
+          <div className="text-2xl font-bold display text-ink-500">
             {others != null ? fmt(others) : "—"}
           </div>
         </div>
@@ -892,11 +902,11 @@ function LegendRow({
   cost?: string;
 }) {
   return (
-    <div className="flex items-center gap-2">
-      <span className="inline-block w-3 h-3 rounded-sm shrink-0" style={{ background: color }} />
-      <span className="text-muted flex-1">{label}</span>
+    <div className="flex items-center gap-2 text-[13px] py-0.5">
+      <span className="inline-block w-3 h-3 rounded-full shrink-0" style={{ background: color }} />
+      <span className="text-ink-500 flex-1">{label}</span>
       {cost && <span className="text-muted tnum">{cost}</span>}
-      <span className="font-semibold tnum">{value}</span>
+      <span className="font-bold tnum">{value}</span>
     </div>
   );
 }
@@ -925,142 +935,115 @@ function DailyTargetCard({
   onHours,
   t,
   locale,
+  simple = false,
 }: {
   target: any;
   onHours: (h: number) => void;
   t: (k: string, vars?: Record<string, string | number>) => string;
   locale: string;
+  simple?: boolean;
 }) {
   const money = (n: number) => fmtMoney(n, locale);
   if (!target.hasBasis) {
     return (
       <Card>
-        <CardHead icon="🎯" title={t("tg.title")} sub={t("tg.needMoreData")} />
+        <CardHead icon="flag" title={t("tg.title")} sub={t("tg.needMoreData")} />
       </Card>
     );
   }
 
   const { today, breakEvenRevenue } = target;
-  // a zero target would divide the bar and the gauge by nothing
+  // a zero target would divide the bar and the ring by nothing
   const targetRevenue = Math.max(target.targetRevenue, 1);
   const scale = Math.max(targetRevenue, today.netRevenue, 1);
   const clearedBreakEven = today.netRevenue >= breakEvenRevenue;
   const hitTarget = today.netRevenue >= targetRevenue;
   const remaining = Math.max(0, targetRevenue - today.netRevenue);
+  const pct = Math.min(999, (today.netRevenue / targetRevenue) * 100);
+
+  const hoursStepper = (
+    <div className="flex items-center gap-1 rounded-full bg-paper p-1">
+      <button type="button" aria-label="−" onClick={() => onHours(Math.max(1, target.plannedHours - 1))} className="w-8 h-8 rounded-full bg-sheet shadow-[var(--shadow-sm)] font-bold text-lg leading-none">
+        −
+      </button>
+      <span className="text-sm font-bold tnum w-14 text-center">
+        {fmtNum(target.plannedHours, locale)} {t("c.hours")}
+      </span>
+      <button type="button" aria-label="+" onClick={() => onHours(target.plannedHours + 1)} className="w-8 h-8 rounded-full bg-sheet shadow-[var(--shadow-sm)] font-bold text-lg leading-none">
+        +
+      </button>
+    </div>
+  );
 
   return (
     <Card>
-      <CardHead
-        icon="🎯"
-        title={t("tg.title")}
-        sub={t(`tg.sub.${target.targetSource}`)}
-        actions={
-          <div className="flex items-center gap-1">
-            <Btn
-              variant="secondary"
-              className="!px-2.5 !py-1 !text-sm"
-              onClick={() => onHours(Math.max(1, target.plannedHours - 1))}
-            >
-              −
-            </Btn>
-            <span className="text-xs font-bold tnum w-14 text-center">
-              {fmtNum(target.plannedHours, locale)} {t("c.hours")}
-            </span>
-            <Btn
-              variant="secondary"
-              className="!px-2.5 !py-1 !text-sm"
-              onClick={() => onHours(target.plannedHours + 1)}
-            >
-              +
-            </Btn>
+      <CardHead icon="flag" title={t("tg.title")} sub={simple ? undefined : t(`tg.sub.${target.targetSource}`)} actions={hoursStepper} />
+
+      <div className="flex items-center gap-5">
+        <Ring ratio={today.netRevenue / targetRevenue} size={simple ? 120 : 136} label={t("tg.title")}>
+          <span className="text-[28px] font-bold display leading-none">{fmtNum(pct, locale, 0)}%</span>
+          <span className="text-[11px] font-bold text-muted mt-1">{t("tg.ofDay")}</span>
+        </Ring>
+        <div className="min-w-0 flex-1">
+          <div className="text-sm text-muted">{t("tg.soFar")}</div>
+          <div className={`text-[34px] font-bold display leading-none mt-1 ${hitTarget ? "text-money" : ""}`}>{money(today.netRevenue)}</div>
+          <div className="text-sm font-bold mt-2">
+            {hitTarget ? (
+              <span className="text-money">🎉 {t("tg.hit")}</span>
+            ) : (
+              <span>
+                <span className="tnum">{money(remaining)}</span> <span className="text-muted font-semibold">{t("tg.toGo", { v: money(targetRevenue) })}</span>
+              </span>
+            )}
           </div>
-        }
-      />
-
-      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 items-center">
-        <div>
-          <div className="flex items-baseline gap-2 mb-2">
-            <span className="text-3xl font-black tnum" style={{ color: hitTarget ? C.goodText : undefined }}>
-              {money(today.netRevenue)}
-            </span>
-            <span className="text-xs text-muted">{t("tg.soFar")}</span>
-          </div>
-
-          <Meter
-            ratio={today.netRevenue / scale}
-            tone={hitTarget ? "good" : clearedBreakEven ? "brand" : "warn"}
-            marker={{
-              ratio: breakEvenRevenue / scale,
-              label: t("tg.breakEvenMark", { v: money(breakEvenRevenue) }),
-            }}
-            value={t("tg.ofTarget", { v: money(targetRevenue) })}
-          />
-
-          <div className="grid grid-cols-3 gap-3 mt-4">
-            <TargetStat
-              label={t("tg.toBreakEven")}
-              value={clearedBreakEven ? t("tg.cleared") : money(breakEvenRevenue - today.netRevenue)}
-              tone={clearedBreakEven ? "good" : "warn"}
-            />
-            <TargetStat
-              label={t("tg.toTarget")}
-              value={hitTarget ? t("tg.hit") : money(remaining)}
-              tone={hitTarget ? "good" : "default"}
-            />
-            <TargetStat
-              label={t("tg.perHourNeeded")}
-              value={
-                target.perHourNeeded != null && remaining > 0
-                  ? `${money(target.perHourNeeded)}/${t("c.hours")}`
-                  : "—"
-              }
-              tone="default"
-            />
-          </div>
-        </div>
-
-        <div className="flex justify-center sm:justify-end">
-          <Gauge
-            ratio={today.netRevenue / targetRevenue}
-            tone={hitTarget ? "good" : clearedBreakEven ? "brand" : "warn"}
-            value={`${fmtNum(Math.min(999, (today.netRevenue / targetRevenue) * 100), locale, 0)}%`}
-            unit={t("tg.ofDay")}
-            minLabel="0"
-            maxLabel="100%"
-            caption={t("tg.costCaption", {
-              perHour: money(target.costPerHour ?? 0),
-              perKm: money(target.costPerKm),
-            })}
-          />
+          {!clearedBreakEven && !simple && <div className="text-xs text-warn-ink mt-1">{t("tg.breakEvenLeft", { v: money(breakEvenRevenue - today.netRevenue) })}</div>}
         </div>
       </div>
 
-      <p className="text-[11px] text-muted mt-3">
-        {t("tg.footnote", {
-          hours: fmtNum(target.plannedHours, locale),
-          kmh: fmtNum(target.kmPerHour ?? 0, locale, 0),
-          hourly: money(target.typicalHourly ?? 0),
-          fixed: money(target.fixedDailyCost),
-        })}
-      </p>
+      {!simple && (
+        <>
+          <div className="mt-5">
+            <Meter
+              ratio={today.netRevenue / scale}
+              tone={hitTarget ? "good" : clearedBreakEven ? "brand" : "warn"}
+              marker={{
+                ratio: breakEvenRevenue / scale,
+                label: t("tg.breakEvenMark", { v: money(breakEvenRevenue) }),
+              }}
+              value={t("tg.ofTarget", { v: money(targetRevenue) })}
+            />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-4">
+            <TargetStat label={t("tg.toBreakEven")} value={clearedBreakEven ? t("tg.cleared") : money(breakEvenRevenue - today.netRevenue)} tone={clearedBreakEven ? "good" : "warn"} />
+            <TargetStat label={t("tg.toTarget")} value={hitTarget ? t("tg.hit") : money(remaining)} tone={hitTarget ? "good" : "default"} />
+            <TargetStat
+              label={t("tg.perHourNeeded")}
+              value={target.perHourNeeded != null && remaining > 0 ? `${money(target.perHourNeeded)}/${t("c.hours")}` : "—"}
+              tone="default"
+            />
+          </div>
+          <p className="text-[11px] text-muted mt-3">
+            {t("tg.costCaption", { perHour: money(target.costPerHour ?? 0), perKm: money(target.costPerKm) })}
+            {sep(locale)}
+            {t("tg.footnote", {
+              hours: fmtNum(target.plannedHours, locale),
+              kmh: fmtNum(target.kmPerHour ?? 0, locale, 0),
+              hourly: money(target.typicalHourly ?? 0),
+              fixed: money(target.fixedDailyCost),
+            })}
+          </p>
+        </>
+      )}
     </Card>
   );
 }
 
-function TargetStat({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string;
-  tone: "default" | "good" | "warn";
-}) {
+function TargetStat({ label, value, tone }: { label: string; value: string; tone: "default" | "good" | "warn" }) {
   const color = tone === "good" ? C.goodText : tone === "warn" ? C.critical : undefined;
   return (
-    <div className="min-w-0">
-      <div className="text-[10px] uppercase tracking-wide text-muted font-semibold truncate">{label}</div>
-      <div className="text-sm font-bold tnum truncate" style={{ color }}>
+    <div className="min-w-0 rounded-2xl bg-paper px-3.5 py-2.5 flex sm:block items-center justify-between gap-3">
+      <div className="text-[13px] sm:text-[11px] text-ink-500 sm:text-muted font-bold truncate">{label}</div>
+      <div className="text-base font-bold tnum truncate sm:mt-0.5" style={{ color }}>
         {value}
       </div>
     </div>

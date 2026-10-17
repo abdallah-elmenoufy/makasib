@@ -76,7 +76,7 @@ app/
 │   │   └── layout.tsx         # auth gate + <Nav>
 │   ├── login/                 # passphrase setup/login (outside the auth gate)
 │   └── api/                   # all backend routes — see §4
-├── components/                # shared client components: ui.tsx primitives (Uber-style tokens in app/globals.css), icons.tsx, Nav (bottom tab bar on phones / sidebar on desktop), TripBatchEntry + EndShiftFlow (shift-end logging), QuickAddTrip, GpsTracker, PhotoInput, useCrud
+├── components/                # shared client components: ui.tsx primitives (tokens in app/globals.css), charts.tsx (chart kit + Ring gauge), icons.tsx, Nav (bottom tab bar with the Drive button / sidebar on desktop), Drive (drive sheet, live strip, drive card), ViewMode (simple/detailed), dataBus (in-page change events), TripBatchEntry + EndShiftFlow (shift-end logging), QuickAddTrip, GpsTracker, PhotoInput, useCrud
 ├── lib/                       # all business logic — framework-agnostic, mostly pure functions
 │   ├── db.ts                  # Prisma client singleton
 │   ├── auth.ts                # passphrase hash, session cookie
@@ -126,6 +126,7 @@ session — enforced by `requireAuth()` from `lib/auth.ts`, which throws a
 | `GET /api/weeks?vehicleId&weeks=12` | Runs `getWeeklyReport()` — Uber-week analytics (§7b) |
 | `GET /api/weeks/export?vehicleId&week=` | CSV of one pay week's trips (§7b) |
 | `GET /api/now?vehicleId` | "Where to go now" suggestion (§7b) |
+| `GET /api/drive?vehicleId` | Drive sheet state: active shift, live tally, odometer suggestions (§7a) |
 | `POST /api/upload` | Saves a photo to `data/uploads/`; converts HEIC→JPEG via `sips`; triggers the lazy photo-purge check |
 | `GET /api/files/[name]` | Serves an uploaded photo (path-traversal-safe via `path.basename`) |
 | `GET /api/ocr/[name]` | Runs Apple Vision OCR on an uploaded file; compiles `vision-ocr` on first call |
@@ -402,16 +403,61 @@ covering shift.
 
 ---
 
-## 7a. UI shell (added 2026-10-12/13)
+## 7a. UI shell (added 2026-10-12/13, redesigned 2026-10-17)
 
-Uber-style tokens live in `app/globals.css` (`--ink`, `--surface`, `--money`,
+**Look (v2, 2026-10-17).** The black-and-white Uber look was replaced by a
+"money green" system: a deep-to-bright emerald gradient (`--brand-1…3`,
+`.hero-surface`, `.brand-gradient`) on the hero card, the Drive button, the
+logo and big primary buttons; a faintly green-grey page with a soft green
+wash at the top; white cards with soft shadows (`--shadow-card`); tinted
+icon chips per topic (`.tint-green|violet|amber|sky|rose|slate`, mapped in
+`ICON_TINT` in `components/ui.tsx` and used by `CardHead`, `Tile`,
+`ListRow`); green filled segmented pills; delta pills; same-hue meter
+tracks; ring gauges (`Ring` in `components/charts.tsx`) for today's target
+and weekly goals; gradient bars; roomy `.tbl` tables. Type is Readex Pro
+(variable, Arabic + Latin, self-hosted via `@fontsource-variable/readex-pro`
+so builds never fetch fonts). Numbers were enlarged everywhere: hero 52–64px,
+tiles 28–32px, record values 17px. Inside `.hero-surface`, CSS re-tints
+deltas, badges and red/green text so they stay legible on the gradient.
+The chart palette was re-validated with the dataviz validator against the
+new surfaces (light passes with a contrast warning on magenta, relieved by
+the labelled legends; dark passes).
+
+**Drive flow (2026-10-17).** `components/Drive.tsx` holds the working day:
+`DriveProvider` (in `app/(app)/layout.tsx`) loads `GET /api/drive`
+(`lib/drive.ts`: active shift, its live tally, the start-odometer guess =
+last end reading, and the end-odometer suggestion from `lib/odometer.ts`,
+unit-tested) and owns one sheet with three modes — start (odometer only,
+one-tap "use last", photo OCR, "started earlier?"), live (tally + quick add
++ several at once + screenshots + End), batch — plus the end-shift flow,
+which works from a snapshot so it survives the shift closing. `DriveFab` is
+the raised centre tab, `DriveStrip` the live strip above the tab bar on
+every screen except Home and Shifts, `DriveCard` the card at the top of Home
+and Shifts. The phone tab bar is Home · Trips · Drive · Weeks · More
+(Shifts moved into More; the desktop sidebar still lists it). Writes
+announce themselves on a tiny in-page bus (`components/dataBus.ts`);
+`useCrud` and the analysis pages re-fetch on it, so a trip added from the
+sheet updates whatever screen is open. End-of-shift step 2 is a single
+"That's all" tap when trips were logged during the shift.
+
+**Simple / Detailed (2026-10-17).** `components/ViewMode.tsx`: a per-device
+`viewMode` (localStorage, default `simple`), `<Detailed>`/`<SimpleOnly>`
+wrappers, the `ViewModeToggle` at the top of Home, Weeks and Plan (and in
+Settings) and a "Show the detailed analysis" button at the end of simple
+pages. Simple keeps: Home — drive card, profit hero (earnings, trips, per
+hour), today's target ring, where to go now, quick costs, goal rings, 14-day
+bars, reminders due; Weeks — picker, hero, week-over-week bars, day by day,
+best trip, top 3 areas; Plan — heat grid and best slots; Shifts — three
+figures per shift.
+
+Tokens live in `app/globals.css` (`--ink`, `--surface`, `--money`,
 `--loss`, `--hero`, `--paper`, …) and are exposed to Tailwind via `@theme`.
 Light and dark palettes are both defined at the token level; dark applies
 through `prefers-color-scheme` unless `data-theme` is set on `<html>`, which
 Settings → Appearance writes to `localStorage.theme` (per device) and an
 inline script in `app/layout.tsx` applies before first paint. Navigation
-(`components/Nav.tsx`): bottom tab bar on phones (Home, Shifts, Trips, Weeks,
-More sheet), sidebar on desktop. Shared primitives in `components/ui.tsx`.
+(`components/Nav.tsx`): bottom tab bar on phones (Home, Trips, the raised
+Drive button, Weeks, More sheet), sidebar on desktop with a Drive button. Shared primitives in `components/ui.tsx`.
 
 **Chart kit** (`components/charts.tsx`, added 2026-10-14). Every chart in the
 app draws from one set of CSS tokens in `app/globals.css`: `--chart-1` (brand

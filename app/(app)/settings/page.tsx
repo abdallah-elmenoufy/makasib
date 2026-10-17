@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useI18n } from "@/components/I18nProvider";
 import { Btn, Card, Field, Input, PageTitle, Segmented, Select, Toggle } from "@/components/ui";
+import { ViewModeToggle } from "@/components/ViewMode";
 
 export default function SettingsPage() {
   const { t, locale } = useI18n();
@@ -121,6 +122,12 @@ export default function SettingsPage() {
           />
         </Field>
         <p className="text-xs text-muted mt-2">{t("st.themeHint")}</p>
+      </Card>
+
+      <Card>
+        <span className="block text-xs font-bold text-ink-500 mb-1.5">{t("vm.label")}</span>
+        <ViewModeToggle />
+        <p className="text-xs text-muted mt-2">{t("vm.hint")}</p>
       </Card>
 
       <Card>

@@ -1,5 +1,6 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
+import { emitChanged, useOnChanged } from "./dataBus";
 
 const PAGE_SIZE = 50;
 
@@ -12,6 +13,7 @@ export function useCrud<T extends { id: string }>(entity: string, vehicleId?: st
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
 
+  const self = useId();
   const refresh = useCallback(async () => {
     const params = new URLSearchParams();
     if (vehicleId) params.set("vehicleId", vehicleId);
@@ -33,6 +35,8 @@ export function useCrud<T extends { id: string }>(entity: string, vehicleId?: st
   useEffect(() => {
     refresh();
   }, [refresh]);
+  // another screen (the drive sheet, a quick-add) changed something
+  useOnChanged(() => void refresh(), self);
 
   // the filter changed (different car, different entity) — the old page
   // number no longer means anything, so land back on page 1
@@ -49,7 +53,10 @@ export function useCrud<T extends { id: string }>(entity: string, vehicleId?: st
       headers: { "content-type": "application/json" },
       body: JSON.stringify(data),
     });
-    if (res.ok) await refresh();
+    if (res.ok) {
+      await refresh();
+      emitChanged(self);
+    }
     return res.ok;
   };
 
@@ -59,13 +66,19 @@ export function useCrud<T extends { id: string }>(entity: string, vehicleId?: st
       headers: { "content-type": "application/json" },
       body: JSON.stringify(data),
     });
-    if (res.ok) await refresh();
+    if (res.ok) {
+      await refresh();
+      emitChanged(self);
+    }
     return res.ok;
   };
 
   const remove = async (id: string) => {
     const res = await fetch(`/api/${entity}/${id}`, { method: "DELETE" });
-    if (res.ok) await refresh();
+    if (res.ok) {
+      await refresh();
+      emitChanged(self);
+    }
     return res.ok;
   };
 

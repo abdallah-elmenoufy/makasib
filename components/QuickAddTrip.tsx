@@ -21,10 +21,13 @@ export function QuickAddTrip({
   vehicleId,
   defaultPlatform = "UBER",
   onAdded,
+  bare = false,
 }: {
   vehicleId: string;
   defaultPlatform?: string;
   onAdded: () => void;
+  /** Without the card frame — inside the drive sheet. */
+  bare?: boolean;
 }) {
   const { t, locale } = useI18n();
   const [amount, setAmount] = useState("");
@@ -90,6 +93,8 @@ export function QuickAddTrip({
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     const net = Number(amount);
+    // what this save sends — anything typed while it is in flight is the next trip and must survive
+    const sent = { amount, tip, km, pickupKm, mins };
     if (!Number.isFinite(net) || net <= 0) return;
     setSaving(true);
     const here = await herePosition();
@@ -119,11 +124,11 @@ export function QuickAddTrip({
     });
     setSaving(false);
     if (res.ok) {
-      setAmount("");
-      setTip("");
-      setKm("");
-      setPickupKm("");
-      setMins("");
+      setAmount((v) => (v === sent.amount ? "" : v));
+      setTip((v) => (v === sent.tip ? "" : v));
+      setKm((v) => (v === sent.km ? "" : v));
+      setPickupKm((v) => (v === sent.pickupKm ? "" : v));
+      setMins((v) => (v === sent.mins ? "" : v));
       setFlash(here ? t("qa.addedLocated") : t("qa.added"));
       setTimeout(() => setFlash(""), 2500);
       onAdded();
@@ -134,35 +139,37 @@ export function QuickAddTrip({
 
   const small = "w-full h-11 rounded-xl bg-surface-2 border border-transparent focus:border-action focus:bg-sheet focus:outline-none px-3 text-[15px] font-semibold tnum";
 
+  const Frame = bare ? "div" : Card;
   return (
-    <Card>
+    <Frame>
       <form onSubmit={save}>
-        <div className="flex items-end gap-2 flex-wrap">
-          <div className="flex-1 min-w-[10rem]">
-            <span className="block text-xs font-bold text-ink-500 mb-1.5">{t("qa.label")}</span>
-            <div className="flex gap-2">
-              <input
-                type="number"
-                step="0.01"
-                inputMode="decimal"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="0.00"
-                className="w-full h-14 rounded-xl bg-surface-2 border border-transparent focus:border-action focus:bg-sheet focus:outline-none px-3.5 text-2xl font-bold tnum"
-              />
-              {voiceOk && (
-                <button
-                  type="button"
-                  onClick={listen}
-                  title={t("qa.speak")}
-                  className={`shrink-0 w-14 h-14 rounded-xl flex items-center justify-center transition-colors ${listening ? "bg-loss text-white animate-pulse" : "bg-surface-2 text-ink hover:bg-line"}`}
-                >
-                  <Icon name="mic" size={22} />
-                </button>
-              )}
-            </div>
-          </div>
+        <span className="block text-sm font-bold mb-2">{t("qa.label")}</span>
+        <div className="flex gap-2">
+          <input
+            type="number"
+            step="0.01"
+            inputMode="decimal"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="0.00"
+            aria-label={t("qa.label")}
+            className="min-w-0 flex-1 h-16 rounded-2xl bg-paper border-2 border-transparent focus:border-action focus:bg-sheet focus:outline-none px-4 text-[32px] font-bold display tnum"
+          />
+          {voiceOk && (
+            <button
+              type="button"
+              onClick={listen}
+              title={t("qa.speak")}
+              className={`shrink-0 w-16 h-16 rounded-2xl flex items-center justify-center transition-colors ${listening ? "bg-loss text-white animate-pulse" : "bg-paper text-ink hover:bg-surface-2"}`}
+            >
+              <Icon name="mic" size={22} />
+            </button>
+          )}
+        </div>
+        <div className="flex gap-2 mt-2 items-stretch">
           <Segmented
+            fill
+            className="flex-1 !p-1.5"
             value={payment}
             onChange={setPayment}
             options={[
@@ -170,13 +177,17 @@ export function QuickAddTrip({
               { value: "CARD", label: t("tr.CARD") },
             ]}
           />
-          <Btn type="submit" disabled={saving || !amount} className="h-14 px-5">
+          <Btn type="submit" disabled={saving || !amount} className="flex-1 !h-14 !rounded-2xl !text-base">
             <Icon name="plus" size={18} strokeWidth={2.5} /> {t("qa.add")}
           </Btn>
-          {flash && <Badge tone="good">{flash}</Badge>}
         </div>
+        {flash && (
+          <div className="mt-2">
+            <Badge tone="good">{flash}</Badge>
+          </div>
+        )}
 
-        <button type="button" onClick={() => setMore((m) => !m)} className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-ink-500">
+        <button type="button" onClick={() => setMore((m) => !m)} className="mt-3 inline-flex items-center gap-1 text-sm font-bold text-ink-500">
           <Icon name="chevron" size={14} className={`transition-transform ${more ? "rotate-90" : "rtl:rotate-180"}`} /> {more ? t("qa.lessDetails") : t("qa.moreDetails")}
         </button>
         {more && (
@@ -200,10 +211,12 @@ export function QuickAddTrip({
           </div>
         )}
       </form>
-      <p className="text-xs text-muted mt-3 leading-relaxed flex items-start gap-1.5">
-        {geoOk && <Icon name="pin" size={14} className="mt-0.5 shrink-0" />}
-        <span>{geoOk ? t("qa.hintLocated") : t("qa.hint")}</span>
-      </p>
-    </Card>
+      {!bare && (
+        <p className="text-xs text-muted mt-3 leading-relaxed flex items-start gap-1.5">
+          {geoOk && <Icon name="pin" size={14} className="mt-0.5 shrink-0" />}
+          <span>{geoOk ? t("qa.hintLocated") : t("qa.hint")}</span>
+        </p>
+      )}
+    </Frame>
   );
 }

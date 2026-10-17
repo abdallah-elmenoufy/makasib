@@ -1,54 +1,89 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
-   Makasib design tokens — Uber-style.
+   Makasib design tokens — v2 "money green".
 
-   The look drivers already know from the Uber Driver app: black and white,
-   big bold numbers, grey tiles with hairline dividers, one green that means
-   "money in", one red that means "money out", and black buttons so "what do
-   I tap" is never a question. Built for a tired driver on a phone at night:
-   high contrast, 48px tap targets, a thumb-reachable bottom bar.
+   One brand colour carries the app: a deep-to-bright emerald, used as a
+   gradient on the hero card, the Drive button and the logo, and as the
+   flat green of every "tap me" button. Everything else is quiet: a faintly
+   green-grey page, white cards with soft shadows, tinted icon chips that
+   give each topic its own colour (fuel amber, maintenance violet, expenses
+   rose, plan sky), and big Readex Pro numerals that read at arm's length.
+   Light and dark are both designed by hand, never inverted.
 --------------------------------------------------------------------------- */
 :root {
   color-scheme: light;
-
-  /* a soft grey page so white cards and green buttons read as objects you can tap */
-  --background: #f4f4f2;
-  --foreground: #000000;
-
-  /* greys (Uber Base scale) */
+  --background: #f2f5f3;
+  --foreground: #0e1a13;
   --surface: #ffffff;
-  --surface-2: #efefed;
-  --line: #e4e4e1;
-  --line-strong: #cbcbcb;
-  --ink: #000000;
-  --ink-700: #333333;
-  --ink-500: #545454;
-  --muted: #757575;
-  --muted-2: #afafaf;
-
-  /* semantic */
-  --money: #05a357;
-  --money-soft: #e6f6ee;
-  --loss: #e11900;
-  --loss-soft: #fdeeeb;
-  --warn: #ffc043;
-  --warn-ink: #996f00;
-  --warn-soft: #fff5d6;
-  --info: #276ef1;
-  --info-soft: #eff3fe;
-
-  /* inset blocks inside a card; sheets/nav; the dashboard hero card */
-  --paper: #f4f4f2;
+  --surface-2: #eef2ef;
+  --line: #e3e9e5;
+  --line-strong: #c9d3cd;
+  --ink: #0e1a13;
+  --ink-700: #25362c;
+  --ink-500: #4a5c51;
+  --muted: #6b7c72;
+  --muted-2: #a5b2aa;
+  --money: #078a48;
+  --money-soft: #e2f5ea;
+  --loss: #d92d20;
+  --loss-soft: #fdecea;
+  --warn: #f5b100;
+  --warn-ink: #8a5d00;
+  --warn-soft: #fff4d1;
+  --info: #1d6fd6;
+  --info-soft: #e6f0fc;
+  --paper: #f2f5f3;
   --sheet: #ffffff;
-  --hero: #ffffff;
-  --hero-fg: #000000;
-
-  /* the one colour that means "tap me": green, never black */
+  --hero: #065f3a;
+  --hero-fg: #ffffff;
+  --hero-accent: #b8f7cf;
+  --hero-loss: #ffc9c2;
   --action: #0a8a4a;
-  --action-700: #086f3c;
+  --action-700: #077140;
   --action-fg: #ffffff;
-  --action-soft: #e3f4ea;
+  --action-soft: #e2f5ea;
+  --brand-1: #054d30;
+  --brand-2: #0a8a4a;
+  --brand-3: #22b46b;
+  --gold: #f2a900;
+  --gold-soft: #fff3cc;
+  --tint-green-bg: #e2f5ea;
+  --tint-green-fg: #078a48;
+  --tint-violet-bg: #ece9fc;
+  --tint-violet-fg: #5643cc;
+  --tint-amber-bg: #fff1d6;
+  --tint-amber-fg: #a36a00;
+  --tint-sky-bg: #e3f0fd;
+  --tint-sky-fg: #1d6fd6;
+  --tint-rose-bg: #fde7ef;
+  --tint-rose-fg: #c23366;
+  --tint-slate-bg: #eef2ef;
+  --tint-slate-fg: #4a5c51;
+  --shadow-sm: 0 1px 2px rgba(14, 40, 26, 0.06);
+  --shadow-card: 0 1px 2px rgba(14, 40, 26, 0.04), 0 10px 28px -16px rgba(14, 40, 26, 0.18);
+  --shadow-md: 0 6px 20px -6px rgba(14, 40, 26, 0.18);
+  --shadow-lg: 0 18px 48px -14px rgba(6, 50, 30, 0.38);
+  --shadow-btn: 0 8px 18px -8px rgba(10, 138, 74, 0.65);
+  --chart-1: #0a8a4a;
+  --chart-1-top: #3cc47f;
+  --chart-1-soft: #cdeedb;
+  --chart-2: #6250d6;
+  --chart-3: #e87ba4;
+  --chart-sel: #054d30;
+  --chart-neutral: #c3cbc6;
+  --chart-neg: #e34948;
+  --chart-grid: #e6ece8;
+  --chart-axis: #c9d3cd;
+  --chart-text: #6b7c72;
+  --ramp-1: #e2f5ea;
+  --ramp-2: #bfe8d0;
+  --ramp-3: #8dd4ae;
+  --ramp-4: #55bd86;
+  --ramp-5: #28a064;
+  --ramp-6: #0a8a4a;
+  --ramp-7: #054d30;
+  --ramp-empty: #eef2ef;
 
   /* legacy aliases still referenced by a few components */
   --border: var(--line);
@@ -58,144 +93,162 @@
   --warn-bg: var(--warn-soft);
   --bad-bg: var(--loss-soft);
 
-  --radius: 12px;
-  --radius-lg: 16px;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 16px -4px rgba(0, 0, 0, 0.14);
-  --shadow-lg: 0 16px 48px -12px rgba(0, 0, 0, 0.28);
-
-  --nav-h: 64px;
-
-  /* charts — one green for a single series; violet and magenta are its
-     colour-blind-safe neighbours for stacked splits; grey = "not counted" */
-  --chart-1: #0a8a4a;
-  --chart-1-soft: #cfe9da;
-  --chart-2: #6250d6;
-  --chart-3: #e87ba4;
-  --chart-neutral: #c3c2b7;
-  --chart-neg: #e34948;
-  --chart-grid: #e6e6e3;
-  --chart-axis: #c9c9c5;
-  --chart-text: #757575;
-  --ramp-1: #e3f4ea;
-  --ramp-2: #bfe6d0;
-  --ramp-3: #8fd1ad;
-  --ramp-4: #58b985;
-  --ramp-5: #2a9d64;
-  --ramp-6: #0a8a4a;
-  --ramp-7: #065f33;
-  --ramp-empty: #f0f0ee;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --nav-h: 68px;
 }
 
-/* ---------------------------------------------------------------------------
-   Dark theme — the Uber Driver app's own look: black ground, charcoal tiles,
-   white type, the same green/red. Chosen per device from Settings
-   (data-theme on <html>, set before paint by the script in app/layout.tsx)
-   or inherited from the OS when the driver leaves it on "System".
---------------------------------------------------------------------------- */
+/* Dark — a deep green-black night mode, chosen per device in Settings or
+   inherited from the OS. Same structure, its own values. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --background: #000000;
-    --foreground: #ffffff;
-    --surface: #161616;
-    --surface-2: #262626;
-    --line: #2e2e2e;
-    --line-strong: #4a4a4a;
-    --ink: #ffffff;
-    --ink-700: #e2e2e2;
-    --ink-500: #c6c6c6;
-    --muted: #a0a0a0;
-    --muted-2: #6e6e6e;
-    --money: #1fcf7a;
-    --money-soft: #0d2b1c;
-    --loss: #ff5a45;
-    --loss-soft: #3a1511;
+    --background: #08100c;
+    --foreground: #eef5f1;
+    --surface: #111a15;
+    --surface-2: #1a251f;
+    --line: #22302a;
+    --line-strong: #36463e;
+    --ink: #eef5f1;
+    --ink-700: #d3dfd8;
+    --ink-500: #aebdb4;
+    --muted: #8b9b92;
+    --muted-2: #5f6f66;
+    --money: #2fd487;
+    --money-soft: #0e2c1e;
+    --loss: #ff6b5a;
+    --loss-soft: #3a1714;
     --warn: #ffc043;
     --warn-ink: #ffd57a;
-    --warn-soft: #3a2e10;
-    --info: #5a8ff5;
-    --info-soft: #16233f;
-    --paper: #1f1f1f;
-    --sheet: #141414;
-    --hero: #161616;
+    --warn-soft: #33290e;
+    --info: #5a9cf5;
+    --info-soft: #132640;
+    --paper: #18221d;
+    --sheet: #101814;
+    --hero: #06402a;
     --hero-fg: #ffffff;
-    --action: #1fcf7a;
-    --action-700: #19b86b;
-    --action-fg: #06241a;
-    --action-soft: #0d2b1c;
-    --chart-1: #15a35b;
-    --chart-1-soft: #164d31;
+    --hero-accent: #8ff0b8;
+    --hero-loss: #ffb4aa;
+    --action: #22c573;
+    --action-700: #1cab63;
+    --action-fg: #04241a;
+    --action-soft: #0e2c1e;
+    --brand-1: #043a25;
+    --brand-2: #0a7a43;
+    --brand-3: #1fae67;
+    --gold: #ffc43d;
+    --gold-soft: #33290e;
+    --tint-green-bg: #0e2c1e;
+    --tint-green-fg: #4fe09a;
+    --tint-violet-bg: #1f1b3d;
+    --tint-violet-fg: #a99cf5;
+    --tint-amber-bg: #33270c;
+    --tint-amber-fg: #ffc95c;
+    --tint-sky-bg: #10243d;
+    --tint-sky-fg: #7db4fa;
+    --tint-rose-bg: #3a1626;
+    --tint-rose-fg: #f58fb5;
+    --tint-slate-bg: #1a251f;
+    --tint-slate-fg: #aebdb4;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.6);
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.5), 0 12px 30px -18px rgba(0, 0, 0, 0.9);
+    --shadow-md: 0 6px 20px -6px rgba(0, 0, 0, 0.7);
+    --shadow-lg: 0 18px 48px -14px rgba(0, 0, 0, 0.9);
+    --shadow-btn: 0 8px 20px -8px rgba(34, 197, 115, 0.55);
+    --chart-1: #1fae67;
+    --chart-1-top: #5fe09f;
+    --chart-1-soft: #174a31;
     --chart-2: #9085e9;
     --chart-3: #d55181;
-    --chart-neutral: #7a7a76;
+    --chart-sel: #b8f7cf;
+    --chart-neutral: #5f6f66;
     --chart-neg: #e66767;
-    --chart-grid: #2a2a2a;
-    --chart-axis: #3a3a3a;
-    --chart-text: #a0a0a0;
-    --ramp-1: #0d2b1c;
+    --chart-grid: #1d2923;
+    --chart-axis: #2c3a33;
+    --chart-text: #8b9b92;
+    --ramp-1: #0e2c1e;
     --ramp-2: #114b2f;
     --ramp-3: #176a42;
     --ramp-4: #1f8a56;
     --ramp-5: #28ad6c;
     --ramp-6: #3fcf84;
-    --ramp-7: #7fe4ab;
-    --ramp-empty: #222222;
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.6);
-    --shadow-md: 0 4px 16px -4px rgba(0, 0, 0, 0.7);
-    --shadow-lg: 0 16px 48px -12px rgba(0, 0, 0, 0.9);
+    --ramp-7: #8ff0b8;
+    --ramp-empty: #1a251f;
   }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --background: #000000;
-  --foreground: #ffffff;
-  --surface: #161616;
-  --surface-2: #262626;
-  --line: #2e2e2e;
-  --line-strong: #4a4a4a;
-  --ink: #ffffff;
-  --ink-700: #e2e2e2;
-  --ink-500: #c6c6c6;
-  --muted: #a0a0a0;
-  --muted-2: #6e6e6e;
-  --money: #1fcf7a;
-  --money-soft: #0d2b1c;
-  --loss: #ff5a45;
-  --loss-soft: #3a1511;
+  --background: #08100c;
+  --foreground: #eef5f1;
+  --surface: #111a15;
+  --surface-2: #1a251f;
+  --line: #22302a;
+  --line-strong: #36463e;
+  --ink: #eef5f1;
+  --ink-700: #d3dfd8;
+  --ink-500: #aebdb4;
+  --muted: #8b9b92;
+  --muted-2: #5f6f66;
+  --money: #2fd487;
+  --money-soft: #0e2c1e;
+  --loss: #ff6b5a;
+  --loss-soft: #3a1714;
   --warn: #ffc043;
   --warn-ink: #ffd57a;
-  --warn-soft: #3a2e10;
-  --info: #5a8ff5;
-  --info-soft: #16233f;
-  --paper: #1f1f1f;
-  --sheet: #141414;
-  --hero: #161616;
+  --warn-soft: #33290e;
+  --info: #5a9cf5;
+  --info-soft: #132640;
+  --paper: #18221d;
+  --sheet: #101814;
+  --hero: #06402a;
   --hero-fg: #ffffff;
-  --action: #1fcf7a;
-  --action-700: #19b86b;
-  --action-fg: #06241a;
-  --action-soft: #0d2b1c;
-  --chart-1: #15a35b;
-  --chart-1-soft: #164d31;
+  --hero-accent: #8ff0b8;
+  --hero-loss: #ffb4aa;
+  --action: #22c573;
+  --action-700: #1cab63;
+  --action-fg: #04241a;
+  --action-soft: #0e2c1e;
+  --brand-1: #043a25;
+  --brand-2: #0a7a43;
+  --brand-3: #1fae67;
+  --gold: #ffc43d;
+  --gold-soft: #33290e;
+  --tint-green-bg: #0e2c1e;
+  --tint-green-fg: #4fe09a;
+  --tint-violet-bg: #1f1b3d;
+  --tint-violet-fg: #a99cf5;
+  --tint-amber-bg: #33270c;
+  --tint-amber-fg: #ffc95c;
+  --tint-sky-bg: #10243d;
+  --tint-sky-fg: #7db4fa;
+  --tint-rose-bg: #3a1626;
+  --tint-rose-fg: #f58fb5;
+  --tint-slate-bg: #1a251f;
+  --tint-slate-fg: #aebdb4;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.6);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.5), 0 12px 30px -18px rgba(0, 0, 0, 0.9);
+  --shadow-md: 0 6px 20px -6px rgba(0, 0, 0, 0.7);
+  --shadow-lg: 0 18px 48px -14px rgba(0, 0, 0, 0.9);
+  --shadow-btn: 0 8px 20px -8px rgba(34, 197, 115, 0.55);
+  --chart-1: #1fae67;
+  --chart-1-top: #5fe09f;
+  --chart-1-soft: #174a31;
   --chart-2: #9085e9;
   --chart-3: #d55181;
-  --chart-neutral: #7a7a76;
+  --chart-sel: #b8f7cf;
+  --chart-neutral: #5f6f66;
   --chart-neg: #e66767;
-  --chart-grid: #2a2a2a;
-  --chart-axis: #3a3a3a;
-  --chart-text: #a0a0a0;
-  --ramp-1: #0d2b1c;
+  --chart-grid: #1d2923;
+  --chart-axis: #2c3a33;
+  --chart-text: #8b9b92;
+  --ramp-1: #0e2c1e;
   --ramp-2: #114b2f;
   --ramp-3: #176a42;
   --ramp-4: #1f8a56;
   --ramp-5: #28ad6c;
   --ramp-6: #3fcf84;
-  --ramp-7: #7fe4ab;
-  --ramp-empty: #222222;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.6);
-  --shadow-md: 0 4px 16px -4px rgba(0, 0, 0, 0.7);
-  --shadow-lg: 0 16px 48px -12px rgba(0, 0, 0, 0.9);
+  --ramp-7: #8ff0b8;
+  --ramp-empty: #1a251f;
 }
 
 @theme inline {
@@ -227,8 +280,9 @@
   --color-action-soft: var(--action-soft);
   --color-hero: var(--hero);
   --color-hero-fg: var(--hero-fg);
-  --font-sans: "Uber Move Text", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, "Noto Sans Arabic", sans-serif;
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --font-sans: "Readex Pro Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Arabic", sans-serif;
 }
 
 html {
@@ -236,12 +290,58 @@ html {
 }
 
 body {
-  background: var(--background);
+  /* a soft green wash behind the top of every screen */
+  background:
+    radial-gradient(120% 340px at 50% -120px, color-mix(in srgb, var(--action) 13%, transparent), transparent 70%),
+    var(--background);
+  background-repeat: no-repeat;
   color: var(--foreground);
-  font-family: "Uber Move Text", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, "Noto Sans Arabic", sans-serif;
+  font-family: "Readex Pro Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Arabic", sans-serif;
   -webkit-font-smoothing: antialiased;
-  letter-spacing: -0.005em;
+}
+
+/* ---- brand surfaces ---------------------------------------------------- */
+
+/* the hero card: deep emerald → brand green, with a soft light bloom */
+.hero-surface {
+  background:
+    radial-gradient(90% 120% at 100% 0%, rgba(184, 247, 207, 0.28), transparent 55%),
+    radial-gradient(70% 90% at 0% 100%, rgba(0, 0, 0, 0.22), transparent 60%),
+    linear-gradient(135deg, var(--brand-1) 0%, var(--brand-2) 62%, var(--brand-3) 100%);
+  color: var(--hero-fg);
+  box-shadow: var(--shadow-lg);
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+/* faint road lines — a quiet nod to the job, never louder than the numbers */
+.hero-surface::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: repeating-linear-gradient(-35deg, rgba(255, 255, 255, 0.045) 0 2px, transparent 2px 26px);
+  pointer-events: none;
+}
+.brand-gradient {
+  background: linear-gradient(135deg, var(--brand-1) 0%, var(--brand-2) 55%, var(--brand-3) 100%);
+}
+
+/* tinted icon chips: one colour per topic */
+.tint-green { background: var(--tint-green-bg); color: var(--tint-green-fg); }
+.tint-violet { background: var(--tint-violet-bg); color: var(--tint-violet-fg); }
+.tint-amber { background: var(--tint-amber-bg); color: var(--tint-amber-fg); }
+.tint-sky { background: var(--tint-sky-bg); color: var(--tint-sky-fg); }
+.tint-rose { background: var(--tint-rose-bg); color: var(--tint-rose-fg); }
+.tint-slate { background: var(--tint-slate-bg); color: var(--tint-slate-fg); }
+
+/* the Drive button breathes while a shift is running */
+@keyframes fab-pulse {
+  0%, 100% { box-shadow: var(--shadow-btn), 0 0 0 0 color-mix(in srgb, var(--action) 45%, transparent); }
+  50% { box-shadow: var(--shadow-btn), 0 0 0 10px transparent; }
+}
+.fab-live {
+  animation: fab-pulse 2.4s ease-in-out infinite;
 }
 
 /* follow the theme, never the UA default */
@@ -251,10 +351,11 @@ textarea {
   color: var(--ink);
 }
 
-/* big display figures: proportional digits, tight tracking (Uber Move Display feel) */
+/* big figures: proportional digits, tight tracking, a touch heavier */
 .display {
-  letter-spacing: -0.03em;
+  letter-spacing: -0.025em;
   font-variant-numeric: proportional-nums;
+  font-weight: 700;
 }
 
 /* Numbers that sit in columns should line up. */
@@ -276,13 +377,13 @@ input[type="number"] {
 .scroll-x {
   overflow-x: auto;
   scrollbar-width: thin;
-  scrollbar-color: #cbcbcb transparent;
+  scrollbar-color: var(--line-strong) transparent;
 }
 .scroll-x::-webkit-scrollbar {
   height: 8px;
 }
 .scroll-x::-webkit-scrollbar-thumb {
-  background: #cbcbcb;
+  background: var(--line-strong);
   border-radius: 999px;
 }
 .scroll-x::-webkit-scrollbar-track {
@@ -335,7 +436,8 @@ input[type="number"] {
 @media (prefers-reduced-motion: reduce) {
   .animate-sheet-in,
   .animate-fade-in,
-  .animate-pop-in {
+  .animate-pop-in,
+  .fab-live {
     animation: none;
   }
 }
@@ -343,4 +445,47 @@ input[type="number"] {
 /* keep the bottom tab bar clear of the home indicator */
 .safe-bottom {
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* ---- inside the hero gradient ------------------------------------------ */
+.hero-surface .delta-pill {
+  background: rgba(255, 255, 255, 0.16);
+}
+.hero-surface .delta-pill.is-up {
+  color: var(--hero-accent);
+}
+.hero-surface .delta-pill.is-down {
+  color: var(--hero-loss);
+}
+.hero-surface .text-loss {
+  color: var(--hero-loss);
+}
+.hero-surface .text-money {
+  color: var(--hero-accent);
+}
+.hero-surface .text-muted {
+  color: rgba(255, 255, 255, 0.7);
+}
+.hero-surface .badge {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+/* ---- tables: roomy rows, hairlines, the first column as a label --------- */
+.tbl tbody tr + tr td {
+  border-top: 1px solid var(--line);
+}
+.tbl tbody td {
+  padding-top: 0.8rem !important;
+  padding-bottom: 0.8rem !important;
+}
+.tbl tbody tr:hover td {
+  background: color-mix(in srgb, var(--action) 4%, transparent);
+}
+.tbl td:first-child {
+  min-width: 7.5rem;
+}
+.tbl td:not(:first-child),
+.tbl th {
+  white-space: nowrap;
 }

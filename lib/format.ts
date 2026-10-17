@@ -6,6 +6,11 @@ export function fmtMoney(amount: number, locale = "en", currency = "EGP"): strin
   }).format(amount);
 }
 
+/** Money for tight spots (stat rows on a phone): whole pounds once past 100. */
+export function fmtMoneyShort(amount: number, locale = "en"): string {
+  return fmtMoney(Math.abs(amount) >= 100 ? Math.round(amount) : amount, locale);
+}
+
 export function fmtNum(n: number, locale = "en", digits = 1): string {
   return new Intl.NumberFormat(locale === "ar" ? "ar-EG" : "en-EG", {
     maximumFractionDigits: digits,

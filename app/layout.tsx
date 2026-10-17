@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import "@fontsource-variable/readex-pro";
 import "./globals.css";
 import { getT } from "@/lib/i18n/server";
 import { I18nProvider } from "@/components/I18nProvider";
@@ -16,8 +17,8 @@ export const metadata: Metadata = {
 
 export const viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+    { media: "(prefers-color-scheme: light)", color: "#f2f5f3" },
+    { media: "(prefers-color-scheme: dark)", color: "#08100c" },
   ],
   width: "device-width",
   initialScale: 1,

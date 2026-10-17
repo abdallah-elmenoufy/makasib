@@ -176,7 +176,7 @@ function TripsInner() {
       <PageTitle
         actions={
           <div className="flex gap-2 flex-wrap">
-            <Link href="/import?tab=ocr" className="inline-flex items-center gap-1.5 text-sm font-bold text-ink bg-surface-2 hover:bg-line rounded-full px-4 h-10">
+            <Link href="/import?tab=ocr" className="inline-flex items-center gap-1.5 text-sm font-bold text-ink bg-sheet border border-line shadow-[var(--shadow-sm)] hover:bg-surface-2 rounded-full px-4 h-10">
               <Icon name="camera" size={18} /> {t("tr.fromScreens")}
             </Link>
             <Btn onClick={() => setAdding(true)} className="!rounded-full !h-10">

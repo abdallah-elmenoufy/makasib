@@ -7,7 +7,9 @@ import { Badge, Btn, Card, CardHead, Delta, Empty, Hero, IconButton, Modal, Page
 import { Icon } from "@/components/icons";
 import { useVehicle } from "@/components/VehicleProvider";
 import { BarChart, CHART, HBars, HeatStrip } from "@/components/charts";
-import { fmtDate, fmtDateTime, fmtHourRange, fmtInt, fmtMoney, fmtNum, localizeDigits, sep } from "@/lib/format";
+import { Detailed, MoreDetailsButton, useViewMode, ViewModeToggle } from "@/components/ViewMode";
+import { useOnChanged } from "@/components/dataBus";
+import { fmtDate, fmtDateTime, fmtHourRange, fmtInt, fmtMoney, fmtMoneyShort, fmtNum, localizeDigits, sep } from "@/lib/format";
 import { weekKey, weekStartFor } from "@/lib/week";
 
 type T = (k: string, vars?: Record<string, string | number>) => string;
@@ -76,13 +78,17 @@ function WeeksInner() {
   const [zoneScope, setZoneScope] = useState<"week" | "all">("week");
   const [copied, setCopied] = useState(false);
   const [picker, setPicker] = useState(false);
+  const { mode } = useViewMode();
+  const simple = mode === "simple";
+  const [reloadKey, setReloadKey] = useState(0);
+  useOnChanged(() => setReloadKey((k) => k + 1));
 
   useEffect(() => {
     if (!vehicle) return;
     fetch(`/api/weeks?vehicleId=${vehicle.id}&weeks=${span}`)
       .then((r) => (r.ok ? r.json() : null))
       .then(setReport);
-  }, [vehicle, span]);
+  }, [vehicle, span, reloadKey]);
 
   const selectedKey = params.get("week");
   const week = useMemo(() => {
@@ -159,18 +165,20 @@ function WeeksInner() {
 
   return (
     <div className="space-y-4">
-      <PageTitle sub={t("wk.subtitle")}>{t("wk.title")}</PageTitle>
+      <PageTitle sub={simple ? undefined : t("wk.subtitle")} actions={<ViewModeToggle />}>
+        {t("wk.title")}
+      </PageTitle>
 
       {/* week header: step with the arrows, or open the vertical picker */}
       <div className="flex items-center gap-1.5">
-        <IconButton name="back" label={t("wk.prevWeek")} onClick={() => prev && select(prev.key)} className={`rtl:-scale-x-100 bg-surface border border-line ${prev ? "" : "opacity-30 pointer-events-none"}`} />
+        <IconButton name="back" label={t("wk.prevWeek")} onClick={() => prev && select(prev.key)} className={`rtl:-scale-x-100 !w-12 !h-12 bg-sheet border border-line shadow-[var(--shadow-sm)] ${prev ? "" : "opacity-30 pointer-events-none"}`} />
         <button
           type="button"
           onClick={() => setPicker(true)}
-          className="flex-1 min-w-0 flex items-center gap-3 bg-surface border border-line rounded-2xl px-3.5 py-2 text-start hover:bg-surface-2 transition-colors"
+          className="flex-1 min-w-0 flex items-center gap-3 bg-sheet border border-line shadow-[var(--shadow-card)] rounded-2xl px-3.5 py-2.5 text-start hover:bg-surface-2 transition-colors"
         >
-          <span className="w-9 h-9 rounded-xl bg-action-soft text-action flex items-center justify-center shrink-0">
-            <Icon name="calendar" size={18} />
+          <span className="w-10 h-10 rounded-xl brand-gradient text-white flex items-center justify-center shrink-0 shadow-[var(--shadow-btn)]">
+            <Icon name="calendar" size={19} />
           </span>
           <span className="min-w-0 flex-1">
             <span className="block text-[11px] font-bold text-muted truncate">
@@ -178,13 +186,13 @@ function WeeksInner() {
               {sep(locale)}
               {localizeDigits(new Date(week.start).getFullYear(), locale)}
             </span>
-            <span className="block text-[15px] font-bold tnum truncate">{shortRange(week, locale)}</span>
+            <span className="block text-lg font-bold tnum truncate leading-tight">{shortRange(week, locale)}</span>
           </span>
-          <span className="text-xs font-bold text-action shrink-0 inline-flex items-center gap-0.5">
-            {t("wk.choose")} <Icon name="chevron" size={14} className="rtl:-scale-x-100" />
+          <span className="w-8 h-8 rounded-full bg-action-soft text-action shrink-0 flex items-center justify-center" aria-label={t("wk.choose")}>
+            <Icon name="chevron" size={16} strokeWidth={2.4} className="rotate-90" />
           </span>
         </button>
-        <IconButton name="chevron" label={t("wk.nextWeek")} onClick={() => next && select(next.key)} className={`rtl:-scale-x-100 bg-surface border border-line ${next ? "" : "opacity-30 pointer-events-none"}`} />
+        <IconButton name="chevron" label={t("wk.nextWeek")} onClick={() => next && select(next.key)} className={`rtl:-scale-x-100 !w-12 !h-12 bg-sheet border border-line shadow-[var(--shadow-sm)] ${next ? "" : "opacity-30 pointer-events-none"}`} />
       </div>
 
       <WeekPicker
@@ -252,9 +260,9 @@ function WeeksInner() {
               }
             />
             <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t border-hero-fg/15">
-              <InkStat label={t("db.gross")} value={money(week.earnings.netRevenue)} delta={<Delta value={d((w) => w.earnings.netRevenue)} fmt={money} />} />
-              <InkStat label={t("db.cashProfit")} value={money(week.cashProfit)} />
-              <InkStat label={t("db.perHour")} value={week.rates.profitPerHour != null ? money(week.rates.profitPerHour) : "—"} delta={<Delta value={d((w) => w.rates.profitPerHour)} fmt={money} />} />
+              <InkStat label={t("db.gross")} value={fmtMoneyShort(week.earnings.netRevenue, locale)} delta={<Delta value={d((w) => w.earnings.netRevenue)} fmt={money} />} />
+              {simple ? <InkStat label={t("db.tripCount")} value={fmtInt(week.counts.trips, locale)} /> : <InkStat label={t("db.cashProfit")} value={fmtMoneyShort(week.cashProfit, locale)} />}
+              <InkStat label={t("db.perHour")} value={week.rates.profitPerHour != null ? fmtMoneyShort(week.rates.profitPerHour, locale) : "—"} delta={<Delta value={d((w) => w.rates.profitPerHour)} fmt={money} />} />
             </div>
             {week.isCurrent && report.projection && (
               <p className="text-xs text-hero-fg/70 mt-4">
@@ -273,16 +281,19 @@ function WeeksInner() {
 
       {weekHasData && (
         <>
+          <Detailed>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Tile label={t("db.tripCount")} value={fmtNum(week.counts.trips, locale, 0)} delta={<Delta value={d((w) => w.counts.trips)} fmt={(n) => fmtInt(n, locale)} />} sub={week.rates.netPerTrip != null ? `${money(week.rates.netPerTrip)} ${t("wk.perTrip")}` : undefined} />
-            <Tile label={t("tm.online")} value={fmtDuration(week.time.onlineMin, t, locale)} delta={<Delta value={d((w) => w.time.onlineMin / 60)} fmt={(n) => fmtNum(n, locale)} suffix={t("c.hours")} />} sub={t("sh.shiftCount", { n: week.counts.shifts })} />
-            <Tile label={t("sh.km")} value={`${fmtNum(week.km.shiftKm, locale, 0)} ${t("c.km")}`} delta={<Delta value={d((w) => w.km.shiftKm)} fmt={(n) => fmtNum(n, locale, 0)} />} sub={week.rates.profitPerKm != null ? `${money(week.rates.profitPerKm)}/${t("c.km")}` : undefined} />
-            <Tile label={t("tm.utilization")} value={week.time.utilizationPct != null ? `${fmtNum(week.time.utilizationPct, locale, 0)}%` : "—"} delta={<Delta value={d((w) => w.time.utilizationPct)} fmt={(n) => fmtNum(n, locale, 0)} suffix="%" />} sub={t("tm.utilizationSub")} />
+            <Tile icon="car" label={t("db.tripCount")} value={fmtNum(week.counts.trips, locale, 0)} delta={<Delta value={d((w) => w.counts.trips)} fmt={(n) => fmtInt(n, locale)} />} sub={week.rates.netPerTrip != null ? `${money(week.rates.netPerTrip)} ${t("wk.perTrip")}` : undefined} />
+            <Tile icon="clock" label={t("tm.online")} value={fmtDuration(week.time.onlineMin, t, locale)} delta={<Delta value={d((w) => w.time.onlineMin / 60)} fmt={(n) => fmtNum(n, locale)} suffix={t("c.hours")} />} sub={t("sh.shiftCount", { n: week.counts.shifts })} />
+            <Tile icon="road" label={t("sh.km")} value={`${fmtNum(week.km.shiftKm, locale, 0)} ${t("c.km")}`} delta={<Delta value={d((w) => w.km.shiftKm)} fmt={(n) => fmtNum(n, locale, 0)} />} sub={week.rates.profitPerKm != null ? `${money(week.rates.profitPerKm)}/${t("c.km")}` : undefined} />
+            <Tile icon="timer" label={t("tm.utilization")} value={week.time.utilizationPct != null ? `${fmtNum(week.time.utilizationPct, locale, 0)}%` : "—"} delta={<Delta value={d((w) => w.time.utilizationPct)} fmt={(n) => fmtNum(n, locale, 0)} suffix="%" />} sub={t("tm.utilizationSub")} />
           </div>
+
+          </Detailed>
 
           {/* week-over-week chart */}
           <Card>
-            <CardHead title={t("wk.trendTitle")} sub={t("wk.trendSub")} />
+            <CardHead icon="chart" title={t("wk.trendTitle")} sub={simple ? undefined : t("wk.trendSub")} />
             <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
               <Segmented
                 size="sm"
@@ -327,6 +338,7 @@ function WeeksInner() {
             />
           </Card>
 
+          <Detailed>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {/* time */}
             <Card>
@@ -380,8 +392,11 @@ function WeeksInner() {
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          </Detailed>
+
+          <div className={`grid grid-cols-1 ${simple ? "" : "md:grid-cols-2"} gap-3`}>
             {/* money */}
+            <Detailed>
             <Card>
               <CardHead icon="wallet" title={t("wk.moneyTitle")} />
               <div className="rows text-sm">
@@ -400,6 +415,7 @@ function WeeksInner() {
                 <p className="text-xs text-muted mt-3">{t("wk.fuelThisWeek", { n: week.fuel.fillUps, q: fmtNum(week.fuel.quantity, locale), v: money(week.fuel.spend) })}</p>
               )}
             </Card>
+            </Detailed>
 
             {/* best of */}
             <div className="space-y-3">
@@ -407,6 +423,7 @@ function WeeksInner() {
                 <CardHead icon="trophy" title={t("wk.bestTrip")} sub={t("wk.bestTripSub")} />
                 {week.bestTrip ? <TripLine trip={week.bestTrip} locale={locale} t={t} /> : <Empty>{t("c.noData")}</Empty>}
               </Card>
+              <Detailed>
               <Card>
                 <CardHead icon="clock" title={t("wk.hoursTitle")} sub={t("wk.hoursSub")} />
                 <HeatStrip hours={week.hours.map((h: any) => ({ hour: h.hour, value: h.net, sub: t("pl.tripsN", { n: h.trips }) }))} locale={locale} fmt={money} t={t} />
@@ -417,12 +434,12 @@ function WeeksInner() {
                 )}
               </Card>
               <Card>
-                <CardHead title={t("wk.lengthTitle")} sub={t("wk.lengthSub")} />
+                <CardHead icon="road" title={t("wk.lengthTitle")} sub={t("wk.lengthSub")} />
                 <div className="grid grid-cols-3 gap-2">
                   {week.lengthBuckets.map((b: any) => (
-                    <div key={b.bucket} className="bg-paper rounded-xl p-3">
-                      <div className="text-[10px] font-bold uppercase tracking-wide text-muted">{t(`wk.len.${b.bucket}`)}</div>
-                      <div className="text-lg font-bold display mt-0.5">{b.perKm != null ? `${money(b.perKm)}` : "—"}</div>
+                    <div key={b.bucket} className="bg-paper rounded-2xl p-3">
+                      <div className="text-[11px] font-bold text-muted">{t(`wk.len.${b.bucket}`)}</div>
+                      <div className="text-xl font-bold display mt-1">{b.perKm != null ? `${money(b.perKm)}` : "—"}</div>
                       <div className="text-[11px] text-muted">
                         /{t("c.km")}{sep(locale)}{t("pl.tripsN", { n: b.trips })}
                       </div>
@@ -430,6 +447,7 @@ function WeeksInner() {
                   ))}
                 </div>
               </Card>
+              </Detailed>
             </div>
           </div>
 
@@ -438,9 +456,9 @@ function WeeksInner() {
             <CardHead
               icon="pin"
               title={t("wk.zonesTitle")}
-              sub={t("wk.zonesSub")}
+              sub={simple ? undefined : t("wk.zonesSub")}
               actions={
-                <Segmented
+                !simple && <Segmented
                   size="sm"
                   value={zoneScope}
                   onChange={setZoneScope}
@@ -452,15 +470,16 @@ function WeeksInner() {
               }
             />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <ZoneList title={t("wk.pickupZones")} zones={zoneScope === "week" ? week.pickupZones : report.allTime.pickupZones} locale={locale} t={t} />
-              <ZoneList title={t("wk.dropoffZones")} zones={zoneScope === "week" ? week.dropoffZones : report.allTime.dropoffZones} locale={locale} t={t} />
+              <ZoneList title={t("wk.pickupZones")} zones={(zoneScope === "week" ? week.pickupZones : report.allTime.pickupZones).slice(0, simple ? 3 : undefined)} locale={locale} t={t} />
+              <ZoneList title={t("wk.dropoffZones")} zones={(zoneScope === "week" ? week.dropoffZones : report.allTime.dropoffZones).slice(0, simple ? 3 : undefined)} locale={locale} t={t} />
             </div>
             {(zoneScope === "week" ? week.pickupZones : report.allTime.pickupZones).length === 0 && <Empty>{t("wk.zonesEmpty")}</Empty>}
           </Card>
 
+          <Detailed>
           {week.platforms.length > 1 && (
             <Card>
-              <CardHead title={t("db.platformTitle")} />
+              <CardHead icon="car" title={t("db.platformTitle")} />
               <div className="rows text-sm">
                 {week.platforms.map((p: any) => (
                   <Row key={p.platform} label={t(`pf.${p.platform}`)} value={money(p.net)} sub={t("pl.tripsN", { n: p.trips })} />
@@ -471,7 +490,7 @@ function WeeksInner() {
 
           {/* comparison table */}
           <Card>
-            <CardHead title={t("wk.compareTitle")} sub={t("wk.compareSub")} />
+            <CardHead icon="trophy" title={t("wk.compareTitle")} sub={t("wk.compareSub")} />
             <Table head={["", t("wk.thisWeekShort"), t("wk.prevShort"), `🏆 ${t("wk.best")}`]}>
               {(
                 [
@@ -495,6 +514,9 @@ function WeeksInner() {
               ))}
             </Table>
           </Card>
+          </Detailed>
+
+          <MoreDetailsButton />
         </>
       )}
     </div>
@@ -703,8 +725,8 @@ function WeekPicker({
 function InkStat({ label, value, delta }: { label: string; value: string; delta?: React.ReactNode }) {
   return (
     <div className="min-w-0">
-      <div className="text-[11px] font-bold text-hero-fg/60 uppercase tracking-wide truncate">{label}</div>
-      <div className="text-[15px] sm:text-lg md:text-xl font-bold display text-hero-fg mt-0.5 truncate">{value}</div>
+      <div className="text-xs font-bold text-hero-fg/70 truncate">{label}</div>
+      <div className="text-[19px] sm:text-2xl md:text-[28px] font-bold display text-hero-fg mt-1 truncate">{value}</div>
       {delta && <div className="mt-0.5 [&_span]:!text-hero-fg/80">{delta}</div>}
     </div>
   );
@@ -712,9 +734,9 @@ function InkStat({ label, value, delta }: { label: string; value: string; delta?
 
 function Mini({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-paper rounded-xl px-3 py-2.5">
-      <div className="text-[10px] font-bold uppercase tracking-wide text-muted truncate">{label}</div>
-      <div className="text-base font-bold display mt-0.5 truncate">{value}</div>
+    <div className="bg-paper rounded-2xl px-3.5 py-3">
+      <div className="text-[11px] font-bold text-muted truncate">{label}</div>
+      <div className="text-xl font-bold display mt-1 truncate">{value}</div>
     </div>
   );
 }
@@ -750,7 +772,7 @@ function TripLine({ trip, locale, t }: { trip: any; locale: string; t: T }) {
     <div>
       <div className="flex items-end justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-[28px] font-bold display leading-none text-money">{money(trip.net)}</div>
+          <div className="text-[40px] font-bold display leading-none text-money">{money(trip.net)}</div>
           <div className="text-xs text-muted mt-1.5 tnum">{fmtDateTime(trip.startTime, locale)}</div>
         </div>
         <div className="text-end text-xs text-muted tnum">
@@ -778,7 +800,7 @@ function ZoneList({ title, zones, locale, t }: { title: string; zones: any[]; lo
       <div className="space-y-2.5">
         {zones.map((z, i) => (
           <div key={z.key} className="flex items-center gap-2.5">
-            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold tnum shrink-0 ${i === 0 ? "bg-ink text-background" : "bg-paper text-muted"}`}>{fmtInt(i + 1, locale)}</span>
+            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold tnum shrink-0 ${i === 0 ? "brand-gradient text-white" : "bg-paper text-muted"}`}>{fmtInt(i + 1, locale)}</span>
             <div className="flex-1 min-w-0">
               <div className="flex items-baseline justify-between gap-2">
                 <span dir="auto" className="text-sm font-bold truncate min-w-0">{z.label}</span>

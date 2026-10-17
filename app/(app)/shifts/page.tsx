@@ -3,60 +3,16 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/components/I18nProvider";
-import { Btn, Card, Empty, Field, GroupHeader, Input, PageTitle, Pagination, RecordCard, Select, StatCell, StatGrid, Textarea } from "@/components/ui";
+import { Card, Empty, GroupHeader, PageTitle, Pagination, RecordCard, StatCell, StatGrid } from "@/components/ui";
 import { useCrud } from "@/components/useCrud";
 import { useVehicle } from "@/components/VehicleProvider";
-import { PhotoInput } from "@/components/PhotoInput";
-import { GpsTracker } from "@/components/GpsTracker";
-import { EndShiftFlow } from "@/components/EndShiftFlow";
+import { DriveCard } from "@/components/Drive";
+import { useViewMode } from "@/components/ViewMode";
 import { Icon } from "@/components/icons";
 import { RowEditor, type EditField } from "@/components/RowEditor";
-import { fmtDate, fmtDateTime, fmtInt, fmtMoney, fmtNum, toLocalInput, hoursBetween, sep } from "@/lib/format";
+import { fmtDate, fmtDateTime, fmtInt, fmtMoney, fmtNum, hoursBetween, sep } from "@/lib/format";
 
 type T = (k: string, vars?: Record<string, string | number>) => string;
-
-/**
- * Best guess at the end-odometer so the driver can confirm a number instead
- * of squinting at the dash while parked.
- *
- * Priority is by how much the source actually knows:
- *  1. GPS distance recorded during the shift — measured, not inferred.
- *  2. Trip km + pickup km, scaled up by this driver's own historical ratio
- *     of shift km to trip km. That ratio captures their cruising/dead km
- *     habit, and self-corrects as they log more shifts.
- *  3. Raw trip km + pickup km — a floor, since cruising is never negative.
- * Returns null when there's nothing to base a guess on: a wrong prefill is
- * worse than an empty box, because odometer readings drive every km cost.
- */
-function suggestEndOdometer(
-  active: any,
-  trips: any[],
-  completed: any[]
-): { value: number; basis: "gps" | "ratio" | "trips" } | null {
-  if (active.gpsKm && active.gpsKm > 0) {
-    return { value: Math.round(active.startOdometer + active.gpsKm), basis: "gps" };
-  }
-
-  const mine = trips.filter((tr) => tr.shiftId === active.id);
-  const tripKm = mine.reduce((s, tr) => s + (tr.distanceKm ?? 0) + (tr.pickupKm ?? 0), 0);
-  if (tripKm <= 0) return null;
-
-  // historical shiftKm / tripKm across completed shifts that have both
-  let histShift = 0;
-  let histTrip = 0;
-  for (const s of completed) {
-    const t = trips.filter((tr) => tr.shiftId === s.id).reduce((a, tr) => a + (tr.distanceKm ?? 0) + (tr.pickupKm ?? 0), 0);
-    if (t > 0 && s.endOdometer != null) {
-      histShift += s.endOdometer - s.startOdometer;
-      histTrip += t;
-    }
-  }
-  // clamp: a ratio below 1 would mean driving less than the trips themselves
-  const ratio = histTrip > 0 ? Math.min(Math.max(histShift / histTrip, 1), 2.5) : null;
-  return ratio
-    ? { value: Math.round(active.startOdometer + tripKm * ratio), basis: "ratio" }
-    : { value: Math.round(active.startOdometer + tripKm), basis: "trips" };
-}
 
 const shiftEditFields = (t: T): EditField[] => [
   { key: "startTime", label: t("sh.startTime"), type: "datetime" },
@@ -78,8 +34,9 @@ function dayKey(d: string | Date): string {
 export default function ShiftsPage() {
   const { t, locale } = useI18n();
   const router = useRouter();
-  const { vehicle, activeVehicles, loading: vLoading, setDefaultVehicle } = useVehicle();
-  const { rows: shifts, loading, create, update, remove, page, setPage, totalPages, total } = useCrud<any>(
+  const { vehicle, loading: vLoading } = useVehicle();
+  const { mode } = useViewMode();
+  const { rows: shifts, loading, update, remove, page, setPage, totalPages } = useCrud<any>(
     "shifts",
     vehicle?.id
   );
@@ -96,7 +53,6 @@ export default function ShiftsPage() {
       .then(setTrips);
   }, [vehicle?.id, shifts]);
 
-  const active = shifts.find((s) => s.endOdometer == null);
   const tripsByShift = useMemo(() => {
     const m: Record<string, { count: number; km: number; revenue: number }> = {};
     for (const tr of trips) {
@@ -128,13 +84,6 @@ export default function ShiftsPage() {
   }, [completed]);
 
   const [editingRow, setEditingRow] = useState<any>(null);
-  // the end-shift flow lives at page level: once the shift is closed the
-  // active card unmounts, but the sheet must stay up for steps 2 and 3
-  const [ending, setEnding] = useState<any>(null);
-  const refreshTrips = () =>
-    fetch(`/api/trips?vehicleId=${vehicle?.id}&all=1`)
-      .then((r) => (r.ok ? r.json() : []))
-      .then(setTrips);
   const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
   useEffect(() => {
     // the most recent day open by default, everything older starts collapsed
@@ -157,7 +106,7 @@ export default function ShiftsPage() {
     <div>
       <PageTitle
         actions={
-          <Link href="/import?tab=shift" className="inline-flex items-center gap-1.5 text-sm font-bold text-ink bg-surface-2 hover:bg-line rounded-full px-4 h-10">
+          <Link href="/import?tab=shift" className="inline-flex items-center gap-1.5 text-sm font-bold text-ink bg-sheet border border-line shadow-[var(--shadow-sm)] hover:bg-surface-2 rounded-full px-4 h-10">
             <Icon name="camera" size={18} /> {t("sh.fromPhotos")}
           </Link>
         }
@@ -165,30 +114,8 @@ export default function ShiftsPage() {
         {t("sh.title")}
       </PageTitle>
 
-      {active ? (
-        <ActiveShiftCard shift={active} tally={tripsByShift[active.id] ?? { count: 0, km: 0, revenue: 0 }} onEndClick={() => setEnding(active)} />
-      ) : (
-        <StartShiftCard
-          lastOdo={shifts[0]?.endOdometer ?? vehicle.initialOdometer}
-          vehicles={activeVehicles}
-          currentVehicleId={vehicle.id}
-          onSwitchDefault={setDefaultVehicle}
-          onStart={(data) => create(data)}
-        />
-      )}
-
-      {ending && (
-        <EndShiftFlow
-          open
-          onClose={() => setEnding(null)}
-          shift={ending}
-          vehicleId={vehicle.id}
-          suggestedEndOdo={suggestEndOdometer(ending, trips, completed)}
-          existingTrips={tripsByShift[ending.id] ?? { count: 0, km: 0, revenue: 0 }}
-          onEnd={(data) => update(ending.id, data)}
-          onTripsSaved={refreshTrips}
-        />
-      )}
+      {/* start / live / end — the same drive card as Home, plus GPS tracking */}
+      <DriveCard withGps />
 
       <Card className="mt-4">
         {completed.length === 0 ? (
@@ -226,7 +153,7 @@ export default function ShiftsPage() {
                                 </div>
                               </div>
                               <div className="text-end shrink-0">
-                                <div className="text-lg font-bold text-money tnum leading-none">
+                                <div className="text-2xl font-bold display text-money tnum leading-none">
                                   {fmtMoney(ts.revenue, locale)}
                                 </div>
                                 <div className="flex gap-2 justify-end mt-1.5">
@@ -242,7 +169,7 @@ export default function ShiftsPage() {
                                 </div>
                               </div>
                             </div>
-                            <StatGrid cols={5}>
+                            <StatGrid cols={mode === "simple" ? 3 : 5}>
                               <StatCell
                                 label={t("sh.duration")}
                                 value={s.endTime ? `${fmtNum(hoursBetween(s.startTime, s.endTime), locale)} ${t("c.hours")}` : "—"}
@@ -264,8 +191,12 @@ export default function ShiftsPage() {
                                   )
                                 }
                               />
-                              <StatCell label={t("sh.tripKm")} value={fmtNum(ts.km, locale)} />
-                              <StatCell label={t("sh.deadKm")} value={fmtNum(Math.max(0, km - ts.km), locale)} tone="warn" />
+                              {mode === "detailed" && (
+                                <>
+                                  <StatCell label={t("sh.tripKm")} value={fmtNum(ts.km, locale)} />
+                                  <StatCell label={t("sh.deadKm")} value={fmtNum(Math.max(0, km - ts.km), locale)} tone="warn" />
+                                </>
+                              )}
                             </StatGrid>
                             {s.notes && (
                               <p className="text-xs text-muted mt-2.5 pt-2 border-t border-line truncate">
@@ -302,169 +233,5 @@ export default function ShiftsPage() {
         />
       </Card>
     </div>
-  );
-}
-
-function StartShiftCard({
-  lastOdo,
-  vehicles,
-  currentVehicleId,
-  onSwitchDefault,
-  onStart,
-}: {
-  lastOdo: number;
-  vehicles: any[];
-  currentVehicleId: string;
-  onSwitchDefault: (id: string) => void;
-  onStart: (d: Record<string, unknown>) => Promise<boolean>;
-}) {
-  const { t } = useI18n();
-  const [open, setOpen] = useState(false);
-  const [odo, setOdo] = useState("");
-  const [time, setTime] = useState(toLocalInput());
-  const [photo, setPhoto] = useState<string | null>(null);
-  const [notes, setNotes] = useState("");
-  const [ocrHint, setOcrHint] = useState(false);
-  const [vehicleId, setVehicleId] = useState(currentVehicleId);
-
-  // pick the OCR candidate that plausibly continues from the last known reading
-  const onOcrDigits = (candidates: number[]) => {
-    const plausible = candidates.filter((c) => c >= lastOdo && c < lastOdo + 2000);
-    const best = plausible.sort((a, b) => a - b)[0] ?? candidates[0];
-    if (best != null && !odo) {
-      setOdo(String(best));
-      setOcrHint(true);
-    }
-  };
-
-  if (!open) {
-    return (
-      <Btn variant="big" onClick={() => { setTime(toLocalInput()); setVehicleId(currentVehicleId); setOpen(true); }}>
-        <Icon name="play" size={20} /> {t("sh.start")}
-      </Btn>
-    );
-  }
-
-  return (
-    <Card tone="outline" className="animate-pop-in">
-      <form
-        onSubmit={async (e) => {
-          e.preventDefault();
-          if (vehicleId !== currentVehicleId) onSwitchDefault(vehicleId);
-          if (
-            await onStart({
-              vehicleId,
-              startTime: new Date(time).toISOString(),
-              startOdometer: odo,
-              startPhoto: photo,
-              notes,
-            })
-          ) {
-            setOpen(false);
-            setOdo("");
-            setPhoto(null);
-            setNotes("");
-          }
-        }}
-        className="grid grid-cols-1 md:grid-cols-2 gap-3"
-      >
-        {vehicles.length > 1 && (
-          <Field label={t("sh.whichCar")}>
-            <Select value={vehicleId} onChange={(e) => setVehicleId(e.target.value)}>
-              {vehicles.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        )}
-        <Field label={t("sh.startOdo")} hint={ocrHint ? `📷 ${t("sh.ocrDetected")}` : undefined}>
-          <Input
-            type="number"
-            step="0.1"
-            value={odo}
-            onChange={(e) => { setOdo(e.target.value); setOcrHint(false); }}
-            placeholder={String(lastOdo)}
-            required
-            autoFocus
-          />
-        </Field>
-        <Field label={t("sh.startTime")}>
-          <Input type="datetime-local" value={time} onChange={(e) => setTime(e.target.value)} required />
-        </Field>
-        <Field label={`${t("c.photo")} (${t("c.optional")})`}>
-          <PhotoInput value={photo} onChange={setPhoto} onOcrDigits={onOcrDigits} />
-        </Field>
-        <Field label={`${t("c.notes")} (${t("c.optional")})`}>
-          <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
-        </Field>
-        <div className="md:col-span-2 flex gap-2">
-          <Btn type="submit"><Icon name="play" size={18} /> {t("sh.start")}</Btn>
-          <Btn variant="secondary" onClick={() => setOpen(false)}>
-            {t("c.cancel")}
-          </Btn>
-        </div>
-      </form>
-    </Card>
-  );
-}
-
-
-/**
- * The shift in progress: live tally, GPS tracker, and the one button that
- * matters at 2am — End shift — which opens the three-step flow.
- */
-function ActiveShiftCard({
-  shift,
-  tally,
-  onEndClick,
-}: {
-  shift: any;
-  tally: { count: number; km: number; revenue: number };
-  onEndClick: () => void;
-}) {
-  const { t, locale } = useI18n();
-  const elapsed = hoursBetween(shift.startTime, new Date());
-  return (
-    <Card tone="ink">
-      <div className="flex items-center gap-2 mb-3">
-        <span className="inline-block w-2.5 h-2.5 rounded-full bg-money animate-pulse" />
-        <span className="font-bold text-sm">{t("sh.active")}</span>
-        <span className="text-hero-fg/60 text-sm ms-auto tnum">
-          {t("sh.startedAt")} {fmtDateTime(shift.startTime, locale)}
-        </span>
-      </div>
-      <div className="grid grid-cols-3 gap-3">
-        <div>
-          <div className="text-[11px] font-bold uppercase tracking-wide text-hero-fg/60">{t("sh.duration")}</div>
-          <div className="text-2xl font-bold display mt-0.5">
-            {fmtNum(elapsed, locale)} <span className="text-sm font-semibold text-hero-fg/60">{t("c.hours")}</span>
-          </div>
-        </div>
-        <div>
-          <div className="text-[11px] font-bold uppercase tracking-wide text-hero-fg/60">{t("sh.trips")}</div>
-          <div className="text-2xl font-bold display mt-0.5">{fmtNum(tally.count, locale, 0)}</div>
-        </div>
-        <div>
-          <div className="text-[11px] font-bold uppercase tracking-wide text-hero-fg/60">{t("sh.revenue")}</div>
-          <div className="text-2xl font-bold display mt-0.5 text-money">{fmtMoney(tally.revenue, locale)}</div>
-        </div>
-      </div>
-      <div className="mt-4 pt-3 border-t border-hero-fg/15 flex items-center gap-3 flex-wrap text-hero-fg/80">
-        <GpsTracker shiftId={shift.id} initialKm={shift.gpsKm ?? null} />
-        <span className="text-xs text-hero-fg/60 tnum ms-auto">
-          {t("sh.startOdo")}: {fmtNum(shift.startOdometer, locale, 0)}
-        </span>
-      </div>
-      <div className="grid grid-cols-2 gap-2 mt-4">
-        <Link href="/trips?add=1" className="h-12 rounded-xl bg-surface-2 hover:bg-line text-ink font-bold text-sm flex items-center justify-center gap-2">
-          <Icon name="plus" size={18} strokeWidth={2.25} /> {t("tr.add")}
-        </Link>
-        <button onClick={onEndClick} className="h-12 rounded-xl bg-action text-action-fg font-bold text-sm flex items-center justify-center gap-2 hover:bg-action-700">
-          <Icon name="stop" size={18} /> {t("sh.end")}
-        </button>
-      </div>
-    </Card>
   );
 }
