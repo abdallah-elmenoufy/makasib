@@ -1,7 +1,10 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/components/I18nProvider";
-import { Btn, Card, Empty, Field, Input, PageTitle, Segmented, Select, Table, Textarea, Toggle } from "@/components/ui";
+import { Badge, Btn, Card, Empty, Field, IconChip, Input, PageTitle, Segmented, Select, StatCell, StatGrid, Textarea, Toggle } from "@/components/ui";
+import { CarRender, carTitle } from "@/components/CarRender";
+import { useViewMode } from "@/components/ViewMode";
+import { PAINTS } from "@/lib/carRender";
 import { DEFAULT_MILEAGE_SENSITIVITY_PCT, DEFAULT_LIFETIME_KM, RESIDUAL_RATIO, ANNUAL_DEPRECIATION_RATE, VALUE_FLOOR_RATIO } from "@/lib/depreciation";
 import { useCrud } from "@/components/useCrud";
 import { useVehicle } from "@/components/VehicleProvider";
@@ -16,6 +19,7 @@ export default function CarsPage() {
   const { vehicle: defaultVehicle, setDefaultVehicle, refreshVehicles } = useVehicle();
   const [editing, setEditing] = useState<any>(null); // vehicle row being edited, or {} for new
   const [overview, setOverview] = useState<{ summaries: any[]; insights: any[] } | null>(null);
+  const { mode } = useViewMode();
 
   const loadOverview = () => fetch("/api/cars-overview").then((r) => (r.ok ? r.json() : null)).then(setOverview);
   useEffect(() => {
@@ -44,8 +48,10 @@ export default function CarsPage() {
       </PageTitle>
 
       {overview && overview.insights.length > 0 && (
-        <Card className="mb-4 border-line">
-          <div className="text-sm font-semibold mb-2">💡 {t("cars.insights")}</div>
+        <Card className="mb-4">
+          <div className="flex items-center gap-2 text-[15px] font-bold mb-2">
+            <IconChip icon="sparkle" size="sm" /> {t("cars.insights")}
+          </div>
           <div className="space-y-1.5">
             {overview.insights.map((ins: any, i: number) => (
               <div key={i} className="text-sm text-ink-700">
@@ -69,107 +75,76 @@ export default function CarsPage() {
       {vehicles.length === 0 ? (
         <Empty>{t("veh.createFirst")}</Empty>
       ) : (
-        <Card>
-          <Table
-            head={[
-              t("veh.name"),
-              t("veh.ownership"),
-              t("cars.initialOdo"),
-              t("cars.currentOdo"),
-              t("cars.kmDriven"),
-              t("cars.currentValue"),
-              t("cars.depSoFar"),
-              t("cars.allTimeProfit"),
-              t("cars.health"),
-              t("cars.default"),
-              t("c.actions"),
-            ]}
-          >
-            {vehicles.map((v: any) => {
-              const s = summaryFor(v.id);
-              const isDefault = defaultVehicle?.id === v.id;
-              return (
-                <tr key={v.id} className={!v.isActive ? "opacity-50" : ""}>
-                  <td className="py-2 px-2 whitespace-nowrap">
-                    <div className="font-semibold">{v.name}</div>
-                    {v.plate && <div className="text-xs text-muted">{v.plate}</div>}
-                  </td>
-                  <td className="py-2 px-2 whitespace-nowrap">{t(`veh.own.${v.ownership}`)}</td>
-                  <td className="py-2 px-2">{fmtNum(v.initialOdometer, locale)} {t("c.km")}</td>
-                  <td className="py-2 px-2">{s ? `${fmtNum(s.currentOdo, locale)} ${t("c.km")}` : "—"}</td>
-                  <td className="py-2 px-2 font-semibold">{s ? `${fmtNum(s.kmSinceRecord, locale)} ${t("c.km")}` : "—"}</td>
-                  <td className="py-2 px-2">{s?.currentValue != null ? money(s.currentValue) : "—"}</td>
-                  <td className="py-2 px-2 text-warn-ink">
-                    {s?.depreciationSoFar != null ? money(s.depreciationSoFar) : "—"}
-                  </td>
-                  <td className="py-2 px-2 font-semibold" style={{ color: s && s.trueProfit >= 0 ? "var(--money)" : "var(--loss)" }}>
-                    {s ? money(s.trueProfit) : "—"}
-                  </td>
-                  <td className="py-2 px-2">
-                    {s?.healthScore != null ? (
-                      <span
-                        className="text-xs font-bold rounded-full px-2 py-0.5"
-                        style={{
-                          color: s.healthScore >= 70 ? "var(--money)" : s.healthScore >= 40 ? "var(--warn-ink)" : "var(--loss)",
-                          background: s.healthScore >= 70 ? "var(--money-soft)" : s.healthScore >= 40 ? "var(--warn-soft)" : "var(--loss-soft)",
-                        }}
-                        title={t("cars.healthHint")}
-                      >
-                        {s.healthScore}
-                      </span>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {vehicles.map((v: any) => {
+            const s = summaryFor(v.id);
+            const isDefault = defaultVehicle?.id === v.id;
+            return (
+              <Card key={v.id} className={`!p-0 overflow-hidden ${!v.isActive ? "opacity-60" : ""}`}>
+                {/* Uber-style driver card: render on one side, plate and car on the other */}
+                <div className="flex items-center gap-2 px-4 pt-4">
+                  <CarRender make={v.make} model={v.model} color={v.color} className="w-[46%] max-w-[220px] -ms-2 shrink-0" title={carTitle(v, locale)} />
+                  <div className="min-w-0 flex-1 text-end">
+                    {v.plate ? (
+                      <div dir="rtl" className="inline-block text-[24px] leading-tight font-bold tnum tracking-wide">{v.plate}</div>
                     ) : (
-                      "—"
+                      <div className="text-[20px] font-bold leading-tight truncate">{v.name}</div>
                     )}
-                  </td>
-                  <td className="py-2 px-2">
-                    {isDefault ? (
-                      <span className="text-xs font-semibold text-ink bg-surface-2 border border-line rounded-full px-2 py-0.5">
-                        ✓ {t("cars.default")}
-                      </span>
-                    ) : v.isActive ? (
-                      <button
-                        onClick={() => setDefaultVehicle(v.id)}
-                        className="text-xs text-action underline"
-                      >
-                        {t("cars.setDefault")}
-                      </button>
-                    ) : (
-                      <span className="text-xs text-muted">{t("cars.archived")}</span>
+                    <div className="text-sm text-ink-500 mt-0.5 truncate">{carTitle(v, locale)}</div>
+                    <div className="flex flex-wrap justify-end gap-1.5 mt-2">
+                      {v.transmission && <Badge tone="neutral">{t(`veh.trans.${v.transmission}`)}</Badge>}
+                      {v.year && <Badge tone="neutral">{v.year}</Badge>}
+                      {isDefault && <Badge tone="good">✓ {t("cars.default")}</Badge>}
+                      {!v.isActive && <Badge tone="warn">{t("cars.archived")}</Badge>}
+                    </div>
+                  </div>
+                </div>
+                <div className="px-4 pb-4">
+                  {v.plate && <div className="text-[15px] font-bold mt-1">{v.name}</div>}
+                  <StatGrid cols={mode === "simple" ? 3 : 4}>
+                    <StatCell label={t("cars.allTimeProfit")} value={s ? money(s.trueProfit) : "—"} tone={s && s.trueProfit < 0 ? "bad" : "good"} />
+                    <StatCell label={t("cars.kmDriven")} value={s ? `${fmtNum(s.kmSinceRecord, locale, 0)} ${t("c.km")}` : "—"} />
+                    <StatCell label={t("cars.health")} value={s?.healthScore != null ? fmtNum(s.healthScore, locale, 0) : "—"} tone={s?.healthScore == null ? "default" : s.healthScore >= 70 ? "good" : s.healthScore >= 40 ? "warn" : "bad"} title={t("cars.healthHint")} />
+                    {mode === "detailed" && (
+                      <>
+                        <StatCell label={t("veh.ownership")} value={t(`veh.own.${v.ownership}`)} />
+                        <StatCell label={t("cars.currentOdo")} value={s ? fmtNum(s.currentOdo, locale, 0) : "—"} />
+                        <StatCell label={t("cars.currentValue")} value={s?.currentValue != null ? money(s.currentValue) : "—"} />
+                        <StatCell label={t("cars.depSoFar")} value={s?.depreciationSoFar != null ? money(s.depreciationSoFar) : "—"} tone="warn" />
+                      </>
                     )}
-                  </td>
-                  <td className="py-2 px-2 whitespace-nowrap">
-                    <button onClick={() => setEditing(v)} className="text-xs text-muted me-2">
+                  </StatGrid>
+                  <div className="flex items-center gap-2 mt-4 flex-wrap">
+                    <Btn variant="secondary" size="sm" onClick={() => setEditing(v)}>
                       {t("c.edit")}
-                    </button>
-                    {v.isActive ? (
-                      <button
-                        onClick={() => confirm(t("cars.confirmArchive")) && update(v.id, { isActive: false }).then(afterSave)}
-                        className="text-xs text-warn-ink me-2"
-                      >
-                        {t("cars.archive")}
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => update(v.id, { isActive: true }).then(afterSave)}
-                        className="text-xs text-ink me-2"
-                      >
-                        {t("cars.reactivate")}
-                      </button>
+                    </Btn>
+                    {!isDefault && v.isActive && (
+                      <Btn variant="secondary" size="sm" onClick={() => setDefaultVehicle(v.id)}>
+                        {t("cars.setDefault")}
+                      </Btn>
                     )}
-                    {s && !s.hasRecords && (
-                      <button
-                        onClick={() => confirm(t("c.confirmDelete")) && remove(v.id).then(afterSave)}
-                        className="text-xs text-loss"
-                      >
-                        {t("c.delete")}
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </Table>
-        </Card>
+                    <span className="ms-auto flex items-center gap-3">
+                      {v.isActive ? (
+                        <button onClick={() => confirm(t("cars.confirmArchive")) && update(v.id, { isActive: false }).then(afterSave)} className="text-xs font-bold text-warn-ink">
+                          {t("cars.archive")}
+                        </button>
+                      ) : (
+                        <button onClick={() => update(v.id, { isActive: true }).then(afterSave)} className="text-xs font-bold text-ink">
+                          {t("cars.reactivate")}
+                        </button>
+                      )}
+                      {s && !s.hasRecords && (
+                        <button onClick={() => confirm(t("c.confirmDelete")) && remove(v.id).then(afterSave)} className="text-xs font-bold text-loss">
+                          {t("c.delete")}
+                        </button>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
       )}
     </div>
   );
@@ -244,10 +219,11 @@ function CarForm({
     }
     const qs = new URLSearchParams({ carModelId: form.carModelId });
     if (form.id) qs.set("excludeVehicleId", form.id);
+    if (form.transmission) qs.set("transmission", form.transmission);
     fetch(`/api/car-benchmark?${qs.toString()}`)
       .then((r) => (r.ok ? r.json() : null))
       .then(setPreview);
-  }, [form.carModelId, form.id]);
+  }, [form.carModelId, form.id, form.transmission]);
 
   const makesGrouped = useMemo(() => {
     const byMake: Record<string, any[]> = {};
@@ -265,15 +241,25 @@ function CarForm({
     if (ok) onSaved();
   };
 
+  const pickedModel = carModels.find((m) => m.id === form.carModelId);
   return (
-    <Card className="mb-4 border-line">
-      <div className="flex justify-between items-center mb-3">
-        <span className="font-semibold text-sm">{form.id ? t("cars.editCar") : t("cars.add")}</span>
-        <button onClick={onCancel} className="text-muted hover:text-ink-500">
+    <Card className="mb-4">
+      <div className="flex justify-between items-center mb-1">
+        <span className="font-bold text-lg">{form.id ? t("cars.editCar") : t("cars.add")}</span>
+        <button onClick={onCancel} className="w-10 h-10 rounded-full hover:bg-surface-2 text-muted hover:text-ink" aria-label={t("c.cancel")}>
           ✕
         </button>
       </div>
-      <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* live preview: the car as riders will picture it */}
+      <div className="flex items-center gap-3 rounded-2xl bg-paper px-3 py-2 mb-4">
+        <CarRender make={form.make} model={form.model} category={pickedModel?.category} color={form.color} className="w-[52%] max-w-[260px] shrink-0" />
+        <div className="min-w-0 flex-1 text-end">
+          {form.plate && <div dir="rtl" className="text-xl font-bold tnum">{form.plate}</div>}
+          <div className="text-sm font-bold truncate">{carTitle(form, locale) || t("veh.carModelPlaceholder")}</div>
+          {form.transmission && <div className="text-xs text-muted mt-0.5">{t(`veh.trans.${form.transmission}`)}</div>}
+        </div>
+      </div>
+      <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-2 gap-4 [&>*]:min-w-0">
         <Field label={t("veh.name")}>
           <Input value={form.name ?? ""} onChange={(e) => set("name", e.target.value)} required />
         </Field>
@@ -290,7 +276,7 @@ function CarForm({
                 <optgroup key={make} label={make}>
                   {models.map((m) => (
                     <option key={m.id} value={m.id}>
-                      {m.model}
+                      {m.make} {m.model}
                     </option>
                   ))}
                 </optgroup>
@@ -299,11 +285,25 @@ function CarForm({
             </Select>
           </Field>
         </div>
+        <div className="md:col-span-2">
+          <span className="block text-xs font-bold text-ink-500 mb-1.5">{t("veh.transmission")}</span>
+          <Segmented
+            fill
+            value={(form.transmission ?? "") as string}
+            onChange={(v) => set("transmission", v)}
+            options={[
+              { value: "AUTOMATIC", label: t("veh.trans.AUTOMATIC") },
+              { value: "MANUAL", label: t("veh.trans.MANUAL") },
+              { value: "CVT", label: t("veh.trans.CVT") },
+            ]}
+          />
+          <span className="block text-xs text-muted mt-1.5">{t("veh.transmissionHint")}</span>
+        </div>
         {preview && preview.carModel && (
-          <div className="md:col-span-2 -mt-2 text-xs bg-surface-2 border border-line rounded-lg px-3 py-2 text-ink">
+          <div className="md:col-span-2 -mt-2 text-xs bg-action-soft rounded-xl px-3 py-2 text-ink">
             {preview.others.fuelPer100 != null
               ? t("veh.carModelPreview", {
-                  car: `${preview.carModel.make} ${preview.carModel.model}`,
+                  car: `${preview.carModel.make} ${preview.carModel.model}${preview.gearboxMatched ? ` (${t(`veh.trans.${preview.gearbox}`)})` : ""}`,
                   n: fmtNum(preview.others.fuelPer100, locale),
                   unit: preview.others.fuelUnit === "m3" ? t("c.m3") : t("c.liters"),
                   count: preview.others.driverCount,
@@ -324,17 +324,27 @@ function CarForm({
         <Field label={t("veh.year")}>
           <Input type="number" value={form.year ?? ""} onChange={(e) => set("year", e.target.value)} />
         </Field>
-        <Field label={t("veh.color")}>
-          <Input value={form.color ?? ""} onChange={(e) => set("color", e.target.value)} />
-        </Field>
-        <Field label={t("veh.transmission")}>
-          <Select value={form.transmission ?? ""} onChange={(e) => set("transmission", e.target.value)}>
-            <option value="">{t("c.optional")}</option>
-            <option value="AUTOMATIC">{t("veh.trans.AUTOMATIC")}</option>
-            <option value="MANUAL">{t("veh.trans.MANUAL")}</option>
-            <option value="CVT">{t("veh.trans.CVT")}</option>
-          </Select>
-        </Field>
+        <div className="md:col-span-2">
+          <span className="block text-xs font-bold text-ink-500 mb-2">{t("veh.color")}</span>
+          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t("veh.color")}>
+            {Object.entries(PAINTS).map(([key, p]) => {
+              const on = (form.color ?? "").toUpperCase() === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  title={locale === "ar" ? p.ar : p.en}
+                  onClick={() => set("color", key)}
+                  className={`w-9 h-9 rounded-full border transition-transform ${on ? "ring-2 ring-action ring-offset-2 ring-offset-[var(--sheet)] scale-110" : "border-line-strong hover:scale-105"}`}
+                  style={{ background: `radial-gradient(circle at 35% 30%, #ffffff99, transparent 45%), ${p.hex}` }}
+                />
+              );
+            })}
+          </div>
+          <span className="block text-xs text-muted mt-1.5">{form.color ? (PAINTS[(form.color ?? "").toUpperCase()] ? (locale === "ar" ? PAINTS[form.color.toUpperCase()].ar : PAINTS[form.color.toUpperCase()].en) : form.color) : t("veh.colorHint")}</span>
+        </div>
         <Field label={t("veh.initialOdometer")}>
           <Input
             type="number"

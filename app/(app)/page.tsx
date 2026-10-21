@@ -488,7 +488,11 @@ export default function DashboardPage() {
 
       {carBench && carBench.carModel && carBench.others.driverCount > 0 && (
         <Card>
-          <CardHead icon="wrench" title={t("cbm.title", { car: `${carBench.carModel.make} ${carBench.carModel.model}` })} />
+          <CardHead
+            icon="wrench"
+            title={t("cbm.title", { car: `${carBench.carModel.make} ${carBench.carModel.model}${carBench.gearboxMatched ? ` (${t(`veh.trans.${carBench.gearbox}`)})` : ""}` })}
+            sub={carBench.gearbox && !carBench.gearboxMatched ? t("cbm.anyGearbox", { gearbox: t(`veh.trans.${carBench.gearbox}`) }) : undefined}
+          />
           <div className="grid grid-cols-2 gap-4 mt-2">
             <BenchMetric
               label={carBench.others.fuelUnit === "m3" ? `${t("cbm.fuelPer100")} (${t("c.m3")})` : `${t("cbm.fuelPer100")} (${t("c.liters")})`}

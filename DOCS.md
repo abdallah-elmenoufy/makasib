@@ -450,6 +450,23 @@ bars, reminders due; Weeks — picker, hero, week-over-week bars, day by day,
 best trip, top 3 areas; Plan — heat grid and best slots; Shifts — three
 figures per shift.
 
+**Car renders and the car catalog (2026-10-21).** `lib/carRender.ts` draws a
+studio-style 3/4 render as SVG from a body type (SEDAN | HATCHBACK | SUV |
+MPV, from the catalog category) and a paint (`PAINTS`: 15 common Egyptian
+colours; `paintFor()` also reads legacy free text in English or Arabic, or a
+hex). Shading is derived from the paint: lit top, true colour at the waist,
+darker sill and nose, tinted glass, alloy wheels, contact shadow. Inputs are
+enums or a validated hex, so the markup is safe to inline
+(`components/CarRender.tsx`; tested in `tests/carRender.test.ts`). Used on
+the Cars page cards, the car form preview, the vehicle switcher and the
+"Ready to drive?" card. The catalog moved to `lib/carCatalog.ts`; the seed
+script imports it and `GET /api/carmodels` inserts any catalog entry the
+table lacks, so new models need no re-seed. Gearbox (`Vehicle.transmission`)
+is part of the car's identity: the car-model benchmark
+(`lib/carBenchmark.ts`) compares on model + gearbox once
+`MIN_GEARBOX_PEERS` (3) other cars with data share both, else on the model
+alone, and reports which (`gearboxMatched`).
+
 Tokens live in `app/globals.css` (`--ink`, `--surface`, `--money`,
 `--loss`, `--hero`, `--paper`, …) and are exposed to Tailwind via `@theme`.
 Light and dark palettes are both defined at the token level; dark applies

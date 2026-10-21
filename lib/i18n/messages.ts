@@ -3,6 +3,9 @@ export type Locale = "en" | "ar";
 export const LOCALES: Locale[] = ["en", "ar"];
 
 const en: Record<string, string> = {
+  "veh.transmissionHint": "Part of your car's identity: other drivers' figures are compared like for like — same model and same gearbox.",
+  "veh.colorHint": "Pick the colour riders see — it paints your car's picture.",
+  "cbm.anyGearbox": "Not enough {gearbox} drivers of this model yet — compared with every gearbox for now.",
   "drive.startTitle": "Start your shift",
   "drive.liveTitle": "On shift",
   "drive.odoRequired": "Type the odometer reading to start.",
@@ -809,6 +812,9 @@ const en: Record<string, string> = {
 };
 
 const ar: Record<string, string> = {
+  "veh.transmissionHint": "جزء من هوية عربيتك: أرقام السائقين التانيين بتتقارن بالمثل — نفس الموديل ونفس ناقل الحركة.",
+  "veh.colorHint": "اختار اللون اللي الركاب بيشوفوه — صورة عربيتك بتتلوّن بيه.",
+  "cbm.anyGearbox": "لسه مفيش سائقين {gearbox} كفاية بنفس الموديل — المقارنة دلوقتي مع كل أنواع ناقل الحركة.",
   "drive.startTitle": "ابدأ ورديتك",
   "drive.liveTitle": "في الوردية",
   "drive.odoRequired": "اكتب قراءة العداد عشان تبدأ.",

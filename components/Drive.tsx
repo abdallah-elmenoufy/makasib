@@ -12,6 +12,7 @@ import { QuickAddTrip } from "./QuickAddTrip";
 import { TripBatchEntry } from "./TripBatchEntry";
 import { EndShiftFlow } from "./EndShiftFlow";
 import { GpsTracker } from "./GpsTracker";
+import { CarRender } from "./CarRender";
 import { fmtInt, fmtMoney, fmtNum, localizeDigits, sep, toLocalInput } from "@/lib/format";
 
 /* ---------------------------------------------------------------------------
@@ -390,15 +391,14 @@ function HeroStat({ label, value }: { label: string; value: string }) {
 export function DriveCard({ withGps = false }: { withGps?: boolean }) {
   const { t, locale } = useI18n();
   const { state, open, end } = useDrive();
+  const { vehicle } = useVehicle();
   const min = useElapsedMin(state?.active?.startTime);
   if (!state) return <div className="h-[132px] rounded-3xl bg-surface border border-line animate-pulse" />;
 
   if (!state.active) {
     return (
       <div className="rounded-3xl bg-sheet border border-line shadow-[var(--shadow-card)] p-4 md:p-5 flex flex-wrap sm:flex-nowrap items-center gap-4">
-        <span className="w-14 h-14 rounded-2xl brand-gradient text-white flex items-center justify-center shrink-0 shadow-[var(--shadow-btn)]">
-          <Icon name="car" size={28} strokeWidth={2} />
-        </span>
+        <CarRender make={vehicle?.make} model={vehicle?.model} color={vehicle?.color} className="w-28 -my-2 -ms-2 shrink-0" />
         <div className="min-w-0 flex-1">
           <div className="text-xl font-bold leading-tight">{t("drive.ready")}</div>
           <div className="text-sm text-muted mt-1 tnum">

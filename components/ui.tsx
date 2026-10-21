@@ -249,13 +249,13 @@ export function Segmented<T extends string>({
   fill?: boolean;
 }) {
   return (
-    <div className={`${fill ? "flex w-full" : "inline-flex max-w-full overflow-x-auto scroll-x [scrollbar-width:none]"} gap-1 bg-sheet border border-line rounded-full p-1 shadow-[var(--shadow-sm)] ${className}`}>
+    <div className={`${fill ? "flex w-full min-w-0" : "inline-flex max-w-full overflow-x-auto scroll-x [scrollbar-width:none]"} gap-1 bg-sheet border border-line rounded-full p-1 shadow-[var(--shadow-sm)] ${className}`}>
       {options.map((o) => (
         <button
           key={o.value}
           type="button"
           onClick={() => onChange(o.value)}
-          className={`${size === "sm" ? "px-3 h-8 text-xs" : "px-4 h-9 text-sm"} ${fill ? "flex-1 px-1" : ""} rounded-full font-bold whitespace-nowrap transition-colors ${
+          className={`${size === "sm" ? "px-3 h-8 text-xs" : "px-4 h-9 text-sm"} ${fill ? "flex-1 min-w-0 px-1 truncate" : ""} rounded-full font-bold whitespace-nowrap transition-colors ${
             value === o.value ? "bg-action text-action-fg shadow-[var(--shadow-btn)]" : "text-ink-500 hover:text-ink hover:bg-surface-2"
           }`}
         >

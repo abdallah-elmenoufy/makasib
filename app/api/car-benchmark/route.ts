@@ -3,7 +3,7 @@ import { requireAuth } from "@/lib/auth";
 import { getCarModelBenchmark, getCarModelBenchmarkForModel } from "@/lib/carBenchmark";
 
 // GET ?vehicleId=  → benchmark for an existing vehicle against its own catalog model
-// GET ?carModelId= → live preview for the car-add form, before a vehicle exists
+// GET ?carModelId=[&transmission=] → live preview for the car-add form, before a vehicle exists
 // (optionally &excludeVehicleId= when editing, so the vehicle doesn't count against itself)
 export async function GET(req: NextRequest) {
   try {
@@ -11,13 +11,14 @@ export async function GET(req: NextRequest) {
     const vehicleId = req.nextUrl.searchParams.get("vehicleId");
     const carModelId = req.nextUrl.searchParams.get("carModelId");
     const excludeVehicleId = req.nextUrl.searchParams.get("excludeVehicleId") ?? undefined;
+    const transmission = req.nextUrl.searchParams.get("transmission") || null;
 
     if (vehicleId) {
       const result = await getCarModelBenchmark(vehicleId);
       return NextResponse.json(result);
     }
     if (carModelId) {
-      const result = await getCarModelBenchmarkForModel(carModelId, excludeVehicleId);
+      const result = await getCarModelBenchmarkForModel(carModelId, excludeVehicleId, transmission);
       return NextResponse.json(result);
     }
     return NextResponse.json({ error: "vehicleId or carModelId required" }, { status: 400 });

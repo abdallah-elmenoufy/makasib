@@ -17,6 +17,10 @@ export type CarStats = {
 
 export type CarModelBenchmark = {
   carModel: { id: string; make: string; model: string } | null;
+  /** The gearbox compared on, when the comparison is like-for-like. */
+  gearbox: string | null;
+  /** True when "others" are the same model AND gearbox; false = same model, any gearbox. */
+  gearboxMatched: boolean;
   you: CarStats;
   others: CarStats & { driverCount: number };
 };
@@ -48,30 +52,42 @@ function weightedAvg(rows: { value: number | null; weight: number }[]): number |
 export async function getCarModelBenchmark(vehicleId: string): Promise<CarModelBenchmark | null> {
   const vehicle = await prisma.vehicle.findUnique({ where: { id: vehicleId } });
   if (!vehicle?.carModelId) return null;
-  return getCarModelBenchmarkForModel(vehicle.carModelId, vehicleId);
+  return getCarModelBenchmarkForModel(vehicle.carModelId, vehicleId, vehicle.transmission);
 }
+
+/** Same-gearbox comparisons need this many other cars with data before they replace the all-gearbox one. */
+export const MIN_GEARBOX_PEERS = 3;
 
 /** Same aggregation, usable before a vehicle even exists (e.g. a live
  *  preview in the car-add form: "other Corolla drivers average X L/100km"). */
 export async function getCarModelBenchmarkForModel(
   carModelId: string,
-  excludeVehicleId?: string
+  excludeVehicleId?: string,
+  transmission?: string | null
 ): Promise<CarModelBenchmark> {
   const [carModel, vehicles] = await Promise.all([
     prisma.carModel.findUnique({ where: { id: carModelId } }),
-    prisma.vehicle.findMany({ where: { carModelId, isActive: true }, select: { id: true } }),
+    prisma.vehicle.findMany({ where: { carModelId, isActive: true }, select: { id: true, transmission: true } }),
   ]);
 
   const you = excludeVehicleId && vehicles.some((v) => v.id === excludeVehicleId)
     ? await vehicleCarStats(excludeVehicleId)
     : EMPTY_STATS;
 
-  const otherIds = vehicles.map((v) => v.id).filter((id) => id !== excludeVehicleId);
-  const others = await Promise.all(otherIds.map(vehicleCarStats));
-  const withData = others.filter((o) => o.fuelPer100 != null || o.maintCostPerKm != null);
+  // an automatic and a manual Optra burn fuel and wear brakes differently:
+  // compare like with like once enough same-gearbox cars have data
+  const otherVehicles = vehicles.filter((v) => v.id !== excludeVehicleId);
+  const allStats = await Promise.all(otherVehicles.map(async (v) => ({ v, s: await vehicleCarStats(v.id) })));
+  const hasData = (o: CarStats) => o.fuelPer100 != null || o.maintCostPerKm != null;
+  const sameBox = transmission ? allStats.filter((x) => x.v.transmission === transmission) : [];
+  const gearboxMatched = !!transmission && sameBox.filter((x) => hasData(x.s)).length >= MIN_GEARBOX_PEERS;
+  const others = (gearboxMatched ? sameBox : allStats).map((x) => x.s);
+  const withData = others.filter(hasData);
 
   return {
     carModel: carModel ? { id: carModel.id, make: carModel.make, model: carModel.model } : null,
+    gearbox: transmission ?? null,
+    gearboxMatched,
     you,
     others: {
       fuelPer100: weightedAvg(others.map((o) => ({ value: o.fuelPer100, weight: o.fuelDistanceKm }))),

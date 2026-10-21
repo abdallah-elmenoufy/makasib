@@ -33,6 +33,15 @@ quick-start.
   topic (fuel amber, maintenance violet, expenses rose, planning sky), ring
   gauges for goals, gradient bars, roomy tables, big numerals in Readex Pro
   (self-hosted, Arabic + Latin), and a hand-tuned dark mode.
+- **Car cards like Uber's** — every car shows as a card with a studio-style
+  render in its real colour and body type (sedan, hatchback, SUV, MPV), the
+  plate, "Silver Chevrolet Optra · Automatic", and its profit, km and health.
+  Colour is picked from swatches; the gearbox sits next to the model.
+- **Like-for-like car comparison** — your fuel economy and maintenance cost
+  are compared with other drivers of the same model *and* gearbox once at
+  least three such cars have data (otherwise the same model, any gearbox,
+  and the card says so). New catalogue models (e.g. Speranza A516) appear
+  automatically — no re-seeding.
 - **Vehicle profile** — fuel setup (petrol/CNG/dual), ownership model
   (owned/installment/rented/target-share), and depreciation you control: a
   **resale-per-km** model by default (only the extra resale loss your km
