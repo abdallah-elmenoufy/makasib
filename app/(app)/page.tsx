@@ -8,6 +8,7 @@ import { QuickExpense } from "@/components/QuickExpense";
 import { useVehicle } from "@/components/VehicleProvider";
 import { BarChart, CHART, Ring } from "@/components/charts";
 import { DriveCard } from "@/components/Drive";
+import { ServiceAlertsCard } from "@/components/ServiceAlerts";
 import { Detailed, MoreDetailsButton, useViewMode, ViewModeToggle } from "@/components/ViewMode";
 import { useOnChanged } from "@/components/dataBus";
 import { fmtDate, fmtInt, fmtMoney, fmtMoneyShort, fmtNum, localizeDigits, sep } from "@/lib/format";
@@ -174,7 +175,6 @@ export default function DashboardPage() {
 
   if (!a) return null;
 
-  const attention = a.reminders.filter((r: any) => r.state !== "ok");
   const dep = a.depreciationBasis;
   const rateNote = (perKm: number) => `${money(perKm)}/${t("c.km")} × ${fmtNum(a.kmSplit.shiftKm, locale, 0)} ${t("c.km")}`;
   const costRows = [
@@ -203,6 +203,9 @@ export default function DashboardPage() {
 
       {/* start / live shift / end — the one card a driver taps all day */}
       <DriveCard />
+
+      {/* parts at 80%+ of their life (red from 90%) stay here until changed */}
+      <ServiceAlertsCard reminders={a.reminders} vehicleId={vehicle.id} currentOdo={a.currentOdo ?? null} />
 
       {periodPicker}
 
@@ -532,23 +535,6 @@ export default function DashboardPage() {
       )}
 
       </Detailed>
-
-      {attention.length > 0 && (
-        <Card tone="warn">
-          <CardHead icon="bell" title={t("db.remindersDue")} />
-          <div className="space-y-1">
-            {attention.map((r: any) => (
-              <Link key={r.id} href={r.source === "service" ? "/maintenance" : "/reminders"} className="flex items-center gap-2 text-sm hover:bg-hero-fg/60 rounded-lg px-2 py-1.5">
-                <Badge tone={r.state === "overdue" ? "bad" : "warn"}>{r.state === "overdue" ? t("rm.overdue") : t("rm.dueSoon")}</Badge>
-                <span className="font-bold">{r.source === "service" ? t(`mn.cat.${r.category}`) : r.title}</span>
-                {r.kmRemaining != null && (
-                  <span className="text-xs text-muted">{r.kmRemaining >= 0 ? t("rm.inKm", { n: fmtNum(r.kmRemaining, locale) }) : t("rm.kmOverdue", { n: fmtNum(-r.kmRemaining, locale) })}</span>
-                )}
-              </Link>
-            ))}
-          </div>
-        </Card>
-      )}
 
       <MoreDetailsButton />
     </div>

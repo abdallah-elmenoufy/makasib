@@ -218,7 +218,8 @@ export type ReminderStatus = {
   title: string | null;
   category: string | null;
   source: "manual" | "service";
-  state: "overdue" | "dueSoon" | "ok";
+  /** changeNow: a part at 90%+ of its interval (service reminders only). */
+  state: "overdue" | "changeNow" | "dueSoon" | "ok";
   kmRemaining: number | null;
   daysRemaining: number | null;
   dueOdometer: number | null;
@@ -226,10 +227,12 @@ export type ReminderStatus = {
   intervalKm: number | null;
   ratio: number | null;
   maintenanceId: string | null;
+  /** Service reminders only: what the part cost last time, to prefill "I changed it". */
+  lastCost: number | null;
 };
 
 const bySeverity = (a: ReminderStatus, b: ReminderStatus) => {
-  const rank = { overdue: 0, dueSoon: 1, ok: 2 } as const;
+  const rank = { overdue: 0, changeNow: 1, dueSoon: 2, ok: 3 } as const;
   if (rank[a.state] !== rank[b.state]) return rank[a.state] - rank[b.state];
   return (a.kmRemaining ?? Infinity) - (b.kmRemaining ?? Infinity);
 };
@@ -267,6 +270,7 @@ export function reminderStatuses(
         intervalKm: r.repeatKm,
         ratio: null,
         maintenanceId: null,
+        lastCost: null,
       };
     });
 
@@ -284,6 +288,7 @@ export function reminderStatuses(
     intervalKm: s.intervalKm,
     ratio: s.ratio,
     maintenanceId: s.maintenanceId,
+    lastCost: s.cost,
   }));
 
   return [...manual, ...derived].sort(bySeverity);

@@ -22,6 +22,7 @@ import { useCrud } from "@/components/useCrud";
 import { useVehicle } from "@/components/VehicleProvider";
 import { PhotoInput } from "@/components/PhotoInput";
 import { RowEditor } from "@/components/RowEditor";
+import { PartChangedSheet } from "@/components/ServiceAlerts";
 import { fmtDate, fmtMoney, fmtNum, toLocalInput, sep } from "@/lib/format";
 import { hasInterval, inServiceItems, serviceProgress, type ServiceState } from "@/lib/maintenance";
 
@@ -72,7 +73,7 @@ const DEFAULT_INTERVAL_KM: Record<string, number> = {
   OTHER: 0,
 };
 
-const STATE_TONE = { ok: "good", dueSoon: "warn", overdue: "bad" } as const;
+const STATE_TONE = { ok: "good", dueSoon: "warn", changeNow: "bad", overdue: "bad" } as const;
 
 export default function MaintenancePage() {
   const { t, locale } = useI18n();
@@ -98,6 +99,7 @@ export default function MaintenancePage() {
     // refetches), which is exactly when the wear picture needs redrawing
   }, [vehicle, rows]);
 
+  const [changing, setChanging] = useState<any>(null);
   const liveIds = useMemo(() => new Set(inServiceItems(allRows).map((m) => m.id)), [allRows]);
 
   const progressFor = (m: any) =>
@@ -163,8 +165,8 @@ export default function MaintenancePage() {
           />
           <div className="space-y-3.5">
             {tracked.map(({ m, p }) => (
+              <div key={m.id}>
               <Meter
-                key={m.id}
                 ratio={p.ratio!}
                 tone={STATE_TONE[p.state as keyof typeof STATE_TONE] ?? "neutral"}
                 label={
@@ -177,14 +179,28 @@ export default function MaintenancePage() {
                 sub={
                   p.state === "overdue"
                     ? t("mn.overdueBy", { km: fmtNum(-p.kmRemaining!, locale, 0) })
-                    : t("mn.kmLeft", {
+                    : t(p.state === "changeNow" ? "mn.changeNowSub" : "mn.kmLeft", {
                         km: fmtNum(p.kmRemaining!, locale, 0),
                         pct: fmtNum(p.ratio! * 100, locale, 0),
                       })
                 }
               />
+              {p.state !== "ok" && (
+                <Btn variant={p.state === "dueSoon" ? "secondary" : "primary"} size="sm" className="mt-2" onClick={() => setChanging(m)}>
+                  {t("svc.changed")}
+                </Btn>
+              )}
+              </div>
             ))}
           </div>
+          {changing && (
+            <PartChangedSheet
+              part={{ category: changing.category, intervalKm: changing.lifetimeKm ?? null, lastCost: changing.cost ?? null, fittedOdometer: changing.odometer ?? null }}
+              vehicleId={vehicle.id}
+              currentOdo={currentOdo}
+              onClose={() => setChanging(null)}
+            />
+          )}
           {untrackable > 0 && (
             <p className="text-xs text-warn-ink bg-warn-soft border border-warn/60 rounded-lg px-3 py-2 mt-3">
               {t("mn.needsOdometer", { n: fmtNum(untrackable, locale, 0) })}

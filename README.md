@@ -82,6 +82,11 @@ quick-start.
   bars show how much of each part's interval is used up, green → amber →
   red, and a superseded item retires automatically so an interval is never
   charged twice.
+- **"Time to change" alerts on Home** — a part with a service interval turns
+  amber at 80% of its life and red at 90%, and stays on Home until you tap
+  **I changed it**. That logs the new part (odometer, cost and interval
+  pre-filled from last time), so its bar restarts at 0% and the alert clears.
+  The same button sits on worn parts on the Maintenance page.
 - **Reminders, mostly free** — any service logged with an odometer reading
   and an interval generates its own reminder (brakes fitted at 246,170 with
   a 50,000 km interval ⇒ due at 296,170). Derived, not stored: edit the

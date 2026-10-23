@@ -26,15 +26,16 @@ export type VehicleSummary = {
  */
 async function computeHealthScore(
   vehicleId: string,
-  reminders: { state: "overdue" | "dueSoon" | "ok" }[],
+  reminders: { state: "overdue" | "changeNow" | "dueSoon" | "ok" }[],
   hasRecords: boolean
 ): Promise<number | null> {
   if (!hasRecords) return null;
   let score = 100;
 
   const overdue = reminders.filter((r) => r.state === "overdue").length;
+  const changeNow = reminders.filter((r) => r.state === "changeNow").length;
   const dueSoon = reminders.filter((r) => r.state === "dueSoon").length;
-  score -= Math.min(60, overdue * 20);
+  score -= Math.min(60, overdue * 20 + changeNow * 14);
   score -= Math.min(24, dueSoon * 8);
 
   const lastMaint = await prisma.maintenance.findFirst({ where: { vehicleId }, orderBy: { date: "desc" } });

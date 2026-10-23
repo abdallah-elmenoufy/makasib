@@ -25,8 +25,20 @@ export type ServiceItem = {
   lifetimeKm: number | null;
 };
 
-/** Fraction of the interval at which a part starts being flagged. */
-export const DUE_SOON_RATIO = 0.85;
+/** 80% of the interval used: amber — plan the change. */
+export const DUE_SOON_RATIO = 0.8;
+/** 90% used: red — change it now. Stays red until a new record is logged. */
+export const CHANGE_NOW_RATIO = 0.9;
+
+export type WearState = "ok" | "dueSoon" | "changeNow" | "overdue";
+
+/** One rule for every bar and alert in the app (Home, Maintenance, Reminders). */
+export function wearState(ratio: number): WearState {
+  if (ratio >= 1) return "overdue";
+  if (ratio >= CHANGE_NOW_RATIO) return "changeNow";
+  if (ratio >= DUE_SOON_RATIO) return "dueSoon";
+  return "ok";
+}
 
 const time = (d: Date | string) => new Date(d).getTime();
 
@@ -49,7 +61,7 @@ export function inServiceItems<T extends ServiceItem>(items: T[]): T[] {
   return withInterval.filter((m) => time(m.date) >= (newest.get(m.category) ?? 0));
 }
 
-export type ServiceState = "ok" | "dueSoon" | "overdue" | "replaced" | "unknown";
+export type ServiceState = WearState | "replaced" | "unknown";
 
 export type ServiceProgress = {
   /** km driven on this part since it was fitted. */
@@ -84,13 +96,9 @@ export function serviceProgress(
     kmUsed,
     kmRemaining: life - kmUsed,
     ratio,
-    state: ratio >= 1 ? "overdue" : ratio >= DUE_SOON_RATIO ? "dueSoon" : "ok",
+    state: wearState(ratio),
   };
 }
-
-/** A part is flagged this close to its interval regardless of percentage —
- *  matching the absolute threshold manual reminders already use. */
-const DUE_SOON_KM = 500;
 
 export type ServiceDue = {
   /** Namespaced so it can never collide with a real Reminder row's id. */
@@ -103,7 +111,7 @@ export type ServiceDue = {
   intervalKm: number;
   kmRemaining: number;
   ratio: number;
-  state: "ok" | "dueSoon" | "overdue";
+  state: WearState;
   cost: number;
   date: string;
 };
@@ -138,12 +146,7 @@ export function serviceReminders(items: ServiceItem[], currentOdo: number): Serv
         intervalKm,
         kmRemaining,
         ratio,
-        state:
-          kmRemaining <= 0
-            ? ("overdue" as const)
-            : kmRemaining <= DUE_SOON_KM || ratio >= DUE_SOON_RATIO
-              ? ("dueSoon" as const)
-              : ("ok" as const),
+        state: wearState(ratio),
         cost: m.cost,
         date: new Date(m.date).toISOString(),
       };

@@ -450,6 +450,18 @@ bars, reminders due; Weeks — picker, hero, week-over-week bars, day by day,
 best trip, top 3 areas; Plan — heat grid and best slots; Shifts — three
 figures per shift.
 
+**Maintenance wear alerts (2026-10-23).** One rule in `lib/maintenance.ts`
+(`wearState`): a part is `dueSoon` (amber) from 80% of its interval
+(`DUE_SOON_RATIO`), `changeNow` (red) from 90% (`CHANGE_NOW_RATIO`) and
+`overdue` from 100%; the old "within 500 km" shortcut no longer applies to
+parts. `ReminderStatus` gained `changeNow` and `lastCost`.
+`components/ServiceAlerts.tsx` shows every non-ok part on Home right under
+the drive card (in both views) and manual reminders that are due; "I
+changed it" opens `PartChangedSheet`, which POSTs a new maintenance record of
+the same category (odometer, cost and interval prefilled). The newer record
+retires the old one through `inServiceItems`, so the bar restarts and the
+alert clears with no extra state. Tests: `tests/maintenanceWear.test.ts`.
+
 **Car renders and the car catalog (2026-10-21).** `lib/carRender.ts` draws a
 studio-style 3/4 render as SVG from a body type (SEDAN | HATCHBACK | SUV |
 MPV, from the catalog category) and a paint (`PAINTS`: 15 common Egyptian

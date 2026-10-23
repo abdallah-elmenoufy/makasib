@@ -75,16 +75,19 @@ export function CardHead({
   title,
   sub,
   actions,
+  tint,
 }: {
   icon?: string | IconName;
   title: string;
   sub?: string;
   actions?: React.ReactNode;
+  /** Override the topic colour of the icon chip (e.g. an alert). */
+  tint?: string;
 }) {
   return (
     <div className="flex items-start justify-between gap-3 mb-4">
       <div className="min-w-0 flex items-start gap-3">
-        {icon && <IconChip icon={icon} />}
+        {icon && <IconChip icon={icon} tint={tint} />}
         <div className="min-w-0 pt-0.5">
           <h2 className="text-[17px] font-bold tracking-tight leading-snug">{title}</h2>
           {sub && <p className="text-xs text-muted mt-0.5 leading-relaxed">{sub}</p>}

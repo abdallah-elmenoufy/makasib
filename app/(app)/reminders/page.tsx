@@ -29,7 +29,7 @@ const empty = () => ({
   notes: "",
 });
 
-const STATE_TONE = { ok: "good", dueSoon: "warn", overdue: "bad" } as const;
+const STATE_TONE = { ok: "good", dueSoon: "warn", changeNow: "bad", overdue: "bad" } as const;
 
 export default function RemindersPage() {
   const { t, locale } = useI18n();
