@@ -17,6 +17,8 @@ export type VehicleSnap = {
   quests: { id: string; platform: string; tripsToNext: number | null; nextReward: number | null; endAt: string; verdict: string }[];
   activeShift: { id: string; startTime: string } | null;
   nextBest: { hour: number; avgNet: number } | null;
+  /** Consumption over the last two tanks vs usual, when it crept up (lib/fuelInsights). */
+  fuelDrift?: { sinceOdometer: number; pct: number } | null;
 };
 
 export type Note = { key: string; title: string; body: string; url: string; urgent?: boolean };
@@ -68,6 +70,15 @@ export function dueNotes(snaps: VehicleSnap[], prefs: NotifyPrefs, locale: Local
           url: r.source === "service" ? "/" : "/reminders",
         });
       }
+    }
+
+    if (prefs.service && s.fuelDrift) {
+      out.push({
+        key: `fuel:${v}:${Math.round(s.fuelDrift.sinceOdometer)}`,
+        title: head(t("ntf.fuel.title", { pct: fmtInt(Math.round(s.fuelDrift.pct * 100), locale) })),
+        body: t("ntf.fuel.body"),
+        url: "/fuel",
+      });
     }
 
     if (prefs.target && s.target?.reached && s.target.target > 0) {

@@ -296,6 +296,23 @@ function StartForm({ state, onStarted, onClose }: { state: DriveState; onStarted
 }
 
 /** A shift is running: show what it has made and make "add trip" one number. */
+/** Tiredness nudge in the live sheet: a gentle one after 4 h, firm after 10 h. */
+function BreakNudge({ minutes }: { minutes: number }) {
+  const { t } = useI18n();
+  const h = minutes / 60;
+  if (h < 4) return null;
+  const level = h >= 12 ? 12 : h >= 10 ? 10 : 4;
+  return (
+    <div className={`flex items-start gap-3 rounded-2xl px-4 py-3 ${level === 4 ? "tint-amber" : "tint-rose"}`}>
+      <Icon name="timer" size={20} className="shrink-0 mt-0.5" />
+      <div className="text-sm leading-relaxed">
+        <b>{t(`ntf.shift.${level}.title`)}</b>
+        <div>{t(`ntf.shift.${level}.body`)}</div>
+      </div>
+    </div>
+  );
+}
+
 function LivePanel({
   state,
   vehicleId,
@@ -317,6 +334,7 @@ function LivePanel({
   return (
     <div className="space-y-4">
       <LiveTally state={state} minutes={min} />
+      <BreakNudge minutes={min} />
       <QuestMini />
       <QuickAddTrip vehicleId={vehicleId} onAdded={onChanged} bare />
       <div className="grid grid-cols-2 gap-2">

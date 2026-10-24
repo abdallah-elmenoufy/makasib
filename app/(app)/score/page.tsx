@@ -8,6 +8,7 @@ import { useTrackedTask } from "@/components/ActivityIndicator";
 import { looksLikeTripRequest, parseTripRequestText } from "@/lib/tripRequest";
 import { scoreOffer, OfferBaseline } from "@/lib/offerScore";
 import { fmtMoney, fmtNum, sep } from "@/lib/format";
+import { AcceptRuleCard, RuleVerdict, suggestedRule, useAcceptRule } from "@/components/AcceptRule";
 
 type OfferForm = {
   fare: string;
@@ -39,6 +40,9 @@ export default function ScorePage() {
   const { vehicle, loading } = useVehicle();
   const track = useTrackedTask();
   const [baseline, setBaseline] = useState<OfferBaseline | null>(null);
+  const [allTime, setAllTime] = useState<any>(null);
+  const suggested = useMemo(() => suggestedRule(allTime), [allTime]);
+  const { rule, save: saveRule } = useAcceptRule(vehicle?.id, suggested);
   const [form, setForm] = useState<OfferForm | null>(null);
   const [reading, setReading] = useState(false);
   const [notRecognized, setNotRecognized] = useState(false);
@@ -55,6 +59,7 @@ export default function ScorePage() {
       .then((r) => (r.ok ? r.json() : null))
       .then((a) => {
         if (!a) return;
+        setAllTime(a);
         setBaseline({
           costPerKm: a.rates.fuelCostPerKm + a.rates.maintCostPerKm + a.rates.depPerKm,
           profitPerKm: a.perKm,
@@ -130,6 +135,8 @@ export default function ScorePage() {
         ⏱ {t("score.hurryNote")}
       </p>
 
+      <AcceptRuleCard rule={rule} suggested={suggested} onChange={saveRule} t={t} locale={locale} />
+
       {!form && (
         <label
           className={`block border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
@@ -185,6 +192,7 @@ export default function ScorePage() {
               </div>
             </Card>
           )}
+          {rule && score && <RuleVerdict rule={rule} offer={{ fare: Number(form.fare), pickupKm: Number(form.pickupKm), tripKm: Number(form.tripKm) }} t={t} locale={locale} />}
           {!baseline && <p className="text-xs text-muted">{t("score.noBaseline")}</p>}
 
           <Card className="space-y-3">

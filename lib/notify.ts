@@ -8,6 +8,7 @@ import { getDriveState } from "@/lib/drive";
 import { getNowSuggestion } from "@/lib/now";
 import { sendPush } from "@/lib/push";
 import { translate, type Locale } from "@/lib/i18n/messages";
+import { DRIFT_WARN, economyDrift, tankWindows } from "@/lib/fuelInsights";
 import { DEFAULT_PREFS, dueNotes, type NotifyPrefs, type VehicleSnap } from "@/lib/notifyRules";
 
 /** At most this many per run, so the first run after subscribing doesn't flood the phone. */
@@ -28,7 +29,7 @@ export async function getNotifyLocale(): Promise<Locale> {
 }
 
 async function snapshot(v: { id: string; name: string }, now: Date): Promise<VehicleSnap> {
-  const [report, target, quests, drive, best, rems, maint, odo] = await Promise.all([
+  const [report, target, quests, drive, best, rems, maint, odo, fuel] = await Promise.all([
     getWeeklyReport(v.id, 2, now),
     getDailyTarget(v.id).catch(() => null),
     getQuestStatus(v.id, now),
@@ -37,7 +38,9 @@ async function snapshot(v: { id: string; name: string }, now: Date): Promise<Veh
     prisma.reminder.findMany({ where: { vehicleId: v.id } }),
     prisma.maintenance.findMany({ where: { vehicleId: v.id } }),
     getLatestOdometer(v.id),
+    prisma.fuelUp.findMany({ where: { vehicleId: v.id }, orderBy: { odometer: "desc" }, take: 40 }),
   ]);
+  const drifts = (["PETROL", "CNG"] as const).map((g) => economyDrift(tankWindows(fuel, g))).filter((d) => d && d.pct >= DRIFT_WARN);
   const rowById = new Map(rems.map((r) => [r.id, r]));
   const locale = await getNotifyLocale();
   const w = report.lastClosed;
@@ -68,6 +71,7 @@ async function snapshot(v: { id: string; name: string }, now: Date): Promise<Veh
       verdict: q.progress.verdict,
     })),
     activeShift: drive.active ? { id: drive.active.id, startTime: drive.active.startTime } : null,
+    fuelDrift: drifts[0] ? { sinceOdometer: drifts[0].sinceOdometer, pct: drifts[0].pct } : null,
     nextBest: best?.enoughData && best.nextBest ? { hour: best.nextBest.hour, avgNet: best.nextBest.avgNet } : null,
   };
 }

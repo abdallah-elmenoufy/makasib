@@ -11,6 +11,7 @@ import { DriveCard } from "@/components/Drive";
 import { ServiceAlertsCard } from "@/components/ServiceAlerts";
 import { QuestCard } from "@/components/Quests";
 import { PushPrompt } from "@/components/PushSettings";
+import { CarFundCard } from "@/components/CarFund";
 import { Detailed, MoreDetailsButton, useViewMode, ViewModeToggle } from "@/components/ViewMode";
 import { useOnChanged } from "@/components/dataBus";
 import { fmtDate, fmtInt, fmtMoney, fmtMoneyShort, fmtNum, localizeDigits, sep } from "@/lib/format";
@@ -284,6 +285,9 @@ export default function DashboardPage() {
 
       {/* week closed recap — the first days after Monday 04:00 */}
       {showWeekClose && <WeekClosedCard week={weeks.lastClosed} previous={weeks.weeks[weeks.weeks.length - 3] ?? null} t={t} locale={locale} />}
+
+      {/* the car's wear, put aside weekly, so a big bill isn't a shock */}
+      {weeks && <CarFundCard weeks={weeks} reminders={a.reminders ?? []} t={t} locale={locale} />}
 
 
       {/* time split */}

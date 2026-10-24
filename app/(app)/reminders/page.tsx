@@ -29,6 +29,18 @@ const empty = () => ({
   notes: "",
 });
 
+// papers a ride-hailing driver renews; tapping one prefills the form, the
+// driver only types the expiry date printed on the card. Repeat periods are
+// set only where they are the same for everyone (insurance is yearly).
+const PAPERS: { key: string; repeatMonths?: number; nextMonth?: boolean }[] = [
+  { key: "carLicence" },
+  { key: "drivingLicence" },
+  { key: "insurance", repeatMonths: 12 },
+  { key: "finesCheck", repeatMonths: 1, nextMonth: true },
+  { key: "criminalRecord" },
+  { key: "extinguisher", repeatMonths: 12 },
+];
+
 const STATE_TONE = { ok: "good", dueSoon: "warn", changeNow: "bad", overdue: "bad" } as const;
 
 export default function RemindersPage() {
@@ -144,6 +156,33 @@ export default function RemindersPage() {
           <p className="text-[11px] text-muted mt-3">{t("rm.fromServiceHint")}</p>
         </Card>
       )}
+
+      <Card className="mb-4">
+        <CardHead icon="calendar" tint="tint-sky" title={t("rm.papersTitle")} sub={t("rm.papersSub")} />
+        <div className="flex flex-wrap gap-2">
+          {PAPERS.filter((p) => !rows.some((r) => r.active && r.title === t(`rm.paper.${p.key}`))).map((p) => (
+            <button
+              key={p.key}
+              type="button"
+              onClick={() => {
+                const d = new Date();
+                const due = p.nextMonth ? new Date(d.getFullYear(), d.getMonth() + 1, 1) : null;
+                setForm({
+                  ...empty(),
+                  title: t(`rm.paper.${p.key}`),
+                  repeatMonths: p.repeatMonths ? String(p.repeatMonths) : "",
+                  dueDate: due ? `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, "0")}-01` : "",
+                  notes: t(`rm.paper.${p.key}.note`),
+                });
+                setOpen(true);
+              }}
+              className="h-11 px-4 rounded-full border border-line bg-sheet text-sm font-bold hover:bg-surface-2 transition-colors"
+            >
+              + {t(`rm.paper.${p.key}`)}
+            </button>
+          ))}
+        </div>
+      </Card>
 
       <AddPanel buttonLabel={t("rm.add")} open={open} setOpen={setOpen}>
         <form

@@ -23,6 +23,7 @@ import {
 import { useCrud } from "@/components/useCrud";
 import { useVehicle } from "@/components/VehicleProvider";
 import { PhotoInput } from "@/components/PhotoInput";
+import { FuelInsights } from "@/components/FuelInsights";
 import { fmtDate, fmtMoney, fmtNum, toLocalInput, sep } from "@/lib/format";
 
 const FUEL_TYPES = ["PETROL_80", "PETROL_92", "PETROL_95", "CNG"];
@@ -244,6 +245,8 @@ export default function FuelPage() {
           )}
         </Card>
       )}
+
+      <FuelInsights rows={allRows} fuelSetup={vehicle.fuelSetup ?? null} t={t} locale={locale} />
 
       {economy.length > 0 && totals.latest && analytics && (
         <FuelShockCard
