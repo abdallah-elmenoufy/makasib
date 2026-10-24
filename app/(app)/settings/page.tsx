@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useI18n } from "@/components/I18nProvider";
 import { Btn, Card, Field, Input, PageTitle, Segmented, Select, Toggle } from "@/components/ui";
 import { ViewModeToggle } from "@/components/ViewMode";
+import { PushSettingsCard } from "@/components/PushSettings";
 
 export default function SettingsPage() {
   const { t, locale } = useI18n();
@@ -108,6 +109,8 @@ export default function SettingsPage() {
           </Select>
         </Field>
       </Card>
+
+      <PushSettingsCard />
 
       <Card>
         <Field label={t("st.theme")}>

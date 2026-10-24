@@ -10,6 +10,7 @@ import { BarChart, CHART, Ring } from "@/components/charts";
 import { DriveCard } from "@/components/Drive";
 import { ServiceAlertsCard } from "@/components/ServiceAlerts";
 import { QuestCard } from "@/components/Quests";
+import { PushPrompt } from "@/components/PushSettings";
 import { Detailed, MoreDetailsButton, useViewMode, ViewModeToggle } from "@/components/ViewMode";
 import { useOnChanged } from "@/components/dataBus";
 import { fmtDate, fmtInt, fmtMoney, fmtMoneyShort, fmtNum, localizeDigits, sep } from "@/lib/format";
@@ -276,6 +277,7 @@ export default function DashboardPage() {
 
       {/* a platform quest: entered once, progress counted from logged trips */}
       <QuestCard />
+      <PushPrompt />
 
       {/* where to go right now — this hour, this kind of day, from the driver's own trips */}
       {nowHint && <WhereNowCard hint={nowHint} t={t} locale={locale} />}
