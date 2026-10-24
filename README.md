@@ -114,6 +114,45 @@ quick-start.
 - **Where to go now** — the dashboard ranks your pickup areas for this hour
   on this kind of day (weekday / weekend) from your own last 8 weeks, with
   what each paid per trip and per minute, and names the best coming hour.
+- **Bonuses and quests, without typing them** — there is no driver API from
+  Uber to read them, so Makasib takes promotions, quests and boosts from the
+  weekly statement PDF you already import (kept apart from tips). A running
+  quest is entered once a week — from a screenshot, by typing the tiers, or
+  one tap on "Same as last week" — and Makasib counts your trips toward it,
+  shows the next tier and whether it's worth chasing at your usual pace.
+- **Proof of income** — a printable A4 statement (Arabic or English) by
+  calendar month: income, tips and bonuses, running costs, net, trips and
+  days worked, by platform, with your name and a reference number — for a
+  bank, a landlord or a visa. Print or save as PDF from the phone.
+- **Phone notifications** — turn them on in Settings (on iPhone, after
+  adding Makasib to the Home Screen). A part at 90% of its life, papers about
+  to expire, last week's profit on Monday morning, today's target reached, a
+  quest a few trips from the next tier, fuel use creeping up, breaks after 4,
+  10 and 12 hours, and the day's best hour coming up. Each sent once, quiet
+  from 11 pm to 8 am except long-shift warnings; pick topics, send a test.
+  The server signs its own pushes — no outside account needed.
+- **Car fund** — the week's maintenance wear (your cost per km × km driven)
+  to put aside, the next part due with what it cost last time and roughly
+  how many weeks away, and everything due in the next eight weeks.
+- **Fuel warnings and gas savings** — when the last two full tanks used 12%+
+  more than your usual, the Fuel page says so and lists what to check; a
+  dual-fuel car sees what natural gas has saved, per 100 km and in total.
+- **Papers in one tap** — car and driving licence, insurance, a monthly
+  fines check, criminal record certificate, fire extinguisher: tap one,
+  type the expiry date from the card, done.
+- **Your accept rule** — on Score this offer: a minimum fare per km counting
+  the pickup and a pickup limit, suggested from your own costs and profit per
+  hour, with a cheat sheet of minimum fares for common trip lengths. Every
+  scored offer also says what your rule decides.
+- **Months & years** — the year's profit against the same months last year,
+  profit by month, best and weakest month, and a month-by-month table.
+- **Keep or sell?** — on each car: what another year of it should earn, what
+  it loses in value, repairs due within the year, whether maintenance per km
+  is rising — a keep / watch / price-it verdict with the reasons.
+- **Platform scorecard** — type your rating, acceptance and cancellation
+  once a week (per platform) and see the trend week on week.
+- **Why shifts end** — tap a reason when closing a shift (target hit, tired,
+  slow, traffic, car, personal); Weeks shows the pattern over eight weeks.
 - **Week export** — any pay week as a CSV (one row per trip) for your own
   archive or to check against the Uber statement.
 - **Addresses on the map** — trips imported from screenshots carry an

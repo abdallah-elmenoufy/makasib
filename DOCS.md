@@ -120,7 +120,7 @@ session — enforced by `requireAuth()` from `lib/auth.ts`, which throws a
 |---|---|
 | `GET/POST /api/auth` | `{action: "setup"\|"login"\|"change"\|"logout"}` — passphrase flows |
 | `POST /api/locale` | Set UI language cookie (no auth — usable from the login screen) |
-| `GET/POST /api/[entity]`, `GET/PATCH/DELETE /api/[entity]/[id]` | Generic CRUD over the `ENTITIES` map in `lib/crud.ts` (vehicles, shifts, trips, tips, fuelups, maintenance, expenses, reminders) |
+| `GET/POST /api/[entity]`, `GET/PATCH/DELETE /api/[entity]/[id]` | Generic CRUD over the `ENTITIES` map in `lib/crud.ts` (vehicles, shifts, trips, tips, fuelups, maintenance, expenses, reminders, quests, platformStats) |
 | `GET /api/analytics?vehicleId&period` | Runs `getAnalytics()` — the dashboard's data source |
 | `GET /api/plan?vehicleId` | Runs `getPlan()` — the "Plan your day!" data source |
 | `GET /api/weeks?vehicleId&weeks=12` | Runs `getWeeklyReport()` — Uber-week analytics (§7b) |
@@ -135,6 +135,10 @@ session — enforced by `requireAuth()` from `lib/auth.ts`, which throws a
 | `POST /api/import/activity` | Accepts client-OCR'd Earnings Activity trips (already reviewed by the user) |
 | `POST /api/import/requests` | Accepts client-OCR'd trip-request cards, enriches existing trips with pickup km/address |
 | `POST /api/track` | Appends a batch of GPS points to a shift's track, recomputes `gpsKm` |
+| `GET /api/quest-status?vehicleId` | Running and recent quests with progress and the "same as last week" template (§17) |
+| `GET /api/income?from&to[&vehicleId]` | Proof-of-income statement by calendar month; `to` inclusive, at most 3 years (§17) |
+| `GET/POST /api/push` | Web push: VAPID public key + prefs; `{action: subscribe\|unsubscribe\|prefs\|test\|run}` — `run` also accepts header `x-cron-secret` = `CRON_SECRET` (§17) |
+| `GET /api/keep-sell?vehicleId` | Keep-or-sell picture for one car (§17) |
 | `GET/POST /api/settings` | Locale, photo retention days, `geocodeEnabled`, default vehicle (commission % is legacy — see §7) |
 
 ### Prisma 7 (moved 2026-10-14)
@@ -214,13 +218,17 @@ always allow free-text notes.
 |---|---|---|
 | `Setting` | Key-value store | `passphraseHash`, session JWT secret, `commissionPcts` (JSON, legacy), `photoRetentionDays` |
 | `Vehicle` | One profile per car | `fuelSetup` (PETROL/CNG/DUAL), `ownership` (OWNED/INSTALLMENT/RENTED/TARGET — drives the cost model), `purchasePrice`/`estimatedValue`, `depreciationMethod` (MILEAGE/LIFETIME/MANUAL), `depreciationEnabled` (master switch), `mileageSensitivityPct`, `depreciationPerKm` (MANUAL) |
-| `Shift` | One driving session | `startOdometer`/`endOdometer` (the km-split anchor — **both mandatory**: the API rejects a shift closed without an end reading above the start, since every km cost hangs off it), `startPhoto`/`endPhoto`, `gpsKm` + `track` (JSON `[[epochMs,lat,lng],…]` from in-app GPS tracking) |
+| `Shift` | One driving session | `endReason` (optional: target/tired/slow/traffic/car/personal), `startOdometer`/`endOdometer` (the km-split anchor — **both mandatory**: the API rejects a shift closed without an end reading above the start, since every km cost hangs off it), `startPhoto`/`endPhoto`, `gpsKm` + `track` (JSON `[[epochMs,lat,lng],…]` from in-app GPS tracking) |
 | `Trip` | One ride-hailing trip | `fare`/`commission` (see net-first note below), `paymentType` (CASH/CARD — drives cash reconciliation), `pickupKm`/`pickupMin` (from trip-request cards or typed), `durationMin` (minutes with the rider), `pickupLat/Lng`/`dropoffLat/Lng` (from the shift's GPS track or the phone at quick-add), `pickupAddress`/`dropoffAddress` (Google place labels from screenshots), `source` (MANUAL/CSV/STATEMENT/OCR) |
-| `CashTip` | A cash tip not tied to a specific trip | |
+| `CashTip` | A cash tip not tied to a specific trip, or a platform bonus | `kind` TIP\|BONUS — statement promotions/quests/boosts are BONUS and shown on their own line |
 | `FuelUp` | One fill-up | `fuelType` (PETROL_80/92/95/CNG), `fullTank` (full-to-full pairs drive the L/100km calculation) |
 | `Maintenance` | One service event | `category` enum-by-convention (OIL, TIRES, CNG_SERVICE, …) |
 | `Expense` | Non-maintenance running cost | `isWork` (personal expenses excluded from true profit) |
 | `Reminder` | Service reminder | `dueDate`/`dueOdometer`, `repeatKm`/`repeatMonths` for recurring reminders |
+| `Quest` | A platform quest the driver chases | `platform`, `startAt`/`endAt`, `tiers` (JSON `[{trips, reward}]`) — progress is counted from trips, never stored |
+| `PlatformStat` | The platform's weekly scorecard | `weekKey` + `platform` (unique per car), `rating`, `acceptanceRate`, `cancellationRate` |
+| `PushSubscription` | One browser subscribed to notifications | `endpoint` (unique), `p256dh`, `auth`, `lastSentAt` |
+| `NotifyLog` | Notifications already sent | `key` (e.g. `svc:<id>:changeNow`, `week:<car>:<week>`) — each sent once; rows older than 60 days are pruned |
 
 ### The "net-first" money model — important, non-obvious
 
@@ -1030,3 +1038,76 @@ becomes necessary for background GPS or Android notification-based auto
 trip capture — and it brings Apple Developer Program ($99/yr) + Google
 Play ($25 one-time) + store review, plus their revenue cut if subscriptions
 are sold through the store rather than routed externally.
+
+---
+
+## 17. Bonuses, proof of income, notifications, comfort pack (added 2026-10-24)
+
+Migration `20261024120000_bonuses_quests_stats_push` (run `npm run db:sync`
+on an existing database) adds `CashTip.kind`, `Shift.endReason` and the
+`Quest`, `PlatformStat`, `PushSubscription`, `NotifyLog` tables, and
+backfills past statement bonuses (notes mentioning promotion/quest/boost/
+incentive) to `kind = BONUS`.
+
+**Bonuses and quests.** Uber has no driver API, so nothing is read live.
+`app/api/import/statement` now stores statement bonus rows through
+`applyBonus` (`lib/importApply.ts`) — always a `CashTip` of kind BONUS,
+deduped by day + amount, never attached to a trip as a tip. `lib/analytics`
+and `lib/weekly` split `earnings.bonuses` out of tips (net revenue still
+includes them). A quest is typed once (`components/Quests.tsx`: screenshot →
+`parseQuestText`, or the tier editor, or "same as last week");
+`lib/quests.ts` (pure, tested) turns tiers + trips counted in the window +
+the driver's own trips-per-online-hour into `next`, `tripsToNext`,
+`hoursNeeded`, `bonusPerHour` and a verdict (done/onTrack/stretch/unlikely/
+ended). `lib/questStatus.ts` gathers it per car.
+
+**Proof of income** (`/income`, `lib/income.ts`). Calendar months through
+`getAnalytics(id, {from, to})` — `getAnalytics` now takes an exact range as
+well as a named period. Leading empty months (car added mid-window) are
+dropped so a bank sees only months worked. The page renders an A4
+`<article class="statement">` in the chosen document language via
+`translate(docLocale, …)`; `@media print` in `globals.css` hides the app
+chrome (`.no-print`).
+
+**Phone notifications.** `lib/push.ts` signs with VAPID keys generated on
+first use and kept in `Setting("vapid")` (or `VAPID_PUBLIC_KEY`/
+`VAPID_PRIVATE_KEY`; subject `VAPID_SUBJECT`, default a mailto — Apple
+rejects localhost subjects). Gone subscriptions (404/410) are deleted.
+`lib/notifyRules.ts` is the pure rule set (tested): from a per-car snapshot
+it returns notes with stable keys; quiet 23:00–08:00 except long-shift
+nudges. `lib/notify.ts` builds the snapshot (weekly report, daily target,
+quests, drive state, best hour, reminders, last 40 fill-ups), sends at most
+three unsent notes per run and logs each key in `NotifyLog` even if no
+device accepted it (no retry storms). `instrumentation.ts` starts a 5-minute
+interval in the Node runtime (`NOTIFY_DISABLED=1` turns it off); hosts that
+freeze idle servers can POST `{action:"run"}` with `x-cron-secret`.
+`public/sw.js` shows the notification and focuses/opens the target screen.
+Prefs (`Setting("notify.prefs")`) and the language notifications are written
+in (`Setting("notify.locale")`, set when subscribing) come from Settings.
+
+**Comfort pack** — all pure and tested in `tests/comfort.test.ts`:
+`lib/carFund.ts` (wear to set aside = maintenance cost/km × business km;
+next bill and the eight-week lump from service reminders' last cost),
+`lib/fuelInsights.ts` (full-to-full tank windows; drift = last two tanks vs
+the median of up to ten before, warn at +12%, needs five windows; CNG
+savings for DUAL cars at the latest price of each fuel), `lib/acceptRule.ts`
+(minimum fare/km = cost/km + 0.75 × usual profit/hour ÷ trip speed — the
+same line the offer score draws between ok and bad; the driver's edits are
+kept per car on the phone). Reminders get one-tap paper templates; the drive
+sheet shows break nudges at 4/10/12 h.
+
+**Months & years** (`/months`) reuses `/api/income` per calendar year and
+compares only months that had activity last year. **Keep or sell**
+(`lib/keepOrSellRules.ts` pure + `lib/keepOrSell.ts`): last ~3 worked months
+of profit before depreciation, value loss from the car's own depreciation
+model at its mileage, repairs counted as often as they fall due within the
+year, maintenance per km year on year; verdict sell if a year's profit
+doesn't cover value loss or the year's repairs exceed half the value
+(the common 50% rule), watch if maintenance/km is up 30%+ or repairs exceed
+three months of profit. **Platform scorecard** (`components/PlatformStats.tsx`)
+writes `PlatformStat` through the generic CRUD; **end reasons** are chips in
+`EndShiftFlow` stored on `Shift.endReason` and summarised on Weeks.
+
+Fuel prices per fill-up are deliberately not collected: Egypt sets pump
+prices nationally (as do most MENA markets), so the price on any receipt is
+the price everywhere that week.
