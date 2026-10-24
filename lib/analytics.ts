@@ -296,8 +296,11 @@ export function reminderStatuses(
 
 export type Analytics = Awaited<ReturnType<typeof getAnalytics>>;
 
-export async function getAnalytics(vehicleId: string, period: Period) {
-  const range = periodRange(period);
+/** A named period, or an exact window (income statements, month and year views). */
+export type PeriodOrRange = Period | { from: Date; to: Date };
+
+export async function getAnalytics(vehicleId: string, period: PeriodOrRange) {
+  const range = typeof period === "string" ? periodRange(period) : period;
   const from = range?.from ?? null;
   const dateFilter = range ? { gte: range.from, lt: range.to } : undefined;
 
@@ -386,10 +389,13 @@ export async function getAnalytics(vehicleId: string, period: Period) {
   const fares = trips.reduce((s, t) => s + t.fare, 0);
   const commission = trips.reduce((s, t) => s + tripCommission(t, pcts), 0);
   const tripTips = trips.reduce((s, t) => s + t.tip, 0);
-  const standaloneTips = cashTips.reduce((s, t) => s + t.amount, 0);
+  // platform promotions/quests/boosts arrive as BONUS rows: income like a
+  // tip, but shown on their own line
+  const bonuses = cashTips.filter((t) => t.kind === "BONUS").reduce((s, t) => s + t.amount, 0);
+  const standaloneTips = cashTips.filter((t) => t.kind !== "BONUS").reduce((s, t) => s + t.amount, 0);
   const tips = tripTips + standaloneTips;
-  const gross = fares + tips;
-  const netRevenue = fares - commission + tips;
+  const gross = fares + tips + bonuses;
+  const netRevenue = fares - commission + tips + bonuses;
 
   // ---- Allocated costs (work share) ----
   const allocFuel = fuelCostPerKm * shiftKm;
@@ -490,7 +496,7 @@ export async function getAnalytics(vehicleId: string, period: Period) {
       utilizationPct: onlineMin > 0 ? (tripMin / onlineMin) * 100 : null,
       perTripMin: trips.length > 0 && tripMin > 0 ? tripMin / trips.length : null,
     },
-    earnings: { fares, commission, tips, gross, netRevenue },
+    earnings: { fares, commission, tips, bonuses, gross, netRevenue },
     costs: {
       // commission kept for the cash panel; NOT a cost row — earnings are net
       commission,
@@ -539,6 +545,7 @@ export async function getProfileAnalytics(period: Period) {
         fares: sum((a) => a.earnings.fares),
         commission: sum((a) => a.earnings.commission),
         tips: sum((a) => a.earnings.tips),
+        bonuses: sum((a) => a.earnings.bonuses),
         gross: sum((a) => a.earnings.gross),
         netRevenue: sum((a) => a.earnings.netRevenue),
       },

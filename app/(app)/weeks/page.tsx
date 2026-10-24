@@ -403,6 +403,7 @@ function WeeksInner() {
                 <Row label={t("wk.cardNet")} value={money(week.earnings.cardNet)} sub={t("tr.tripCount", { n: week.counts.cardTrips })} />
                 <Row label={t("wk.cashNet")} value={money(week.earnings.cashNet)} sub={t("tr.tripCount", { n: week.counts.cashTrips })} />
                 <Row label={t("tr.tip")} value={money(week.earnings.tips)} />
+                {week.earnings.bonuses > 0 && <Row label={t("quest.bonuses")} value={money(week.earnings.bonuses)} />}
                 <Row label={t("db.gross")} value={money(week.earnings.netRevenue)} bold />
                 <Row label={t("db.fuelCost")} value={`− ${money(week.costs.fuel)}`} muted />
                 <Row label={t("db.maintCost")} value={`− ${money(week.costs.maintenance)}`} muted />

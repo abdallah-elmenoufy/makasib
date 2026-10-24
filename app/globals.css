@@ -489,3 +489,14 @@ input[type="number"] {
 .tbl th {
   white-space: nowrap;
 }
+
+/* ---- printing (income statement) -------------------------------------- */
+@media print {
+  @page { size: A4; margin: 14mm; }
+  body { background: #fff !important; }
+  nav, header.sticky, .no-print, [data-no-print] { display: none !important; }
+  .statement th, .statement td { display: table-cell !important; }
+  main { padding: 0 !important; max-width: none !important; }
+  .statement { border: 0 !important; box-shadow: none !important; padding: 0 !important; border-radius: 0 !important; opacity: 1 !important; }
+  .statement * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

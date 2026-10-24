@@ -60,7 +60,7 @@ export function ActivityBadge() {
   const { tasks } = useActivity();
   if (tasks.length === 0) return null;
   return (
-    <div className="fixed bottom-[calc(var(--nav-h)+12px)] md:bottom-4 inset-x-0 z-50 flex justify-center px-4 pointer-events-none">
+    <div className="no-print fixed bottom-[calc(var(--nav-h)+12px)] md:bottom-4 inset-x-0 z-50 flex justify-center px-4 pointer-events-none">
       <div className="bg-action text-action-fg text-xs font-semibold rounded-full px-4 py-2 shadow-lg flex items-center gap-2 max-w-full">
         <span className="inline-block w-3 h-3 rounded-full border-2 border-hero-fg/40 border-t-white animate-spin shrink-0" />
         <span className="truncate">{tasks[tasks.length - 1].label}</span>

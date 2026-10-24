@@ -9,6 +9,7 @@ import { useVehicle } from "@/components/VehicleProvider";
 import { BarChart, CHART, Ring } from "@/components/charts";
 import { DriveCard } from "@/components/Drive";
 import { ServiceAlertsCard } from "@/components/ServiceAlerts";
+import { QuestCard } from "@/components/Quests";
 import { Detailed, MoreDetailsButton, useViewMode, ViewModeToggle } from "@/components/ViewMode";
 import { useOnChanged } from "@/components/dataBus";
 import { fmtDate, fmtInt, fmtMoney, fmtMoneyShort, fmtNum, localizeDigits, sep } from "@/lib/format";
@@ -272,6 +273,9 @@ export default function DashboardPage() {
 
       {/* today's target */}
       {target && <DailyTargetCard target={target} onHours={setPlannedHours} t={t} locale={locale} simple={simple} />}
+
+      {/* a platform quest: entered once, progress counted from logged trips */}
+      <QuestCard />
 
       {/* where to go right now — this hour, this kind of day, from the driver's own trips */}
       {nowHint && <WhereNowCard hint={nowHint} t={t} locale={locale} />}

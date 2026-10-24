@@ -13,6 +13,7 @@ import { TripBatchEntry } from "./TripBatchEntry";
 import { EndShiftFlow } from "./EndShiftFlow";
 import { GpsTracker } from "./GpsTracker";
 import { CarRender } from "./CarRender";
+import { QuestMini } from "./Quests";
 import { fmtInt, fmtMoney, fmtNum, localizeDigits, sep, toLocalInput } from "@/lib/format";
 
 /* ---------------------------------------------------------------------------
@@ -316,6 +317,7 @@ function LivePanel({
   return (
     <div className="space-y-4">
       <LiveTally state={state} minutes={min} />
+      <QuestMini />
       <QuickAddTrip vehicleId={vehicleId} onAdded={onChanged} bare />
       <div className="grid grid-cols-2 gap-2">
         <ActionTile icon="plus" label={t("drive.several")} onClick={onBatch} />
@@ -446,7 +448,7 @@ export function DriveStrip() {
   const min = useElapsedMin(state?.active?.startTime);
   if (!state?.active || pathname === "/" || pathname.startsWith("/shifts")) return null;
   return (
-    <div className="fixed z-30 inset-x-3 bottom-[calc(var(--nav-h)+env(safe-area-inset-bottom)+10px)] md:inset-x-auto md:end-6 md:bottom-6 md:w-[360px] animate-sheet-in">
+    <div className="no-print fixed z-30 inset-x-3 bottom-[calc(var(--nav-h)+env(safe-area-inset-bottom)+10px)] md:inset-x-auto md:end-6 md:bottom-6 md:w-[360px] animate-sheet-in">
       <button type="button" onClick={() => open()} className="w-full hero-surface text-hero-fg rounded-2xl shadow-[var(--shadow-lg)] ps-4 pe-2 h-14 flex items-center gap-3 text-start">
         <span className="relative flex w-2.5 h-2.5 shrink-0">
           <span className="absolute inline-flex h-full w-full rounded-full bg-[var(--hero-accent)] opacity-60 animate-ping" />

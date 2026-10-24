@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { parseStatementText } from "@/lib/uberStatement";
-import { applyTrips, applyTip, applyFee, IncomingTrip } from "@/lib/importApply";
+import { applyTrips, applyTip, applyBonus, applyFee, IncomingTrip } from "@/lib/importApply";
 
 export async function POST(req: NextRequest) {
   try {
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     }
     let bonuses = 0;
     for (const r of parsed.records.filter((x) => x.kind === "bonus")) {
-      if ((await applyTip(vehicleId, r.eventAt, r.earnings, r.product)) !== "skipped") bonuses++;
+      if ((await applyBonus(vehicleId, r.eventAt, r.earnings, r.product)) !== "skipped") bonuses++;
     }
     let fees = 0;
     for (const r of parsed.records.filter((x) => x.kind === "fee")) {

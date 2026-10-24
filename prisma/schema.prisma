@@ -87,6 +87,8 @@ model Vehicle {
   maintenances Maintenance[]
   expenses     Expense[]
   reminders    Reminder[]
+  quests       Quest[]
+  platformStats PlatformStat[]
   cashTips     CashTip[]
 }
 
@@ -104,6 +106,8 @@ model Shift {
   endPhoto      String?
   gpsKm         Float? // distance measured by in-shift GPS tracking
   track         String? // JSON [[epochMs,lat,lng],…] recorded during the shift
+  // why the driver stopped: TIRED | TARGET | SLOW | PERSONAL | OTHER (end-of-shift chip)
+  endReason     String?
   notes         String?
   createdAt     DateTime  @default(now())
 
@@ -151,6 +155,9 @@ model CashTip {
   shift     Shift?   @relation(fields: [shiftId], references: [id], onDelete: SetNull)
   date      DateTime
   amount    Float
+  // TIP | BONUS — platform promotions, quests and boosts are income too, but
+  // drivers want to see them apart from tips (weekly statement imports)
+  kind      String   @default("TIP")
   notes     String?
   createdAt DateTime @default(now())
 }
@@ -226,4 +233,52 @@ model Reminder {
   active           Boolean   @default(true)
   notes            String?
   createdAt        DateTime  @default(now())
+}
+
+// A platform quest the driver is chasing ("50 trips Mon 04:00 → Mon 04:00 =
+// EGP 500"). Entered once (screenshot or three numbers); progress is counted
+// from the trips already logged/imported in the window.
+model Quest {
+  id         String   @id @default(cuid())
+  vehicleId  String
+  vehicle    Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  platform   String   @default("UBER")
+  startAt    DateTime
+  endAt      DateTime
+  // JSON [{"trips":30,"reward":200},{"trips":50,"reward":500}] — rewards are totals per tier
+  tiers      String
+  notes      String?
+  createdAt  DateTime @default(now())
+}
+
+// Weekly platform health the driver copies from the app (rating, acceptance,
+// cancellation) — kept so later analysis can link them to earnings.
+model PlatformStat {
+  id               String   @id @default(cuid())
+  vehicleId        String
+  vehicle          Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  weekKey          String
+  platform         String   @default("UBER")
+  rating           Float?
+  acceptanceRate   Float?
+  cancellationRate Float?
+  createdAt        DateTime @default(now())
+
+  @@unique([vehicleId, weekKey, platform])
+}
+
+// Web-push subscription of one installed browser/phone.
+model PushSubscription {
+  id         String    @id @default(cuid())
+  endpoint   String    @unique
+  p256dh     String
+  auth       String
+  createdAt  DateTime  @default(now())
+  lastSentAt DateTime?
+}
+
+// One row per notification sent, keyed so the same event never notifies twice.
+model NotifyLog {
+  key    String   @id
+  sentAt DateTime @default(now())
 }

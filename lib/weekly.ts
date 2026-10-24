@@ -64,6 +64,8 @@ export type WeekSummary = {
   earnings: {
     fares: number;
     tips: number;
+    /** Platform promotions, quests and boosts (statement imports). */
+    bonuses: number;
     netRevenue: number;
     cardNet: number;
     cashNet: number;
@@ -286,8 +288,9 @@ function summarizeWeek(range: WeekRange, rows: Rows, vehicle: Vehicle, rates: Ra
   const fares = trips.reduce((s, t) => s + t.fare, 0);
   const commission = trips.reduce((s, t) => s + (t.commission ?? 0), 0);
   const tripTips = trips.reduce((s, t) => s + t.tip, 0);
-  const standaloneTips = tips.reduce((s, t) => s + t.amount, 0);
-  const netRevenue = fares - commission + tripTips + standaloneTips;
+  const bonuses = tips.filter((t) => t.kind === "BONUS").reduce((s, t) => s + t.amount, 0);
+  const standaloneTips = tips.filter((t) => t.kind !== "BONUS").reduce((s, t) => s + t.amount, 0);
+  const netRevenue = fares - commission + tripTips + standaloneTips + bonuses;
   const cashTrips = trips.filter((t) => t.paymentType === "CASH");
   const cardTrips = trips.filter((t) => t.paymentType !== "CASH");
 
@@ -405,6 +408,7 @@ function summarizeWeek(range: WeekRange, rows: Rows, vehicle: Vehicle, rates: Ra
     earnings: {
       fares: r2(fares),
       tips: r2(tripTips + standaloneTips),
+      bonuses: r2(bonuses),
       netRevenue: r2(netRevenue),
       cardNet: r2(cardTrips.reduce((s, t) => s + tripNet(t), 0)),
       cashNet: r2(cashTrips.reduce((s, t) => s + tripNet(t), 0)),

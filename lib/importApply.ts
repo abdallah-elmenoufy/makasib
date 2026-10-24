@@ -141,6 +141,21 @@ export async function applyTip(
   return "standalone";
 }
 
+/**
+ * Platform promotion, quest or boost → income marked BONUS, deduped by
+ * date+amount. Never attached to a trip as its tip: a quest paid at 04:00
+ * Monday has nothing to do with the trip that happened to start nearby.
+ */
+export async function applyBonus(vehicleId: string, eventAt: Date, amount: number, label: string): Promise<"created" | "skipped"> {
+  const dupe = await prisma.cashTip.findFirst({ where: { vehicleId, date: eventAt, amount } });
+  if (dupe) {
+    if (dupe.kind !== "BONUS") await prisma.cashTip.update({ where: { id: dupe.id }, data: { kind: "BONUS", notes: dupe.notes ?? label } });
+    return "skipped";
+  }
+  await prisma.cashTip.create({ data: { vehicleId, date: eventAt, amount, notes: label, kind: "BONUS" } });
+  return "created";
+}
+
 /** Platform fee (e.g. Flex Pay Fee) → work expense, deduped by date+amount. */
 export async function applyFee(
   vehicleId: string,

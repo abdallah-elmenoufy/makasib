@@ -35,6 +35,7 @@ const GROUPS: { key: string; items: Item[] }[] = [
       { href: "/plan", key: "nav.plan", icon: "map" },
       { href: "/score", key: "nav.score", icon: "bolt" },
       { href: "/import", key: "nav.import", icon: "download" },
+      { href: "/income", key: "nav.income", icon: "wallet" },
     ],
   },
   {
@@ -192,6 +193,7 @@ const TINT: Record<string, string> = {
   "/plan": "tint-sky",
   "/score": "tint-amber",
   "/import": "tint-violet",
+  "/income": "tint-green",
   "/fuel": "tint-amber",
   "/maintenance": "tint-violet",
   "/expenses": "tint-rose",
