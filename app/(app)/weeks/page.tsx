@@ -9,6 +9,7 @@ import { useVehicle } from "@/components/VehicleProvider";
 import { BarChart, CHART, HBars, HeatStrip } from "@/components/charts";
 import { Detailed, MoreDetailsButton, useViewMode, ViewModeToggle } from "@/components/ViewMode";
 import { useOnChanged } from "@/components/dataBus";
+import { EndReasonsCard, PlatformStatsCard } from "@/components/PlatformStats";
 import { fmtDate, fmtDateTime, fmtHourRange, fmtInt, fmtMoney, fmtMoneyShort, fmtNum, localizeDigits, sep } from "@/lib/format";
 import { weekKey, weekStartFor } from "@/lib/week";
 
@@ -477,7 +478,11 @@ function WeeksInner() {
             {(zoneScope === "week" ? week.pickupZones : report.allTime.pickupZones).length === 0 && <Empty>{t("wk.zonesEmpty")}</Empty>}
           </Card>
 
+          {/* the platform's own scorecard, typed weekly — no driver API to read it */}
+          {vehicle && <PlatformStatsCard vehicleId={vehicle.id} weekKey={week.key} weekLabel={shortRange(week, locale)} />}
+
           <Detailed>
+          {vehicle && <EndReasonsCard vehicleId={vehicle.id} />}
           {week.platforms.length > 1 && (
             <Card>
               <CardHead icon="car" title={t("db.platformTitle")} />

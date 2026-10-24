@@ -7,6 +7,7 @@ import { useViewMode } from "@/components/ViewMode";
 import { PAINTS } from "@/lib/carRender";
 import { DEFAULT_MILEAGE_SENSITIVITY_PCT, DEFAULT_LIFETIME_KM, RESIDUAL_RATIO, ANNUAL_DEPRECIATION_RATE, VALUE_FLOOR_RATIO } from "@/lib/depreciation";
 import { useCrud } from "@/components/useCrud";
+import { KeepOrSellSheet } from "@/components/KeepOrSell";
 import { useVehicle } from "@/components/VehicleProvider";
 import { fmtDate, fmtMoney, fmtMoneyShort, fmtNum, sep } from "@/lib/format";
 
@@ -18,6 +19,7 @@ export default function CarsPage() {
   const { rows: vehicles, loading, create, update, remove, refresh } = useCrud<any>("vehicles");
   const { vehicle: defaultVehicle, setDefaultVehicle, refreshVehicles } = useVehicle();
   const [editing, setEditing] = useState<any>(null); // vehicle row being edited, or {} for new
+  const [keepSell, setKeepSell] = useState<any>(null);
   const [overview, setOverview] = useState<{ summaries: any[]; insights: any[] } | null>(null);
   const { mode } = useViewMode();
 
@@ -133,6 +135,11 @@ export default function CarsPage() {
                     <Btn variant="secondary" size="sm" onClick={() => setEditing(v)}>
                       {t("c.edit")}
                     </Btn>
+                    {v.isActive && s?.hasRecords && (
+                      <Btn variant="secondary" size="sm" onClick={() => setKeepSell(v)}>
+                        {t("ks.button")}
+                      </Btn>
+                    )}
                     {!isDefault && v.isActive && (
                       <Btn variant="secondary" size="sm" onClick={() => setDefaultVehicle(v.id)}>
                         {t("cars.setDefault")}
@@ -161,6 +168,7 @@ export default function CarsPage() {
           })}
         </div>
       )}
+      <KeepOrSellSheet vehicleId={keepSell?.id ?? null} name={keepSell ? carTitle(keepSell, locale) : ""} onClose={() => setKeepSell(null)} />
     </div>
   );
 }

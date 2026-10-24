@@ -17,6 +17,9 @@ import { fmtDateTime, fmtInt, fmtMoney, fmtNum, hoursBetween, toLocalInput, sep 
  *      ("That's all"); otherwise the batch entry, or the screenshot import.
  *   3. A recap of the shift: hours, km, trips, what it made.
  */
+/** Why the driver stopped — over weeks this shows whether shifts end on purpose or by attrition. */
+export const END_REASONS = ["target", "tired", "slow", "traffic", "car", "personal"] as const;
+
 export function EndShiftFlow({
   open,
   onClose,
@@ -46,6 +49,7 @@ export function EndShiftFlow({
   const [time, setTime] = useState(toLocalInput());
   const [photo, setPhoto] = useState<string | null>(null);
   const [notes, setNotes] = useState(shift.notes ?? "");
+  const [reason, setReason] = useState<string | null>(null);
   const [extras, setExtras] = useState(false);
   const [ocrHint, setOcrHint] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -72,7 +76,7 @@ export function EndShiftFlow({
     setBusy(true);
     setError("");
     const endTime = new Date(extras ? time : Date.now()).toISOString();
-    const ok = await onEnd({ endTime, endOdometer: odo, endPhoto: photo, notes });
+    const ok = await onEnd({ endTime, endOdometer: odo, endPhoto: photo, notes, ...(reason ? { endReason: reason } : {}) });
     setBusy(false);
     if (!ok) return setError(t("c.error"));
     setClosed({ endOdometer: end, endTime });
@@ -172,6 +176,21 @@ export function EndShiftFlow({
               {t("drive.endedEarlier")}
             </button>
           )}
+          <div>
+            <div className="text-xs font-bold text-ink-500 mb-2">{t("sh.whyStop")}</div>
+            <div className="flex flex-wrap gap-2">
+              {END_REASONS.map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setReason((x) => (x === r ? null : r))}
+                  className={`h-10 px-3.5 rounded-full text-sm font-bold border transition-colors ${reason === r ? "bg-action text-action-fg border-action" : "bg-sheet border-line text-ink"}`}
+                >
+                  {t(`sh.reason.${r}`)}
+                </button>
+              ))}
+            </div>
+          </div>
           {error && <p className="text-sm text-loss">{error}</p>}
           <Btn type="submit" variant="big" disabled={busy || !odo}>
             <Icon name="stop" size={20} /> {t("sh.closeShift")}
