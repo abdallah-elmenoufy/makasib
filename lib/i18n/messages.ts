@@ -3,6 +3,8 @@ export type Locale = "en" | "ar";
 export const LOCALES: Locale[] = ["en", "ar"];
 
 const en: Record<string, string> = {
+  "cars.drivenSinceAdded": "Driven since added to Makasib",
+  "cars.drivenSinceSub": "Since {date} · {from} → {now} km",
   "svc.alertTitle": "Time to change",
   "svc.alertSub": "Amber at 80% of a part's life, red at 90%. Tap \"I changed it\" once it's done.",
   "svc.state.dueSoon": "Change soon",
@@ -830,6 +832,8 @@ const en: Record<string, string> = {
 };
 
 const ar: Record<string, string> = {
+  "cars.drivenSinceAdded": "مشيت كام من ساعة ما اتضافت لمكاسب",
+  "cars.drivenSinceSub": "من {date}، {from} ← {now} كم",
   "svc.alertTitle": "وقت التغيير",
   "svc.alertSub": "أصفر لما الحتة تخلص ٨٠٪ من عمرها، وأحمر عند ٩٠٪. اضغط \"غيّرتها\" أول ما تغيّرها.",
   "svc.state.dueSoon": "غيّرها قريب",

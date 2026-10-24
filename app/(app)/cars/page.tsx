@@ -8,7 +8,7 @@ import { PAINTS } from "@/lib/carRender";
 import { DEFAULT_MILEAGE_SENSITIVITY_PCT, DEFAULT_LIFETIME_KM, RESIDUAL_RATIO, ANNUAL_DEPRECIATION_RATE, VALUE_FLOOR_RATIO } from "@/lib/depreciation";
 import { useCrud } from "@/components/useCrud";
 import { useVehicle } from "@/components/VehicleProvider";
-import { fmtMoney, fmtNum, sep } from "@/lib/format";
+import { fmtDate, fmtMoney, fmtMoneyShort, fmtNum, sep } from "@/lib/format";
 
 const FUEL_SETUPS = ["PETROL", "CNG", "DUAL"];
 const OWNERSHIPS = ["OWNED", "INSTALLMENT", "RENTED", "TARGET"];
@@ -75,46 +75,61 @@ export default function CarsPage() {
       {vehicles.length === 0 ? (
         <Empty>{t("veh.createFirst")}</Empty>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="space-y-3">
           {vehicles.map((v: any) => {
             const s = summaryFor(v.id);
             const isDefault = defaultVehicle?.id === v.id;
             return (
-              <Card key={v.id} className={`!p-0 overflow-hidden ${!v.isActive ? "opacity-60" : ""}`}>
-                {/* Uber-style driver card: render on one side, plate and car on the other */}
-                <div className="flex items-center gap-2 px-4 pt-4">
-                  <CarRender make={v.make} model={v.model} color={v.color} className="w-[46%] max-w-[220px] -ms-2 shrink-0" title={carTitle(v, locale)} />
-                  <div className="min-w-0 flex-1 text-end">
-                    {v.plate ? (
-                      <div dir="rtl" className="inline-block text-[24px] leading-tight font-bold tnum tracking-wide">{v.plate}</div>
-                    ) : (
-                      <div className="text-[20px] font-bold leading-tight truncate">{v.name}</div>
-                    )}
-                    <div className="text-sm text-ink-500 mt-0.5 truncate">{carTitle(v, locale)}</div>
-                    <div className="flex flex-wrap justify-end gap-1.5 mt-2">
-                      {v.transmission && <Badge tone="neutral">{t(`veh.trans.${v.transmission}`)}</Badge>}
-                      {v.year && <Badge tone="neutral">{v.year}</Badge>}
-                      {isDefault && <Badge tone="good">✓ {t("cars.default")}</Badge>}
-                      {!v.isActive && <Badge tone="warn">{t("cars.archived")}</Badge>}
+              <Card key={v.id} className={`!p-0 overflow-hidden @container ${!v.isActive ? "opacity-60" : ""}`}>
+                {/* one wide row per car: picture · identity · figures · actions.
+                    Breakpoints follow the card's own width, not the screen's,
+                    so the desktop sidebar can't squeeze it into two columns. */}
+                <div className="grid grid-cols-1 @2xl:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] @4xl:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)_auto] gap-x-6 gap-y-3 p-4 @2xl:p-5 items-center">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <CarRender make={v.make} model={v.model} color={v.color} className="w-[42%] max-w-[210px] -ms-2 shrink-0" title={carTitle(v, locale)} />
+                    <div className="min-w-0 flex-1">
+                      {v.plate && <div dir="rtl" className="text-[24px] leading-tight font-bold tnum tracking-wide text-start">{v.plate}</div>}
+                      <div className={`${v.plate ? "text-sm text-ink-500" : "text-[20px] font-bold"} leading-snug truncate`}>{v.plate ? carTitle(v, locale) : v.name}</div>
+                      {v.plate && <div className="text-[15px] font-bold truncate">{v.name}</div>}
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {v.transmission && <Badge tone="neutral">{t(`veh.trans.${v.transmission}`)}</Badge>}
+                        {v.year && <Badge tone="neutral">{v.year}</Badge>}
+                        {isDefault && <Badge tone="good">✓ {t("cars.default")}</Badge>}
+                        {!v.isActive && <Badge tone="warn">{t("cars.archived")}</Badge>}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="px-4 pb-4">
-                  {v.plate && <div className="text-[15px] font-bold mt-1">{v.name}</div>}
-                  <StatGrid cols={mode === "simple" ? 3 : 4}>
-                    <StatCell label={t("cars.allTimeProfit")} value={s ? money(s.trueProfit) : "—"} tone={s && s.trueProfit < 0 ? "bad" : "good"} />
-                    <StatCell label={t("cars.kmDriven")} value={s ? `${fmtNum(s.kmSinceRecord, locale, 0)} ${t("c.km")}` : "—"} />
-                    <StatCell label={t("cars.health")} value={s?.healthScore != null ? fmtNum(s.healthScore, locale, 0) : "—"} tone={s?.healthScore == null ? "default" : s.healthScore >= 70 ? "good" : s.healthScore >= 40 ? "warn" : "bad"} title={t("cars.healthHint")} />
-                    {mode === "detailed" && (
-                      <>
-                        <StatCell label={t("veh.ownership")} value={t(`veh.own.${v.ownership}`)} />
-                        <StatCell label={t("cars.currentOdo")} value={s ? fmtNum(s.currentOdo, locale, 0) : "—"} />
-                        <StatCell label={t("cars.currentValue")} value={s?.currentValue != null ? money(s.currentValue) : "—"} />
-                        <StatCell label={t("cars.depSoFar")} value={s?.depreciationSoFar != null ? money(s.depreciationSoFar) : "—"} tone="warn" />
-                      </>
-                    )}
-                  </StatGrid>
-                  <div className="flex items-center gap-2 mt-4 flex-wrap">
+
+                  <div className="min-w-0 border-t @2xl:border-t-0 @2xl:border-s border-line pt-3 @2xl:pt-0 @2xl:ps-6">
+                    {/* the headline: distance since the car joined Makasib */}
+                    <div className="flex items-end justify-between gap-3 flex-wrap">
+                      <div className="min-w-0">
+                        <div className="text-[13px] font-bold text-ink-500">{t("cars.drivenSinceAdded")}</div>
+                        <div className="text-[30px] font-bold display leading-none mt-1.5 tnum">
+                          {s ? fmtNum(s.kmSinceRecord, locale, 0) : "—"} <span className="text-base font-bold text-muted">{t("c.km")}</span>
+                        </div>
+                        <div className="text-xs text-muted mt-1.5 tnum">
+                          {t("cars.drivenSinceSub", { date: fmtDate(s?.trackedSince ?? v.createdAt, locale), from: fmtNum(v.initialOdometer, locale, 0), now: s ? fmtNum(s.currentOdo, locale, 0) : "—" })}
+                        </div>
+                      </div>
+                      <div className="@md:text-end">
+                        <div className="text-[13px] font-bold text-ink-500">{t("cars.allTimeProfit")}</div>
+                        <div className={`text-[24px] font-bold display leading-none mt-1.5 ${s && s.trueProfit < 0 ? "text-loss" : "text-money"}`}>{s ? money(s.trueProfit) : "—"}</div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-3 mt-4">
+                      <StatCell label={t("cars.health")} value={s?.healthScore != null ? fmtNum(s.healthScore, locale, 0) : "—"} tone={s?.healthScore == null ? "default" : s.healthScore >= 70 ? "good" : s.healthScore >= 40 ? "warn" : "bad"} title={t("cars.healthHint")} />
+                      <StatCell label={t("veh.ownership")} value={t(`veh.own.${v.ownership}`)} />
+                      {mode === "detailed" && (
+                        <>
+                          <StatCell label={t("cars.currentValue")} value={s?.currentValue != null ? fmtMoneyShort(s.currentValue, locale) : "—"} />
+                          <StatCell label={t("cars.depSoFar")} value={s?.depreciationSoFar != null ? fmtMoneyShort(s.depreciationSoFar, locale) : "—"} tone="warn" />
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex @4xl:flex-col items-center @4xl:items-stretch gap-2 flex-wrap @2xl:col-span-2 @4xl:col-span-1">
                     <Btn variant="secondary" size="sm" onClick={() => setEditing(v)}>
                       {t("c.edit")}
                     </Btn>
@@ -123,7 +138,7 @@ export default function CarsPage() {
                         {t("cars.setDefault")}
                       </Btn>
                     )}
-                    <span className="ms-auto flex items-center gap-3">
+                    <span className="ms-auto @4xl:ms-0 flex items-center justify-center gap-3">
                       {v.isActive ? (
                         <button onClick={() => confirm(t("cars.confirmArchive")) && update(v.id, { isActive: false }).then(afterSave)} className="text-xs font-bold text-warn-ink">
                           {t("cars.archive")}

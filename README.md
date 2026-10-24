@@ -35,7 +35,9 @@ quick-start.
   (self-hosted, Arabic + Latin), and a hand-tuned dark mode.
 - **Car cards like Uber's** — every car shows as a card with a studio-style
   render in its real colour and body type (sedan, hatchback, SUV, MPV), the
-  plate, "Silver Chevrolet Optra · Automatic", and its profit, km and health.
+  plate, "Silver Chevrolet Optra · Automatic", the km driven since the car
+  was added to Makasib (from its first logged shift or fill-up), its
+  all-time profit and health — one full-width row per car.
   Colour is picked from swatches; the gearbox sits next to the model.
 - **Like-for-like car comparison** — your fuel economy and maintenance cost
   are compared with other drivers of the same model *and* gearbox once at

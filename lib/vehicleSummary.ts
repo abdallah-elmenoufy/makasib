@@ -7,6 +7,9 @@ export type VehicleSummary = {
   vehicle: Awaited<ReturnType<typeof prisma.vehicle.findFirstOrThrow>>;
   currentOdo: number;
   kmSinceRecord: number;
+  /** When Makasib's record of this car starts: the earlier of the car being
+   *  added and its first logged shift or fill-up (history can be imported later). */
+  trackedSince: string;
   currentValue: number | null;
   depreciationSoFar: number | null;
   trueProfit: number;
@@ -82,6 +85,13 @@ export async function getVehicleSummaries(): Promise<VehicleSummary[]> {
           prisma.expense.count({ where: { vehicleId: vehicle.id } }),
         ]),
       ]);
+      const [firstShift, firstFuel] = await Promise.all([
+        prisma.shift.findFirst({ where: { vehicleId: vehicle.id }, orderBy: { startTime: "asc" }, select: { startTime: true } }),
+        prisma.fuelUp.findFirst({ where: { vehicleId: vehicle.id }, orderBy: { date: "asc" }, select: { date: true } }),
+      ]);
+      const trackedSince = new Date(
+        Math.min(vehicle.createdAt.getTime(), firstShift?.startTime.getTime() ?? Infinity, firstFuel?.date.getTime() ?? Infinity)
+      ).toISOString();
 
       const currentValue = estimateCurrentValue(vehicle);
       const depreciationSoFar =
@@ -95,6 +105,7 @@ export async function getVehicleSummaries(): Promise<VehicleSummary[]> {
         vehicle,
         currentOdo,
         kmSinceRecord: Math.max(0, currentOdo - vehicle.initialOdometer),
+        trackedSince,
         currentValue,
         depreciationSoFar,
         trueProfit: analytics.trueProfit,
